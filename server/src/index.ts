@@ -1,7 +1,15 @@
-import 'dotenv/config';
+import './env';
 import express from 'express';
 import cors from 'cors';
-import './db'; // initializes the database (initDb runs on import)
+import helmet from 'helmet';
+import session from 'express-session';
+import rateLimit from 'express-rate-limit';
+import passport from 'passport';
+import SqliteStoreFactory from 'better-sqlite3-session-store';
+import { db } from './db';
+import { authConfig } from './services/auth';
+import { configurePassport } from './auth/passport';
+import { requireAuth, requireCsrf } from './middleware/auth';
 import vendorsRouter from './routes/vendors';
 import assessmentsRouter from './routes/assessments';
 import uploadRouter from './routes/upload';
@@ -10,11 +18,72 @@ import reviewRouter from './routes/review';
 import reportsRouter from './routes/reports';
 import auditRouter from './routes/audit';
 import demoRouter from './routes/demo';
+import authRouter from './routes/auth';
+
+const isProd = (process.env.NODE_ENV || 'development') === 'production';
+
+if (isProd && !process.env.AUTH_SECRET) {
+  throw new Error('AUTH_SECRET must be set in production.');
+}
+// Dev login bypasses real authentication, so it must never be enabled in prod.
+if (isProd && authConfig.devMode) {
+  throw new Error('AUTH_MODE=dev must not be used in production (dev login bypasses authentication).');
+}
+if (!process.env.AUTH_SECRET) {
+  console.warn('[vendor-risk-portal] AUTH_SECRET not set — using an insecure dev secret. Set AUTH_SECRET for any shared/prod use.');
+}
 
 const app = express();
-app.use(cors());
+app.set('trust proxy', 1);
+
+// Security headers. The SPA is hosted on a separate origin and reads this API via
+// fetch, so Cross-Origin-Resource-Policy must allow cross-origin (the helmet
+// default of `same-origin` would block the SPA → "Failed to fetch"). CORS below
+// still controls *who* may read responses.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+// CORS (credentialed). Production: only CLIENT_ORIGIN. Development: also accept any
+// localhost / 127.0.0.1 origin (any port) so the app works regardless of which
+// local host/port the SPA is opened on.
+const isLocalOrigin = (origin: string): boolean => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true); // same-origin, curl, server-to-server
+      if (origin === authConfig.clientOrigin) return cb(null, true);
+      if (authConfig.devMode && isLocalOrigin(origin)) return cb(null, true);
+      return cb(null, false);
+    },
+    credentials: true,
+  }),
+);
+
 app.use(express.json({ limit: '2mb' }));
 
+// Server-side sessions persisted in SQLite (reuses the app DB).
+const SqliteStore = SqliteStoreFactory(session);
+app.use(
+  session({
+    name: 'vrp.sid',
+    secret: authConfig.secret,
+    resave: false,
+    saveUninitialized: false,
+    store: new SqliteStore({ client: db, expired: { clear: true, intervalMs: 15 * 60 * 1000 } }),
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isProd,
+      maxAge: 8 * 60 * 60 * 1000, // 8h
+    },
+  }),
+);
+
+app.use(passport.initialize());
+configurePassport();
+
+// Generous limit across the whole API; stricter limits on the credential-
+// submitting auth endpoints are applied inside the auth router. Health is
+// registered first so it is not rate limited (probes).
 app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
@@ -22,7 +91,15 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// All feature routers mount under /api and declare their full sub-paths.
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 1000, standardHeaders: true, legacyHeaders: false });
+app.use('/api', apiLimiter);
+
+// Public auth endpoints (per-endpoint throttling for logins lives in the router).
+app.use('/api/auth', authRouter);
+
+// Everything else requires an authenticated session + CSRF token on mutations.
+app.use('/api', requireAuth, requireCsrf);
+
 app.use('/api', vendorsRouter);
 app.use('/api', assessmentsRouter);
 app.use('/api', uploadRouter);
@@ -38,6 +115,13 @@ app.use('/api', (_req, res) => {
 
 const PORT = Number(process.env.PORT) || 4100;
 app.listen(PORT, () => {
+  const p = [
+    process.env.GOOGLE_CLIENT_ID ? 'google' : null,
+    process.env.MICROSOFT_CLIENT_ID ? 'microsoft' : null,
+    authConfig.smtpConfigured ? 'email' : null,
+    authConfig.devMode ? 'dev-login' : null,
+  ].filter(Boolean);
   console.log(`[vendor-risk-portal] server listening on http://localhost:${PORT}`);
   console.log(`[vendor-risk-portal] AI engine: ${process.env.ANTHROPIC_API_KEY ? 'Claude (key detected)' : 'rule-based fallback'}`);
+  console.log(`[vendor-risk-portal] auth providers: ${p.length ? p.join(', ') : 'none configured'}`);
 });

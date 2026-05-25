@@ -9,3 +9,9 @@ logs/
 .DS_Store
 coverage/
 *.log
+
+# The repository-root .gitignore has a broad `lib/` rule (for build output) that
+# unintentionally matches this React source directory. Re-include it so the
+# client source is tracked.
+!client/src/lib/
+!client/src/lib/**

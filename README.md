@@ -118,12 +118,26 @@ The test suite includes the weighted-factor scoring, the Excel/CSV column
 extraction, and a regression test that runs all five demo scenarios through the
 rule engine and asserts their expected risk bands and signature findings.
 
-## Roles (lightweight, v1)
+## Authentication & access control
 
-There is no full authentication in v1. A role selector (Analyst / Admin /
-Viewer) in the header is sent as `X-Analyst` / `X-Role` headers; the server
-records the actor in the audit log and gates the approve action. Viewers are
-read-only.
+Sign-in is required for the whole app. Supported methods (each enabled only when
+configured):
+
+- **Google** and **Microsoft** SSO (OAuth/OIDC).
+- **Email magic link** (passwordless; needs SMTP — in dev the link is logged).
+- **Dev login** (offline) — enabled when `AUTH_MODE=dev` so the demo works with no
+  identity provider.
+
+Access policy (server-side, never trusted from the client):
+
+- Sign-in can be restricted to your org via `ALLOWED_EMAIL_DOMAINS`.
+- **Roles come from the server**: emails in `ADMIN_EMAILS` are Admins; everyone
+  else gets `DEFAULT_ROLE` (Analyst or Viewer). Viewers are read-only; only
+  Analyst/Admin can mutate and approve. The audit log records the authenticated
+  email as the actor.
+
+See `.env.example` for all variables and OAuth redirect URIs
+(`${PUBLIC_URL}/api/auth/{google,microsoft}/callback`).
 
 ## Project structure
 
@@ -136,15 +150,25 @@ vendor-risk-portal/
 
 ## Security notes
 
-- All SQL uses parameterized prepared statements.
-- Uploaded files are stored under `server/uploads/` (git-ignored) and the DB is
-  `server/vendor-risk.db` (git-ignored).
+- Authenticated, server-side sessions (HttpOnly + SameSite cookies; Secure in
+  production) stored in SQLite; session id is regenerated on login.
+- CSRF protection: state-changing requests require a per-session token header
+  (`x-csrf-token`); combined with locked-down CORS (to `CLIENT_ORIGIN`) and
+  SameSite cookies.
+- `helmet` security headers and rate limiting (stricter on `/api/auth`).
+- Roles are derived from the server user record — never from client headers.
+- All SQL uses parameterized prepared statements; uploads are validated by type
+  and stored under `server/uploads/` (git-ignored); the DB is git-ignored.
+- Secrets (`AUTH_SECRET`, OAuth client secrets, SMTP) come only from env;
+  `AUTH_SECRET` is required in production.
 - `xlsx` and `multer` carry known low-severity advisories; acceptable for this
-  internal v1 tool. Lock down / replace before handling untrusted public input.
+  internal tool. Lock down / replace before handling untrusted public input.
 
 ## v1 limitations (not yet implemented)
 
-- Real authentication / SSO and multi-tenant isolation.
+- Multi-tenant isolation, SCIM/directory provisioning, and an in-app MFA
+  enrollment UI (MFA is delegated to Google/Microsoft). (Authentication and SSO
+  are now implemented — see "Authentication & access control".)
 - OCR of image evidence (images are stored with dimensions but their text is not
   extracted) and parsing of legacy binary `.doc` files. PDF / Word (`.docx`) / CSV /
   Excel evidence **is** text-extracted on upload.

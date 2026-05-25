@@ -1,36 +1,59 @@
-import { getIdentity } from '../lib/role';
 import type {
   Assessment,
   AssessmentDetail,
   AnalyzeResult,
+  AuthProviders,
   AuditEntry,
   Finding,
   ReportData,
   RiskLevel,
   ScenarioSummary,
+  SessionUser,
 } from '../types';
 
-const BASE = '/api';
+// API base. By default the client uses a SAME-ORIGIN relative path (`/api`):
+//   - dev:  Vite proxies /api -> the server (no CORS/CORP; the session cookie still
+//           flows because cookies are not port-scoped on localhost).
+//   - prod: serve the SPA and API on the same origin.
+// Set VITE_API_URL only to point at a SEPARATE API origin (which then also requires
+// the server's CORS allow-list to include the SPA origin).
+const ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+export const API_BASE = `${ORIGIN}/api`;
 
-function authHeaders(): Record<string, string> {
-  const id = getIdentity();
-  return { 'X-Analyst': id.name, 'X-Role': id.role };
+/** Absolute URL to an auth endpoint (used for provider redirects / magic links). */
+export function authUrl(path: string): string {
+  return `${API_BASE}/auth/${path}`;
+}
+
+// CSRF token for state-changing requests; set by the auth layer after sign-in.
+let csrfToken: string | null = null;
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+// Called when the API reports the session is gone (401), so the app can redirect.
+let onUnauthorized: (() => void) | null = null;
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorized = handler;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { ...authHeaders(), ...(init.headers ?? {}) },
-  });
+  const method = (init.method ?? 'GET').toUpperCase();
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+  if (method !== 'GET' && method !== 'HEAD' && csrfToken) headers['x-csrf-token'] = csrfToken;
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, credentials: 'include', headers });
+  if (res.status === 401) {
+    onUnauthorized?.();
+    throw new Error('Your session has expired. Please sign in again.');
+  }
   let body: { success: boolean; data?: T; error?: string };
   try {
     body = await res.json();
   } catch {
     throw new Error(`Request failed (${res.status})`);
   }
-  if (!res.ok || !body.success) {
-    throw new Error(body.error || `Request failed (${res.status})`);
-  }
+  if (!res.ok || !body.success) throw new Error(body.error || `Request failed (${res.status})`);
   return body.data as T;
 }
 
@@ -57,8 +80,22 @@ export interface HealthInfo {
   aiEngineAvailable: boolean;
 }
 
+export interface SessionInfo {
+  user: SessionUser | null;
+  csrfToken: string | null;
+}
+
 export const api = {
   health: () => get<HealthInfo>('/health'),
+
+  // ---- Auth ----
+  getSession: () => get<SessionInfo>('/auth/session'),
+  getProviders: () => get<AuthProviders>('/auth/providers'),
+  devLogin: (email: string, role?: string, name?: string) =>
+    post<{ user: SessionUser; csrfToken: string }>('/auth/dev-login', { email, role, name }),
+  requestMagicLink: (email: string) => post<{ sent: boolean; devLink?: string }>('/auth/magic/request', { email }),
+  signOut: () => post<{ signedOut: boolean }>('/auth/signout'),
+
   listScenarios: () => get<ScenarioSummary[]>('/demo/scenarios'),
   loadScenario: (key: string) => post<Assessment>(`/demo/scenarios/${key}/load`),
 
@@ -67,15 +104,24 @@ export const api = {
     post<Assessment>('/assessments', input),
   getAssessment: (id: number) => get<AssessmentDetail>(`/assessments/${id}`),
 
-  uploadFiles: async (id: number, questionnaire: File, evidence: File[]): Promise<{ assessment: Assessment; items: AssessmentDetail['items']; evidence: AssessmentDetail['evidence'] }> => {
+  uploadFiles: async (
+    id: number,
+    questionnaire: File,
+    evidence: File[],
+  ): Promise<{ assessment: Assessment; items: AssessmentDetail['items']; evidence: AssessmentDetail['evidence'] }> => {
     const form = new FormData();
     form.append('questionnaire', questionnaire);
     for (const f of evidence) form.append('evidence', f);
-    const res = await fetch(`${BASE}/assessments/${id}/upload`, {
+    const res = await fetch(`${API_BASE}/assessments/${id}/upload`, {
       method: 'POST',
-      headers: authHeaders(),
+      credentials: 'include',
+      headers: csrfToken ? { 'x-csrf-token': csrfToken } : {},
       body: form,
     });
+    if (res.status === 401) {
+      onUnauthorized?.();
+      throw new Error('Your session has expired. Please sign in again.');
+    }
     const body = await res.json();
     if (!res.ok || !body.success) throw new Error(body.error || `Upload failed (${res.status})`);
     return body.data;
@@ -96,5 +142,5 @@ export const api = {
   getReport: (id: number) => get<ReportData>(`/assessments/${id}/report`),
   getAudit: (id: number) => get<AuditEntry[]>(`/assessments/${id}/audit`),
 
-  exportUrl: (id: number, format: 'csv' | 'xlsx') => `${BASE}/assessments/${id}/export.${format}`,
+  exportUrl: (id: number, format: 'csv' | 'xlsx') => `${API_BASE}/assessments/${id}/export.${format}`,
 };

@@ -1,32 +1,43 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import type { Role } from '../types';
-import { useRole } from '../lib/RoleContext';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/AuthContext';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
     isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'
   }`;
 
-function RoleSelector() {
-  const { identity, setName, setRole } = useRole();
+const ROLE_CLASSES: Record<string, string> = {
+  Admin: 'bg-brand-100 text-brand-800',
+  Analyst: 'bg-green-100 text-green-700',
+  Viewer: 'bg-slate-100 text-slate-600',
+};
+
+function UserMenu() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  if (!user) return null;
+
+  async function handleSignOut() {
+    await signOut();
+    navigate('/login', { replace: true });
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <input
-        aria-label="Analyst name"
-        className="w-36 rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
-        value={identity.name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <select
-        aria-label="Role"
-        className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25"
-        value={identity.role}
-        onChange={(e) => setRole(e.target.value as Role)}
+    <div className="flex items-center gap-3">
+      <div className="hidden text-right sm:block">
+        <div className="text-sm font-medium text-slate-800">{user.name || user.email}</div>
+        <div className="text-xs text-slate-400">{user.email}</div>
+      </div>
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_CLASSES[user.role] ?? 'bg-slate-100 text-slate-600'}`}>
+        {user.role}
+      </span>
+      <button
+        type="button"
+        onClick={handleSignOut}
+        className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
       >
-        <option value="Analyst">Analyst</option>
-        <option value="Admin">Admin</option>
-        <option value="Viewer">Viewer</option>
-      </select>
+        Sign out
+      </button>
     </div>
   );
 }
@@ -53,7 +64,7 @@ export function Layout() {
               </NavLink>
             </nav>
           </div>
-          <RoleSelector />
+          <UserMenu />
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6">

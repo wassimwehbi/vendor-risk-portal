@@ -1,8 +1,26 @@
 # API Contract
 
 Base path: `/api`. All responses use the envelope `{ success: boolean, data?: T, error?: string }`.
-All requests may include headers `X-Analyst: <name>` and `X-Role: Analyst|Admin|Viewer` (default `Analyst`).
-Viewers are read-only (mutating endpoints return `403`).
+
+**Authentication:** every endpoint except `/health` and `/auth/*` requires an authenticated
+session (cookie `vrp.sid`); unauthenticated requests return `401`. Requests must be made with
+credentials (cookies). **CSRF:** state-changing requests (POST/PATCH/...) must send the
+`x-csrf-token` header (value from `GET /auth/session`); otherwise `403`. **Roles** are derived
+server-side from the user record (not the client): Viewers are read-only (`403` on mutations);
+only Analyst/Admin can approve.
+
+### Auth endpoints (`/api/auth`, public)
+
+| Method | Path | Body / params | Returns |
+| ------ | ---- | ------------- | ------- |
+| GET  | `/auth/session` | — | `{ user: SessionUser \| null, csrfToken: string \| null }` |
+| GET  | `/auth/providers` | — | `{ google, microsoft, email, dev }` (which methods are enabled) |
+| GET  | `/auth/google` · `/auth/microsoft` | — | 302 redirect to the provider (if configured) |
+| GET  | `/auth/{google,microsoft}/callback` | OAuth params | 302 back to `CLIENT_ORIGIN` (sets session) |
+| POST | `/auth/magic/request` | `{ email }` | `{ sent: true, devLink? }` (generic; `devLink` only in dev) |
+| GET  | `/auth/magic/verify` | `?token=` | 302 back to `CLIENT_ORIGIN` (sets session) |
+| POST | `/auth/dev-login` | `{ email, role?, name? }` (only when `AUTH_MODE=dev`) | `{ user, csrfToken }` |
+| POST | `/auth/signout` | — | `{ signedOut: true }` |
 
 | Method | Path | Body / params | Returns |
 | ------ | ---- | ------------- | ------- |

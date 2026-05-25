@@ -17,6 +17,20 @@ export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
 export type Role = 'Analyst' | 'Admin' | 'Viewer';
 
+// Authenticated user (server session) + which sign-in methods are enabled.
+export interface SessionUser {
+  id: number;
+  email: string;
+  name: string | null;
+  role: Role;
+}
+export interface AuthProviders {
+  google: boolean;
+  microsoft: boolean;
+  email: boolean;
+  dev: boolean;
+}
+
 // Supported evidence-file kinds (validated + parsed on upload).
 export type EvidenceKind = 'pdf' | 'word' | 'excel' | 'csv' | 'image' | 'unknown';
 // Outcome of attempting to extract text/metadata from an evidence file.

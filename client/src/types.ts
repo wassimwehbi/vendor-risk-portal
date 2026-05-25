@@ -10,6 +10,19 @@ export type AssessmentStatus = 'uploaded' | 'extracted' | 'analyzed' | 'approved
 export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
 export type Role = 'Analyst' | 'Admin' | 'Viewer';
+
+export interface SessionUser {
+  id: number;
+  email: string;
+  name: string | null;
+  role: Role;
+}
+export interface AuthProviders {
+  google: boolean;
+  microsoft: boolean;
+  email: boolean;
+  dev: boolean;
+}
 export type EvidenceKind = 'pdf' | 'word' | 'excel' | 'csv' | 'image' | 'unknown';
 export type EvidenceParseStatus = 'extracted' | 'no_text' | 'empty' | 'unsupported' | 'error';
 

@@ -1,13 +1,16 @@
 import type { Request, Response } from 'express';
 import type { Role } from '../types';
 
+/**
+ * Derives the acting identity from the authenticated session. Roles come from
+ * the server-side user record — never from client-supplied headers. `requireAuth`
+ * runs before feature routes, so `req.session.user` is present in practice; the
+ * fallback is a safe, powerless default.
+ */
 export function getContext(req: Request): { actor: string; role: Role } {
-  const actor = (req.header('X-Analyst') || 'Analyst').toString().slice(0, 120);
-  const roleHeader = (req.header('X-Role') || 'Analyst').toString();
-  const role: Role = (['Analyst', 'Admin', 'Viewer'] as const).includes(roleHeader as Role)
-    ? (roleHeader as Role)
-    : 'Analyst';
-  return { actor, role };
+  const user = req.session?.user;
+  if (user) return { actor: user.email, role: user.role };
+  return { actor: 'system', role: 'Viewer' };
 }
 
 export function ok<T>(res: Response, data: T, status = 200): void {

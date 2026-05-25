@@ -107,11 +107,21 @@ export function initDb(): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      role TEXT NOT NULL DEFAULT 'Analyst',
+      created_at TEXT NOT NULL,
+      last_login TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_item ON findings(item_id);
     CREATE INDEX IF NOT EXISTS idx_evidence_assessment ON evidence_files(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_audit_assessment ON audit_log(assessment_id);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
   // --- Lightweight migrations for databases created before a column existed ---
