@@ -23,14 +23,9 @@ export function Dashboard() {
         title="Vendor risk assessments"
         subtitle="AI-assisted preliminary analysis of SIG questionnaires against ISO 27001, ISO 27002 and GDPR."
         actions={
-          <>
-            <Link to="/showcase" className="btn-secondary">
-              Demo Showcase
-            </Link>
-            <Link to="/assessments/new" className="btn-primary">
-              + New Assessment
-            </Link>
-          </>
+          <Link to="/assessments/new" className="btn-primary">
+            + New Assessment
+          </Link>
         }
       />
 
@@ -54,15 +49,11 @@ export function Dashboard() {
 
       {assessments && assessments.length === 0 && (
         <EmptyState title="No assessments yet">
-          Start with the{' '}
-          <Link to="/showcase" className="font-medium text-brand-700 hover:underline">
-            Demo Showcase
-          </Link>{' '}
-          or create a{' '}
+          Create a{' '}
           <Link to="/assessments/new" className="font-medium text-brand-700 hover:underline">
             new assessment
-          </Link>
-          .
+          </Link>{' '}
+          to get started, or try a sample from the Demo Showcase tab.
         </EmptyState>
       )}
 
