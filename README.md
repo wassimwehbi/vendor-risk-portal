@@ -152,13 +152,56 @@ production / shared deployment — it documents the required prod settings
 admin). OAuth redirect URIs are
 `${PUBLIC_URL}/api/auth/{google,microsoft}/callback`.
 
+## Deployment
+
+The portal deploys for **free** as a split static frontend + container backend.
+See `specs/0004-free-demo-deployment.md` for the full as-built design; the short
+version:
+
+- **Frontend → Cloudflare Pages.** Host `client/dist` as a static site. Build
+  command `npm --prefix client install && npm --prefix client run build`, output
+  `client/dist`. Set **`VITE_API_URL`** (build-time) to the backend origin so the
+  SPA calls the API; `client/public/_redirects` provides SPA routing. A custom
+  domain can be attached via CNAME (needed if a network blocks `*.pages.dev`).
+- **Backend → any container host** (e.g. a Render free Docker service). The root
+  **`Dockerfile`** builds the Node 22 server and bundles a **Litestream** sidecar.
+  Free hosts have ephemeral disk, so Litestream continuously replicates the SQLite
+  DB to S3-compatible object storage (e.g. Cloudflare R2) and restores it on boot
+  (`litestream.yml`, `docker-entrypoint.sh`); point **`VRP_DB_PATH`** at that DB.
+  Sessions live in the same DB, so logins also survive restarts.
+
+Because the SPA and API are on **different origins**, the session cookie is sent
+cross-site: in production it is `SameSite=None; Secure` (automatic when
+`NODE_ENV=production`), and **`CLIENT_ORIGIN` must exactly match the SPA origin
+(no trailing slash)** for CORS to allow the credentialed fetch.
+
+**Required production env vars**
+
+| Var | Purpose |
+| --- | --- |
+| `NODE_ENV=production` | Secure cross-site cookie; dev-login disabled. |
+| `AUTH_SECRET` | Session/token signing (server won't boot without it). |
+| `CLIENT_ORIGIN` | SPA origin — exact, no trailing slash. |
+| `PUBLIC_URL` | API public base (OAuth callback + invite links). |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google SSO. |
+| `ADMIN_EMAILS` | Global-admin email(s). |
+| `VRP_DB_PATH` | SQLite path on the Litestream-managed volume (e.g. `/data/vendor-risk.db`). |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | Litestream → R2. |
+| `ANTHROPIC_API_KEY` *(optional)* | Enables Claude analysis; omit for the rule engine. |
+
+Free container hosts idle out; a simple uptime pinger on `/api/health` keeps the
+service warm. See **`.env.example`** for the complete list (incl. Microsoft SSO and
+SMTP for magic-link / invite email).
+
 ## Project structure
 
 ```
 vendor-risk-portal/
   server/   Express API, SQLite, extraction, rule + Claude engines, scoring, scenarios, tests
-  client/   React + Vite + Tailwind UI (Dashboard, Demo Showcase, New Assessment,
-            Review Workspace, Report, Audit Trail)
+  client/   React + Vite + Tailwind UI (Dashboard, New Assessment, Review
+            Workspace, Report, Audit Trail, Admin)
+  specs/    Numbered design specs (0001 portal · 0002 enterprise · 0003 tenancy · 0004 deploy)
+  Dockerfile · litestream.yml · docker-entrypoint.sh   Backend container + SQLite→R2 replication
 ```
 
 ## Security notes
@@ -179,9 +222,10 @@ vendor-risk-portal/
 
 ## v1 limitations (not yet implemented)
 
-- Multi-tenant isolation, SCIM/directory provisioning, and an in-app MFA
-  enrollment UI (MFA is delegated to Google/Microsoft). (Authentication and SSO
-  are now implemented — see "Authentication & access control".)
+- SCIM / directory provisioning and an in-app MFA enrollment UI (MFA is delegated
+  to Google/Microsoft). (Authentication, SSO and **multi-tenant isolation** are now
+  implemented — see "Authentication & access control" and
+  `specs/0003-multi-tenancy-rbac.md`.)
 - OCR of image evidence (images are stored with dimensions but their text is not
   extracted) and parsing of legacy binary `.doc` files. PDF / Word (`.docx`) / CSV /
   Excel evidence **is** text-extracted on upload.
