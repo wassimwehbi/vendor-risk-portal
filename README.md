@@ -231,3 +231,12 @@ vendor-risk-portal/
   Excel evidence **is** text-extracted on upload.
 - Direct GRC-platform integration and a background job queue.
 - The AI never makes the final risk decision — this is enforced by design.
+
+## License
+
+**Proprietary — all rights reserved.** Copyright (c) 2026 Wassim Wehbi.
+
+This software is proprietary and confidential. No license is granted to use,
+copy, modify, or distribute it without prior written permission. See
+[`LICENSE`](./LICENSE) for the full terms. For licensing inquiries, contact
+wassim.wehbi@gmail.com.
