@@ -5,9 +5,9 @@ description: >-
   SIG → ISO 27001 / ISO 27002 / GDPR vendor-risk questionnaire analysis app.
   Use when the user wants to set up, install dependencies for, bootstrap, or
   start this app on their machine. Installs the Node/Express server and
-  React/Vite client, prepares the .env file, launches both dev servers
-  (API on :4100, client on :5173), and verifies they are up. Works fully
-  offline — no API keys or external services are required for local dev.
+  React/Vite client, launches both dev servers (API on :4100, client on
+  :5173), and verifies they are up. Works fully offline — no `.env`, API keys,
+  or external services are required for local dev.
 ---
 
 # Install & Run the Vendor Risk Portal locally
@@ -52,26 +52,32 @@ Check these before installing:
    node -v        # expect v22.18.0
    ```
 
-2. **Create `.env`** if it does not already exist. The defaults work for local
-   dev as-is, so only copy the template — do not overwrite an existing `.env`:
+2. **`.env` is optional — skip it for a fully offline run.** There is **no
+   `.env.example`** in this repo, and the server loads `.env` only if it exists
+   (`dotenv` silently ignores a missing file), so a fresh clone needs no `.env`
+   at all. The built-in defaults cover offline dev:
+
+   - `NODE_ENV=development` and `AUTH_MODE=dev` → passwordless Developer sign-in
+   - `AUTH_SECRET` falls back to a dev value (a one-line startup warning is
+     expected and harmless outside production)
+   - no `ANTHROPIC_API_KEY` → deterministic rule-based engine
+   - server `PORT` defaults to `4100`
+
+   Only create a `.env` (by hand, in the project root — it is git-ignored) when
+   you want an optional integration; see "Optional configuration" below.
+
+3. **Install dependencies** at the root, server, and client. The root has one
+   dependency, `concurrently` (used by `npm run dev`), and `install-all` does
+   **not** cover it — so install the root too:
 
    ```bash
-   [ -f .env ] || cp .env.example .env
+   npm install            # root: provides `concurrently`, required by `npm run dev`
+   npm run install-all    # npm --prefix server install && npm --prefix client install
    ```
 
-   Leave it untouched for a fully offline run. Optional keys are listed under
-   "Optional configuration" below.
-
-3. **Install dependencies** for both server and client:
-
-   ```bash
-   npm run install-all
-   ```
-
-   This runs `npm --prefix server install && npm --prefix client install`.
-   (No deps are installed at the repo root beyond `concurrently`, which
-   `npm run install-all` does not cover — run `npm install` at the root too if
-   `npm run dev` reports `concurrently` is missing.)
+   On a fresh clone the root `node_modules` does not exist, so skipping
+   `npm install` at the root makes `npm run dev` fail with
+   `concurrently: command not found`.
 
 4. **Start both servers** together:
 

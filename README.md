@@ -73,9 +73,14 @@ everything to a human analyst for review and approval.
 
 ```bash
 cd vendor-risk-portal
-cp .env.example .env       # optional: set ANTHROPIC_API_KEY to enable Claude
-npm run install-all
+npm install                # root: provides `concurrently` (used by `npm run dev`)
+npm run install-all        # installs the server and client deps
 ```
+
+No `.env` is needed for local dev — the app runs fully offline with built-in
+defaults. Create one in the project root (it is git-ignored) only to enable an
+optional integration, e.g. `ANTHROPIC_API_KEY` to use Claude instead of the
+rule-based engine; see the configuration notes below.
 
 ## Run
 
@@ -136,8 +141,9 @@ Access policy (server-side, never trusted from the client):
   Analyst/Admin can mutate and approve. The audit log records the authenticated
   email as the actor.
 
-See `.env.example` for all variables and OAuth redirect URIs
-(`${PUBLIC_URL}/api/auth/{google,microsoft}/callback`).
+All configuration is via environment variables, set in a project-root `.env`
+(git-ignored). OAuth redirect URIs are
+`${PUBLIC_URL}/api/auth/{google,microsoft}/callback`.
 
 ## Project structure
 
