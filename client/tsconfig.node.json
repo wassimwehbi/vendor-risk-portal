@@ -1,0 +1,10 @@
+{
+  "comment": "Unused: vite.config.ts is typechecked by the main tsconfig.json. Kept as a placeholder.",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": []
+}

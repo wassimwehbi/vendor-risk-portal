@@ -1,0 +1,22 @@
+{
+  "name": "vendor-risk-portal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI-Assisted Vendor Risk Questionnaire Analysis Tool (SIG -> ISO 27001 / ISO 27002 / GDPR)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "install-all": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

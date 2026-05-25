@@ -1,0 +1,13 @@
+Question ID,Question,Response,Response Type,Evidence,Evidence Location,Comments,Expiration Date
+C-1,Do you enforce MFA for all users?,MFA is enforced for administrators only,Partial,,,Rollout to all users planned,
+C-2,Is data encrypted at rest?,Yes. Data at rest is encrypted using AES-256,Yes,KMS configuration screenshot,Encryption standard p.3,,
+C-3,Is data encrypted in transit?,We encrypt sensitive data,Yes,,,,
+C-4,Do you have a documented incident response plan?,Yes we have an incident response policy,Yes,Incident response policy,IR policy,,
+C-5,Do you perform vulnerability scanning and penetration testing?,We use industry-standard security testing,FreeText,Security testing policy,Policy library,,
+C-6,Do you test disaster recovery?,No formal DR test has been performed,FreeText,,,,
+C-7,How long do you retain personal data?,We retain data as needed and delete it where appropriate,FreeText,,,,
+C-8,Provide your most recent SOC 2 report.,Yes a SOC 2 Type II report is available,Yes,SOC 2 Type II report,Audit reports,Report covers prior period,2024-09-30
+C-9,Do you maintain a list of subprocessors?,We use various third parties; a list is available upon request,FreeText,,,,
+C-10,What personal data do you process?,We process customer personal data including names and emails for EU customers,FreeText,Records of Processing Activities,RoPA,,
+C-11,Are you ISO 27001 certified?,Yes,Yes,ISO 27001 certificate,Certificate registry,,2027-05-31
+C-12,Do you encrypt and test backups?,Backups are taken nightly,Yes,Backup configuration screenshot,Backup standard,Restore testing in progress,

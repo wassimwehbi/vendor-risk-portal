@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-md border border-slate-200 bg-white shadow-card;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-600/30 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .input {
+    @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+}
+
+/* Print styles for the analyst report */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    @apply bg-white;
+  }
+  .card {
+    @apply border-slate-300 shadow-none;
+  }
+}
