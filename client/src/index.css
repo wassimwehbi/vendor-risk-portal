@@ -35,6 +35,19 @@
   }
 }
 
+/* Comfortable touch targets on phones — buttons are denser (py-1.5 ≈ 32px) on
+   desktop; bump to ~40px below the sm breakpoint without affecting larger screens.
+   Targets the variant classes that JSX actually uses (Tailwind inlines `@apply btn`
+   into each, so no element carries a bare `.btn` class). */
+@media (max-width: 639px) {
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    min-height: 2.5rem;
+  }
+}
+
 /* Print styles for the analyst report */
 @media print {
   .no-print {

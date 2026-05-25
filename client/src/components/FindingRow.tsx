@@ -195,7 +195,7 @@ export function FindingRow({
         <tr className="bg-slate-50/70">
           <td colSpan={8} className="px-4 py-4">
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 break-words text-sm">
                 <p><span className="font-medium text-slate-600">Question:</span> {item.question_text}</p>
                 {item.vendor_comments && <p><span className="font-medium text-slate-600">Vendor comments:</span> {item.vendor_comments}</p>}
                 <p><span className="font-medium text-slate-600">Evidence provided:</span> {item.evidence_text || '(none)'} {item.evidence_location ? `— ${item.evidence_location}` : ''}</p>
@@ -212,7 +212,7 @@ export function FindingRow({
                 <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Analyst override</p>
                   {err && <p role="alert" className="text-xs text-red-600">{err}</p>}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label htmlFor={`${fid}-domain`} className="label text-xs">Control area</label>
                       <input id={`${fid}-domain`} className="input" value={domain} onChange={(e) => setDomain(e.target.value)} />

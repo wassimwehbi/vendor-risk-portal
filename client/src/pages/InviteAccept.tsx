@@ -79,7 +79,7 @@ export function InviteAccept() {
             </div>
           </div>
 
-          <div className="card p-7">
+          <div className="card p-5 sm:p-7">
             {loading ? (
               <div className="flex justify-center py-4">
                 <Spinner label="Checking your invitation…" />
@@ -96,11 +96,11 @@ export function InviteAccept() {
               <div className="space-y-4">
                 <h2 className="text-base font-semibold text-slate-900">You&rsquo;re invited</h2>
                 <div role="status" className="rounded-lg bg-brand-50 px-3 py-3 text-sm text-brand-800">
-                  <p>
+                  <p className="break-words">
                     You&rsquo;ve been invited to <span className="font-semibold">{info.tenant_name}</span> as{' '}
                     <span className="font-semibold">{info.role}</span>.
                   </p>
-                  <p className="mt-1 text-brand-700">
+                  <p className="mt-1 break-words text-brand-700">
                     Signing in as <span className="font-medium">{info.email}</span>.
                   </p>
                 </div>
