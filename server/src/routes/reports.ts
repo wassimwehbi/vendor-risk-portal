@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { buildReport } from '../services/store';
 import { toCsv, toXlsx } from '../services/exporter';
-import { fail, ok, parseId } from './_helpers';
+import { fail, getScope, ok, parseId } from './_helpers';
 
 const router = Router();
 
@@ -12,7 +12,7 @@ function safeName(name: string): string {
 router.get('/assessments/:id/report', (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid assessment id');
-  const report = buildReport(id);
+  const report = buildReport(id, getScope(req));
   if (!report) return fail(res, 404, 'Assessment not found');
   ok(res, report);
 });
@@ -20,7 +20,7 @@ router.get('/assessments/:id/report', (req, res) => {
 router.get('/assessments/:id/export.csv', (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid assessment id');
-  const report = buildReport(id);
+  const report = buildReport(id, getScope(req));
   if (!report) return fail(res, 404, 'Assessment not found');
   const csv = toCsv(report);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -31,7 +31,7 @@ router.get('/assessments/:id/export.csv', (req, res) => {
 router.get('/assessments/:id/export.xlsx', (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid assessment id');
-  const report = buildReport(id);
+  const report = buildReport(id, getScope(req));
   if (!report) return fail(res, 404, 'Assessment not found');
   const buffer = toXlsx(report);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

@@ -15,14 +15,59 @@ export type AnalystStatus = 'pending' | 'accepted' | 'overridden';
 export type AssessmentStatus = 'uploaded' | 'extracted' | 'analyzed' | 'approved';
 export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
-export type Role = 'Analyst' | 'Admin' | 'Viewer';
+export type Role = 'Analyst' | 'Admin' | 'Viewer' | 'Submitter';
+// Roles that can be assigned per tenant. 'Admin' is a GLOBAL flag, never a membership role.
+export type MembershipRole = 'Analyst' | 'Viewer' | 'Submitter';
+
+// ---- Multi-tenancy ---------------------------------------------------------
+
+export interface Tenant {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+  member_count?: number;
+}
+
+// A user's role within a single tenant (powers the tenant switcher + scoping).
+export interface TenantMembership {
+  tenant_id: number;
+  tenant_name: string;
+  role: MembershipRole;
+}
 
 // Authenticated user (server session) + which sign-in methods are enabled.
+// Authorization is derived from `isAdmin` (global) and the membership role for
+// the `activeTenantId` — never from the client.
 export interface SessionUser {
   id: number;
   email: string;
   name: string | null;
-  role: Role;
+  role: Role; // legacy/global role; for non-admins the per-tenant role comes from memberships
+  isAdmin: boolean;
+  memberships: TenantMembership[];
+  activeTenantId: number | null; // null = admin "all tenants" mode, or an unprovisioned user
+}
+
+// A pending tenant invitation (token is never exposed in this view).
+export interface Invite {
+  id: number;
+  email: string;
+  tenant_id: number;
+  tenant_name: string;
+  role: MembershipRole;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+}
+
+// Admin user-management projection (used by the Admin page).
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string | null;
+  is_admin: boolean;
+  memberships: TenantMembership[];
 }
 export interface AuthProviders {
   google: boolean;
@@ -144,6 +189,8 @@ export interface Assessment {
   id: number;
   vendor_id: number;
   vendor_name: string;
+  tenant_id: number | null;
+  created_by: string | null;
   questionnaire_type: string;
   date_submitted: string;
   status: AssessmentStatus;
@@ -164,6 +211,7 @@ export interface Assessment {
 export interface AuditEntry {
   id: number;
   assessment_id: number;
+  tenant_id: number | null;
   action: string;
   actor: string;
   role: Role;

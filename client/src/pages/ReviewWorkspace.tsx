@@ -8,16 +8,16 @@ import { StatusChip, ValidationChip } from '../components/StatusChip';
 import { PreliminaryBanner } from '../components/PreliminaryBanner';
 import { FindingRow } from '../components/FindingRow';
 import { EvidencePanel } from '../components/EvidencePanel';
-import { DataCategoryChips, ErrorNote, FrameworkChips, PageHeader, Spinner } from '../components/ui';
+import { DataCategoryChips, EmptyState, ErrorNote, FrameworkChips, PageHeader, Spinner } from '../components/ui';
 import { formatDay } from '../lib/format';
-import { useRole } from '../lib/RoleContext';
+import { useAuth } from '../lib/AuthContext';
 
 const RISK_OPTIONS: RiskLevel[] = ['Low', 'Medium', 'High', 'Critical'];
 
 export function ReviewWorkspace() {
   const { id } = useParams();
   const assessmentId = Number(id);
-  const { canEdit, canApprove } = useRole();
+  const { canEdit, canApprove, isSubmitterScope } = useAuth();
 
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [error, setError] = useState('');
@@ -85,7 +85,14 @@ export function ReviewWorkspace() {
     }
   }
 
-  if (error && !detail) return <ErrorNote message={error} />;
+  if (error && !detail) {
+    return (
+      <EmptyState title="Assessment unavailable">
+        It may not exist, or you don’t have access to it.{' '}
+        <Link to="/" className="font-medium text-brand-700 hover:underline">Back to dashboard</Link>
+      </EmptyState>
+    );
+  }
   if (!detail) return <div className="card px-6 py-12"><Spinner /></div>;
 
   const { assessment, items, findings, evidence } = detail;
@@ -99,7 +106,7 @@ export function ReviewWorkspace() {
         subtitle={`${assessment.questionnaire_type} · submitted ${formatDay(assessment.date_submitted)}`}
         actions={
           <>
-            <Link to={`/assessments/${assessmentId}/audit`} className="btn-ghost">Audit trail</Link>
+            {!isSubmitterScope && <Link to={`/assessments/${assessmentId}/audit`} className="btn-ghost">Audit trail</Link>}
             {analyzed && <Link to={`/assessments/${assessmentId}/report`} className="btn-secondary">View report</Link>}
             {canEdit && (
               <button className="btn-primary" onClick={analyze} disabled={analyzing || items.length === 0}>
@@ -189,8 +196,8 @@ export function ReviewWorkspace() {
         </div>
       )}
 
-      {/* Analyst notes + approval */}
-      {analyzed && (
+      {/* Analyst notes + approval (analysts/admins only; submitters & viewers see a read-only outcome) */}
+      {analyzed && canEdit && (
         <div className="card space-y-3 p-5">
           <h3 className="text-sm font-semibold text-slate-800">Analyst decision</h3>
           <label htmlFor="analyst-notes" className="label">Analyst notes</label>

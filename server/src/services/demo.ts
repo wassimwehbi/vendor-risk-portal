@@ -1,5 +1,6 @@
-import type { Assessment, ScenarioSummary, Role } from '../types';
+import type { Assessment, ScenarioSummary } from '../types';
 import { SCENARIOS, getScenario } from '../data/scenarios/index';
+import type { AccessScope } from '../routes/_helpers';
 import { createAssessment, replaceItems } from './store';
 import { logAudit } from './audit';
 
@@ -16,10 +17,10 @@ export function listScenarios(): ScenarioSummary[] {
 
 /**
  * Creates a fresh assessment pre-populated with a demo scenario's vendor and
- * questionnaire items. Each call creates a new assessment so demos are repeatable.
- * The caller may then run analysis on the returned assessment.
+ * questionnaire items, in the caller's active tenant. Each call creates a new
+ * assessment so demos are repeatable. The caller may then run analysis.
  */
-export function loadScenario(key: string, actor: string, role: Role): Assessment | undefined {
+export function loadScenario(key: string, scope: AccessScope): Assessment | undefined {
   const scenario = getScenario(key);
   if (!scenario) return undefined;
 
@@ -29,15 +30,15 @@ export function loadScenario(key: string, actor: string, role: Role): Assessment
       questionnaire_type: scenario.questionnaire_type,
       date_submitted: new Date().toISOString().slice(0, 10),
     },
-    actor,
-    role,
+    scope,
   );
-  replaceItems(assessment.id, scenario.items, actor, role);
+  replaceItems(assessment.id, scenario.items, scope);
   logAudit({
     assessment_id: assessment.id,
+    tenant_id: scope.activeTenantId,
     action: 'demo_scenario_loaded',
-    actor,
-    role,
+    actor: scope.actor,
+    role: scope.effectiveRole,
     details: { scenario: key },
   });
   // Return the refreshed assessment (status now 'extracted').

@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import type { ReportData } from '../types';
 import { DATA_CATEGORY_LABELS, effectiveFinding } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
-import { DataCategoryChips, ErrorNote, FrameworkChips, Spinner } from '../components/ui';
+import { DataCategoryChips, EmptyState, FrameworkChips, Spinner } from '../components/ui';
 import { formatDate, formatDay } from '../lib/format';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -26,7 +26,14 @@ export function ReportView() {
     api.getReport(assessmentId).then(setReport).catch((e) => setError(e.message));
   }, [assessmentId]);
 
-  if (error) return <ErrorNote message={error} />;
+  if (error) {
+    return (
+      <EmptyState title="Report unavailable">
+        It may not exist, or you don’t have access to it.{' '}
+        <Link to="/" className="font-medium text-brand-700 hover:underline">Back to dashboard</Link>
+      </EmptyState>
+    );
+  }
   if (!report) return <div className="card px-6 py-12"><Spinner /></div>;
 
   return (

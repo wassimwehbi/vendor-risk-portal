@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { db, nowIso } from '../db';
-import type { AuthProviders, Role, SessionUser } from '../types';
+import type { AuthProviders, Role, SessionUser, TenantMembership } from '../types';
 
 /**
  * Authentication policy + user store.
@@ -78,7 +78,15 @@ export function resolveRole(email: string, existingRole?: Role): Role {
 export class AuthPolicyError extends Error {}
 
 function mapUser(row: any): SessionUser {
-  return { id: row.id, email: row.email, name: row.name ?? null, role: row.role };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name ?? null,
+    role: row.role,
+    isAdmin: !!row.is_admin,
+    memberships: [],
+    activeTenantId: null,
+  };
 }
 
 export function getUserByEmail(email: string): SessionUser | undefined {
@@ -86,9 +94,48 @@ export function getUserByEmail(email: string): SessionUser | undefined {
   return row ? mapUser(row) : undefined;
 }
 
+/** Live tenant memberships for a user (powers the session + tenant switcher). */
+export function getMembershipsForUser(userId: number): TenantMembership[] {
+  return db
+    .prepare(
+      `SELECT m.tenant_id, t.name AS tenant_name, m.role
+       FROM memberships m JOIN tenants t ON t.id = m.tenant_id
+       WHERE m.user_id = ? ORDER BY t.name`,
+    )
+    .all(userId) as TenantMembership[];
+}
+
+export function isUserAdmin(userId: number): boolean {
+  const row = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(userId) as { is_admin: number } | undefined;
+  return !!row?.is_admin;
+}
+
+/**
+ * Enriches a base user record into a full session user with live admin flag,
+ * memberships, and a resolved active tenant. The preferred active tenant is
+ * honoured when the user still has access to it; otherwise it falls back to the
+ * first membership (or null for admins / unprovisioned users).
+ */
+export function buildSessionUser(base: SessionUser, preferredActiveTenantId?: number | null): SessionUser {
+  const isAdmin = isUserAdmin(base.id);
+  const memberships = getMembershipsForUser(base.id);
+  const preferred = preferredActiveTenantId === undefined ? base.activeTenantId ?? null : preferredActiveTenantId;
+  let activeTenantId: number | null;
+  if (isAdmin) {
+    activeTenantId = preferred; // admin may stay in all-tenants mode (null) or pin a tenant
+  } else if (preferred != null && memberships.some((m) => m.tenant_id === preferred)) {
+    activeTenantId = preferred;
+  } else {
+    activeTenantId = memberships[0]?.tenant_id ?? null;
+  }
+  return { ...base, isAdmin, memberships, activeTenantId };
+}
+
 /**
  * Upserts a user at login time, enforcing the domain allow-list and (re)applying
  * the role policy. Throws AuthPolicyError if the email/domain is not permitted.
+ * Admin-listed emails get the global admin flag set. Returns the base user;
+ * callers wrap it with buildSessionUser to populate memberships/active tenant.
  */
 export function upsertUserOnLogin(input: { email: string; name?: string | null }): SessionUser {
   const email = normalizeEmail(input.email);
@@ -107,6 +154,15 @@ export function upsertUserOnLogin(input: { email: string; name?: string | null }
        role = excluded.role,
        last_login = excluded.last_login`,
   ).run({ email, name: input.name ?? null, role, now });
+
+  // Admin-listed emails are global admins (a tenant-independent flag). Note this
+  // only GRANTS admin on login; it never revokes — runtime revocation is owned by
+  // the Admin page (PATCH /admin/users/:id). So we only set when allow-listed and
+  // never clobber an Admin-page grant for OAuth/magic users. (Dev-login is the one
+  // exception: it explicitly resets the flag to match its chosen role.)
+  if (authConfig.adminEmails.includes(email)) {
+    db.prepare('UPDATE users SET is_admin = 1 WHERE email = ?').run(email);
+  }
 
   return getUserByEmail(email)!;
 }

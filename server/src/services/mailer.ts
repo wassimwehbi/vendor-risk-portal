@@ -1,6 +1,17 @@
 import nodemailer from 'nodemailer';
 import { authConfig } from './auth';
 
+function transport() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+  });
+}
+
+const FROM = process.env.EMAIL_FROM || 'no-reply@vendor-risk-portal.local';
+
 /**
  * Sends a magic-link sign-in email. When SMTP is not configured (e.g. local /
  * offline dev) the link is logged to the server console instead, so the flow
@@ -11,17 +22,29 @@ export async function sendMagicLink(email: string, url: string): Promise<void> {
     console.log(`[auth] (dev) magic sign-in link for ${email}: ${url}`);
     return;
   }
-  const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
-  });
-  await transport.sendMail({
-    from: process.env.EMAIL_FROM || 'no-reply@vendor-risk-portal.local',
+  await transport().sendMail({
+    from: FROM,
     to: email,
     subject: 'Your Vendor Risk Portal sign-in link',
     text: `Sign in to the Vendor Risk Portal:\n\n${url}\n\nThis link expires in 15 minutes. If you did not request it, ignore this email.`,
     html: `<p>Sign in to the Vendor Risk Portal:</p><p><a href="${url}">Sign in</a></p><p>This link expires in 15 minutes. If you did not request it, you can ignore this email.</p>`,
+  });
+}
+
+/**
+ * Sends a tenant invitation email with an accept link. Logged to the console
+ * when SMTP is not configured so the admin can still copy the link.
+ */
+export async function sendInvite(email: string, url: string, tenantName: string): Promise<void> {
+  if (!authConfig.smtpConfigured) {
+    console.log(`[admin] (dev) invite link for ${email} -> ${tenantName}: ${url}`);
+    return;
+  }
+  await transport().sendMail({
+    from: FROM,
+    to: email,
+    subject: `You've been invited to ${tenantName} on the Vendor Risk Portal`,
+    text: `You've been invited to join ${tenantName} on the Vendor Risk Portal.\n\nAccept your invitation:\n${url}\n\nThis link expires in 7 days.`,
+    html: `<p>You've been invited to join <strong>${tenantName}</strong> on the Vendor Risk Portal.</p><p><a href="${url}">Accept invitation</a></p><p>This link expires in 7 days.</p>`,
   });
 }

@@ -1,14 +1,18 @@
 import type {
+  AdminUser,
   Assessment,
   AssessmentDetail,
   AnalyzeResult,
   AuthProviders,
   AuditEntry,
   Finding,
+  Invite,
+  MembershipRole,
   ReportData,
   RiskLevel,
   ScenarioSummary,
   SessionUser,
+  Tenant,
 } from '../types';
 
 // API base. By default the client uses a SAME-ORIGIN relative path (`/api`):
@@ -74,6 +78,9 @@ function patch<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 }
+function del<T>(path: string): Promise<T> {
+  return request<T>(path, { method: 'DELETE' });
+}
 
 export interface HealthInfo {
   status: string;
@@ -91,10 +98,33 @@ export const api = {
   // ---- Auth ----
   getSession: () => get<SessionInfo>('/auth/session'),
   getProviders: () => get<AuthProviders>('/auth/providers'),
-  devLogin: (email: string, role?: string, name?: string) =>
-    post<{ user: SessionUser; csrfToken: string }>('/auth/dev-login', { email, role, name }),
+  devLogin: (email: string, role?: string, name?: string, tenant?: string) =>
+    post<{ user: SessionUser; csrfToken: string }>('/auth/dev-login', { email, role, name, tenant }),
   requestMagicLink: (email: string) => post<{ sent: boolean; devLink?: string }>('/auth/magic/request', { email }),
   signOut: () => post<{ signedOut: boolean }>('/auth/signout'),
+  // Invite acceptance: a non-mutating preview (GET) then an explicit action (POST),
+  // so unfurlers/prefetchers can't burn the single-use invite before the human confirms.
+  getInviteInfo: (token: string) =>
+    get<{ email: string; tenant_name: string; role: MembershipRole }>(`/auth/invite/info?token=${encodeURIComponent(token)}`),
+  acceptInvite: (token: string) => post<{ user: SessionUser; csrfToken: string }>('/auth/invite/accept', { token }),
+  // Switch the session's active tenant (null = admin "all tenants" mode).
+  switchTenant: (tenant_id: number | null) => post<SessionInfo>('/auth/active-tenant', { tenant_id }),
+
+  // ---- Admin (tenant + membership management) ----
+  listTenants: () => get<Tenant[]>('/admin/tenants'),
+  createTenant: (name: string) => post<Tenant>('/admin/tenants', { name }),
+  deleteTenant: (id: number) => del<{ deleted: boolean }>(`/admin/tenants/${id}`),
+  listAdminUsers: () => get<AdminUser[]>('/admin/users'),
+  setUserAdmin: (userId: number, is_admin: boolean) => patch<AdminUser>(`/admin/users/${userId}`, { is_admin }),
+  deleteUser: (userId: number) => del<{ deleted: boolean }>(`/admin/users/${userId}`),
+  assignMembership: (userId: number, tenantId: number, role: MembershipRole) =>
+    post<AdminUser>(`/admin/users/${userId}/memberships`, { tenantId, role }),
+  revokeMembership: (userId: number, tenantId: number) =>
+    del<AdminUser>(`/admin/users/${userId}/memberships/${tenantId}`),
+  listInvites: () => get<Invite[]>('/admin/invites'),
+  createInvite: (email: string, tenantId: number, role: MembershipRole) =>
+    post<{ invite: Invite; link: string; emailed: boolean; devLink?: string }>('/admin/invites', { email, tenantId, role }),
+  revokeInvite: (id: number) => del<{ revoked: boolean }>(`/admin/invites/${id}`),
 
   listScenarios: () => get<ScenarioSummary[]>('/demo/scenarios'),
   loadScenario: (key: string) => post<Assessment>(`/demo/scenarios/${key}/load`),
@@ -108,7 +138,7 @@ export const api = {
     id: number,
     questionnaire: File,
     evidence: File[],
-  ): Promise<{ assessment: Assessment; items: AssessmentDetail['items']; evidence: AssessmentDetail['evidence'] }> => {
+  ): Promise<{ assessment: Assessment; items: AssessmentDetail['items']; evidence: AssessmentDetail['evidence']; analysis: AnalyzeResult | null }> => {
     const form = new FormData();
     form.append('questionnaire', questionnaire);
     for (const f of evidence) form.append('evidence', f);

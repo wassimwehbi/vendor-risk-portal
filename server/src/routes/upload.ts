@@ -12,8 +12,10 @@ import {
 } from '../services/evidenceExtraction';
 import { addEvidenceFiles, getAssessment, replaceItems } from '../services/store';
 import type { NewEvidence } from '../services/store';
-import type { EvidenceFile } from '../types';
-import { fail, getContext, ok, parseId } from './_helpers';
+import { analyzeAssessment } from '../services/aiEngine';
+import type { AnalyzeResult, EvidenceFile } from '../types';
+import { fail, getScope, ok, parseId } from './_helpers';
+import { requireTenantRole } from '../middleware/tenant';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = join(__dirname, '..', '..', 'uploads');
@@ -52,7 +54,7 @@ function handleUpload(req: Request, res: Response, next: NextFunction): void {
 
 const router = Router();
 
-router.post('/assessments/:id/upload', handleUpload, async (req, res) => {
+router.post('/assessments/:id/upload', requireTenantRole('Analyst', 'Submitter'), handleUpload, async (req, res) => {
   const id = parseId(req.params.id);
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const questionnaire = files?.questionnaire?.[0];
@@ -68,19 +70,15 @@ router.post('/assessments/:id/upload', handleUpload, async (req, res) => {
     }
   };
 
+  const scope = getScope(req);
+
   if (id === null) {
     cleanup();
     return fail(res, 400, 'Invalid assessment id');
   }
-  if (!getAssessment(id)) {
+  if (!getAssessment(id, scope)) {
     cleanup();
     return fail(res, 404, 'Assessment not found');
-  }
-
-  const { actor, role } = getContext(req);
-  if (role === 'Viewer') {
-    cleanup();
-    return fail(res, 403, 'Viewers cannot upload');
   }
 
   if (!questionnaire) {
@@ -107,7 +105,7 @@ router.post('/assessments/:id/upload', handleUpload, async (req, res) => {
       cleanup();
       return fail(res, 422, 'No questionnaire rows could be extracted. Check the file columns (Question, Response, ...).');
     }
-    items = replaceItems(id, parsed, actor, role);
+    items = replaceItems(id, parsed, scope);
   } catch (err) {
     cleanup();
     return fail(res, 422, `Failed to parse questionnaire: ${(err as Error).message}`);
@@ -132,10 +130,21 @@ router.post('/assessments/:id/upload', handleUpload, async (req, res) => {
         };
       }),
     );
-    evidence = addEvidenceFiles(id, records, actor, role);
+    evidence = addEvidenceFiles(id, records, scope);
   }
 
-  ok(res, { assessment: getAssessment(id), items, evidence });
+  // Auto-analyze on submit so a (preliminary) outcome exists immediately — a
+  // submitter cannot run analysis manually, and an analyst can re-run it later.
+  // A failure here must not fail the upload: the assessment stays 'extracted'
+  // and analysis can be re-run.
+  let analysis: AnalyzeResult | null = null;
+  try {
+    analysis = await analyzeAssessment(id, scope);
+  } catch (err) {
+    console.warn(`[upload] auto-analyze failed for assessment ${id}:`, (err as Error).message);
+  }
+
+  ok(res, { assessment: getAssessment(id, scope), items, evidence, analysis });
 });
 
 export default router;

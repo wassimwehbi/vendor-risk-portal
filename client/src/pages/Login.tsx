@@ -40,6 +40,7 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [devEmail, setDevEmail] = useState('');
   const [devRole, setDevRole] = useState('Analyst');
+  const [devTenant, setDevTenant] = useState('');
   const [showDev, setShowDev] = useState(false);
   const [status, setStatus] = useState('');
   const [devLink, setDevLink] = useState('');
@@ -74,7 +75,7 @@ export function Login() {
     setBusy(true);
     setError('');
     try {
-      await api.devLogin(devEmail.trim(), devRole);
+      await api.devLogin(devEmail.trim(), devRole, undefined, devTenant.trim() || undefined);
       await refresh();
       navigate('/', { replace: true });
     } catch (err) {
@@ -184,7 +185,7 @@ export function Login() {
                     </button>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">Bypasses SSO for local development. Not available in production.</p>
-                  <form onSubmit={devLogin} className="mt-3 flex gap-2">
+                  <form onSubmit={devLogin} className="mt-3 space-y-2">
                     <input
                       type="email"
                       aria-label="Email for local developer session"
@@ -193,20 +194,34 @@ export function Login() {
                       value={devEmail}
                       onChange={(e) => setDevEmail(e.target.value)}
                     />
-                    <select
-                      aria-label="Role for local developer session"
-                      className="input w-28"
-                      value={devRole}
-                      onChange={(e) => setDevRole(e.target.value)}
-                    >
-                      <option>Analyst</option>
-                      <option>Admin</option>
-                      <option>Viewer</option>
-                    </select>
-                    <button type="submit" className="btn-secondary whitespace-nowrap" disabled={busy}>
+                    <div className="flex gap-2">
+                      <select
+                        aria-label="Role for local developer session"
+                        className="input w-32"
+                        value={devRole}
+                        onChange={(e) => setDevRole(e.target.value)}
+                      >
+                        <option>Analyst</option>
+                        <option>Admin</option>
+                        <option>Submitter</option>
+                        <option>Viewer</option>
+                      </select>
+                      <input
+                        aria-label="Tenant for local developer session"
+                        className="input flex-1"
+                        placeholder="Tenant (e.g. Acme)"
+                        value={devTenant}
+                        onChange={(e) => setDevTenant(e.target.value)}
+                        disabled={devRole === 'Admin'}
+                      />
+                    </div>
+                    <button type="submit" className="btn-secondary w-full whitespace-nowrap" disabled={busy}>
                       Sign in
                     </button>
                   </form>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Admin is global (no tenant). Other roles join the named tenant (default “Dev Tenant”).
+                  </p>
                 </div>
               )}
             </div>

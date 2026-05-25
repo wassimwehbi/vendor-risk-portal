@@ -6,16 +6,36 @@ import { RiskBadge } from '../components/RiskBadge';
 import { StatusChip, ValidationChip } from '../components/StatusChip';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '../components/ui';
 import { formatDay } from '../lib/format';
+import { useAuth } from '../lib/AuthContext';
 
 export function Dashboard() {
+  const { canSubmit, isAdmin, activeTenantId } = useAuth();
   const [assessments, setAssessments] = useState<Assessment[] | null>(null);
   const [health, setHealth] = useState<HealthInfo | null>(null);
+  const [tenantNames, setTenantNames] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
 
+  // Admin "all tenants" mode shows which tenant each assessment belongs to.
+  const showTenantCol = isAdmin && activeTenantId == null;
+
+  // Re-fetch whenever the active tenant changes (server scopes the results).
   useEffect(() => {
+    setAssessments(null);
+    setError('');
     api.listAssessments().then(setAssessments).catch((e) => setError(e.message));
+  }, [activeTenantId]);
+
+  useEffect(() => {
     api.health().then(setHealth).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!showTenantCol) return;
+    api
+      .listTenants()
+      .then((ts) => setTenantNames(Object.fromEntries(ts.map((t) => [t.id, t.name]))))
+      .catch(() => undefined);
+  }, [showTenantCol]);
 
   return (
     <div>
@@ -23,9 +43,11 @@ export function Dashboard() {
         title="Vendor risk assessments"
         subtitle="AI-assisted preliminary analysis of SIG questionnaires against ISO 27001, ISO 27002 and GDPR."
         actions={
-          <Link to="/assessments/new" className="btn-primary">
-            + New Assessment
-          </Link>
+          canSubmit ? (
+            <Link to="/assessments/new" className="btn-primary">
+              + New Assessment
+            </Link>
+          ) : undefined
         }
       />
 
@@ -49,11 +71,17 @@ export function Dashboard() {
 
       {assessments && assessments.length === 0 && (
         <EmptyState title="No assessments yet">
-          Create a{' '}
-          <Link to="/assessments/new" className="font-medium text-brand-700 hover:underline">
-            new assessment
-          </Link>{' '}
-          to get started, or try a sample from the Demo Showcase tab.
+          {canSubmit ? (
+            <>
+              Create a{' '}
+              <Link to="/assessments/new" className="font-medium text-brand-700 hover:underline">
+                new assessment
+              </Link>{' '}
+              to get started.
+            </>
+          ) : (
+            'There are no assessments to show here yet.'
+          )}
         </EmptyState>
       )}
 
@@ -64,6 +92,7 @@ export function Dashboard() {
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Vendor</th>
+                {showTenantCol && <th scope="col" className="px-4 py-3 font-medium">Tenant</th>}
                 <th scope="col" className="px-4 py-3 font-medium">Questionnaire</th>
                 <th scope="col" className="px-4 py-3 font-medium">Submitted</th>
                 <th scope="col" className="px-4 py-3 font-medium">Items</th>
@@ -77,6 +106,9 @@ export function Dashboard() {
               {assessments.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50/60">
                   <td className="px-4 py-3 font-medium text-slate-800">{a.vendor_name}</td>
+                  {showTenantCol && (
+                    <td className="px-4 py-3 text-slate-600">{a.tenant_id != null ? tenantNames[a.tenant_id] ?? `#${a.tenant_id}` : '—'}</td>
+                  )}
                   <td className="px-4 py-3 text-slate-600">{a.questionnaire_type}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDay(a.date_submitted)}</td>
                   <td className="px-4 py-3 text-slate-600">{a.item_count ?? 0}</td>

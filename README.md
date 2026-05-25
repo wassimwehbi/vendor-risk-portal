@@ -136,13 +136,20 @@ configured):
 Access policy (server-side, never trusted from the client):
 
 - Sign-in can be restricted to your org via `ALLOWED_EMAIL_DOMAINS`.
-- **Roles come from the server**: emails in `ADMIN_EMAILS` are Admins; everyone
-  else gets `DEFAULT_ROLE` (Analyst or Viewer). Viewers are read-only; only
-  Analyst/Admin can mutate and approve. The audit log records the authenticated
-  email as the actor.
+- **The portal is multi-tenant.** Emails listed in `ADMIN_EMAILS` become
+  **global admins** on first sign-in — they see every tenant and manage tenants,
+  users, memberships and invitations. Any other user who signs in has **no access
+  until an admin assigns them** to a tenant with a role: **Analyst** (analyze /
+  override / approve within their tenant), **Submitter** (submit and view
+  outcomes for their own submissions only), or **Viewer** (read-only). Admins
+  invite/assign via the **Admin** page (or an invite link). The audit log records
+  the authenticated email as the actor.
 
 All configuration is via environment variables, set in a project-root `.env`
-(git-ignored). OAuth redirect URIs are
+(git-ignored). Copy **`.env.example`** to `.env` and fill it in for a
+production / shared deployment — it documents the required prod settings
+(`AUTH_SECRET`, `CLIENT_ORIGIN`, `PUBLIC_URL`) and `ADMIN_EMAILS` (the global
+admin). OAuth redirect URIs are
 `${PUBLIC_URL}/api/auth/{google,microsoft}/callback`.
 
 ## Project structure

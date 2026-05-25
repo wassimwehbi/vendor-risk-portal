@@ -9,13 +9,51 @@ export type AnalystStatus = 'pending' | 'accepted' | 'overridden';
 export type AssessmentStatus = 'uploaded' | 'extracted' | 'analyzed' | 'approved';
 export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
-export type Role = 'Analyst' | 'Admin' | 'Viewer';
+export type Role = 'Analyst' | 'Admin' | 'Viewer' | 'Submitter';
+// Roles assignable per tenant. 'Admin' is a global flag, not a membership role.
+export type MembershipRole = 'Analyst' | 'Viewer' | 'Submitter';
+
+export interface Tenant {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+  member_count?: number;
+}
+
+export interface TenantMembership {
+  tenant_id: number;
+  tenant_name: string;
+  role: MembershipRole;
+}
 
 export interface SessionUser {
   id: number;
   email: string;
   name: string | null;
   role: Role;
+  isAdmin: boolean;
+  memberships: TenantMembership[];
+  activeTenantId: number | null;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string | null;
+  is_admin: boolean;
+  memberships: TenantMembership[];
+}
+
+export interface Invite {
+  id: number;
+  email: string;
+  tenant_id: number;
+  tenant_name: string;
+  role: MembershipRole;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
 }
 export interface AuthProviders {
   google: boolean;
@@ -118,6 +156,8 @@ export interface Assessment {
   id: number;
   vendor_id: number;
   vendor_name: string;
+  tenant_id: number | null;
+  created_by: string | null;
   questionnaire_type: string;
   date_submitted: string;
   status: AssessmentStatus;
@@ -138,6 +178,7 @@ export interface Assessment {
 export interface AuditEntry {
   id: number;
   assessment_id: number;
+  tenant_id: number | null;
   action: string;
   actor: string;
   role: Role;

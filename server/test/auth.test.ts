@@ -26,13 +26,15 @@ test('role policy: admin allow-list wins, otherwise default / existing role', ()
   assert.equal(auth.resolveRole('alice@acme.com', 'Viewer'), 'Viewer'); // existing kept
 });
 
-test('upsertUserOnLogin enforces domain and assigns role', () => {
+test('upsertUserOnLogin enforces domain and assigns role + admin flag', () => {
   const admin = auth.upsertUserOnLogin({ email: 'Boss@Acme.com', name: 'Boss' });
   assert.equal(admin.email, 'boss@acme.com'); // normalised
   assert.equal(admin.role, 'Admin');
+  assert.equal(admin.isAdmin, true); // admin-listed email -> global admin flag
 
   const analyst = auth.upsertUserOnLogin({ email: 'alice@acme.com' });
   assert.equal(analyst.role, 'Analyst');
+  assert.equal(analyst.isAdmin, false);
 
   assert.throws(() => auth.upsertUserOnLogin({ email: 'eve@evil.com' }), auth.AuthPolicyError);
   assert.throws(() => auth.upsertUserOnLogin({ email: 'garbage' }), auth.AuthPolicyError);

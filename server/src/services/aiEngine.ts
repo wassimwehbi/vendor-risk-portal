@@ -7,8 +7,8 @@ import type {
   Finding,
   ItemAnalysis,
   QuestionnaireItem,
-  Role,
 } from '../types';
+import type { AccessScope } from '../routes/_helpers';
 import { ruleEngine } from './ruleEngine';
 import { createClaudeProvider } from './claudeProvider';
 import { aggregateRisk, scoreItem } from './riskScoring';
@@ -36,11 +36,17 @@ function deriveFrameworks(categories: DataCategory[]): string[] {
  */
 export async function analyzeAssessment(
   assessmentId: number,
-  actor = 'system',
-  role: Role = 'Analyst',
+  scope: AccessScope,
 ): Promise<AnalyzeResult> {
-  const assessmentRow = db.prepare('SELECT * FROM assessments WHERE id = ?').get(assessmentId) as any;
+  // An admin in all-tenants mode can analyze any assessment; the tenant is
+  // derived from the assessment itself. Tenant-scoped users (and non-admins)
+  // keep a tenant-filtered fetch, so cross-tenant analyze is still "not found".
+  const adminAllTenants = scope.isAdmin && scope.activeTenantId == null;
+  const assessmentRow = adminAllTenants
+    ? (db.prepare('SELECT * FROM assessments WHERE id = ?').get(assessmentId) as any)
+    : (db.prepare('SELECT * FROM assessments WHERE id = ? AND tenant_id = ?').get(assessmentId, scope.activeTenantId) as any);
   if (!assessmentRow) throw new Error(`Assessment ${assessmentId} not found`);
+  const tenantId = assessmentRow.tenant_id as number;
 
   const itemRows = db.prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id').all(assessmentId);
   const items: QuestionnaireItem[] = itemRows.map(mapItem);
@@ -143,9 +149,10 @@ export async function analyzeAssessment(
 
   logAudit({
     assessment_id: assessmentId,
+    tenant_id: tenantId,
     action: 'ai_analysis',
-    actor,
-    role,
+    actor: scope.actor,
+    role: scope.effectiveRole,
     details: {
       engine: engineUsed,
       overall_risk,

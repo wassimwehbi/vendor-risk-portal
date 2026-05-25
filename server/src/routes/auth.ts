@@ -7,6 +7,7 @@ import {
   authConfig,
   providersEnabled,
   upsertUserOnLogin,
+  buildSessionUser,
   createMagicToken,
   verifyMagicToken,
   isAllowedDomain,
@@ -14,9 +15,12 @@ import {
   normalizeEmail,
   AuthPolicyError,
 } from '../services/auth';
+import { ensureTenant, setMembership, setUserAdmin } from '../services/tenantStore';
+import { findValidInvite, getInviteInfo, markInviteAccepted } from '../services/invites';
+import { db } from '../db';
 import { sendMagicLink } from '../services/mailer';
-import { ensureCsrf, loginUser, logoutUser } from '../middleware/auth';
-import type { Role, SessionUser } from '../types';
+import { ensureCsrf, loginUser, logoutUser, requireAuth, requireCsrf } from '../middleware/auth';
+import type { SessionUser } from '../types';
 import { fail, ok } from './_helpers';
 
 // Mounted at /api/auth — route paths here are relative to that.
@@ -29,8 +33,40 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHe
 // ---- Session + provider discovery -----------------------------------------
 
 router.get('/session', (req, res) => {
-  const user = req.session.user ?? null;
+  let user = req.session.user ?? null;
+  if (user) {
+    // Re-resolve admin flag + memberships live so the client reflects any
+    // admin-side changes without requiring a fresh login.
+    user = buildSessionUser(user);
+    req.session.user = user;
+  }
   ok(res, { user, csrfToken: user ? ensureCsrf(req) : null });
+});
+
+// Switch the session's active tenant (membership-verified; admins may pick any
+// tenant or null = all-tenants). Does NOT regenerate the session.
+const activeTenantSchema = z.object({ tenant_id: z.number().int().positive().nullable() });
+
+router.post('/active-tenant', requireAuth, requireCsrf, (req, res) => {
+  const user = req.session.user!;
+  const parsed = activeTenantSchema.safeParse(req.body);
+  if (!parsed.success) return fail(res, 400, 'tenant_id must be a positive integer or null');
+  const target = parsed.data.tenant_id;
+
+  if (!user.isAdmin) {
+    if (target === null) return fail(res, 400, 'A tenant must be selected');
+    const member = db.prepare('SELECT 1 FROM memberships WHERE user_id = ? AND tenant_id = ?').get(user.id, target);
+    if (!member) return fail(res, 403, 'You are not a member of that tenant');
+  } else if (target !== null) {
+    if (!db.prepare('SELECT 1 FROM tenants WHERE id = ?').get(target)) return fail(res, 404, 'Tenant not found');
+  }
+
+  const refreshed = buildSessionUser(user, target);
+  req.session.user = refreshed;
+  req.session.save((err) => {
+    if (err) return fail(res, 500, 'Failed to update active tenant');
+    ok(res, { user: refreshed, csrfToken: ensureCsrf(req) });
+  });
 });
 
 router.get('/providers', (_req, res) => {
@@ -65,7 +101,7 @@ function oauthCallback(strategy: 'google' | 'microsoft', req: Request, res: Resp
         return res.redirect(`${authConfig.clientOrigin}/login?error=${reason}`);
       }
       try {
-        await loginUser(req, user);
+        await loginUser(req, buildSessionUser(user));
         res.redirect(authConfig.clientOrigin);
       } catch {
         res.redirect(`${authConfig.clientOrigin}/login?error=session`);
@@ -104,7 +140,7 @@ router.get('/magic/verify', async (req, res) => {
   const email = verifyMagicToken(token);
   if (!email) return res.redirect(`${authConfig.clientOrigin}/login?error=${encodeURIComponent('Invalid or expired link')}`);
   try {
-    const user = upsertUserOnLogin({ email });
+    const user = buildSessionUser(upsertUserOnLogin({ email }));
     await loginUser(req, user);
     res.redirect(authConfig.clientOrigin);
   } catch (e) {
@@ -113,12 +149,50 @@ router.get('/magic/verify', async (req, res) => {
   }
 });
 
+// ---- Invitation accept ------------------------------------------------------
+
+// Acceptance is split into a non-mutating preview (GET) + an explicit action
+// (POST) so that link unfurlers / prefetchers / login-CSRF cannot silently burn
+// the single-use invite or create the membership before the human confirms.
+
+// Non-mutating preview of the invite — safe for unfurl/prefetch. Public; the
+// random token is the credential. Does NOT consume the invite.
+router.get('/invite/info', (req, res) => {
+  const token = String(req.query.token || '');
+  const info = getInviteInfo(token);
+  if (!info) return fail(res, 404, 'Invalid or expired invitation');
+  ok(res, info);
+});
+
+// Explicit acceptance. Provisions the membership (tenant + role), marks the
+// invite accepted, then signs the invitee in. Public like magic/dev-login (a
+// pre-session login endpoint, so no requireCsrf); returns JSON, not a redirect.
+const inviteAcceptSchema = z.object({ token: z.string().min(1) });
+
+router.post('/invite/accept', async (req, res) => {
+  const parsed = inviteAcceptSchema.safeParse(req.body);
+  if (!parsed.success) return fail(res, 400, 'token is required');
+  const grant = findValidInvite(parsed.data.token);
+  if (!grant) return fail(res, 410, 'Invalid or expired invitation');
+  try {
+    const base = upsertUserOnLogin({ email: grant.email });
+    setMembership(base.id, grant.tenant_id, grant.role);
+    markInviteAccepted(grant.id);
+    const user = buildSessionUser(base, grant.tenant_id);
+    await loginUser(req, user);
+    ok(res, { user, csrfToken: ensureCsrf(req) });
+  } catch (e) {
+    fail(res, 403, e instanceof AuthPolicyError ? e.message : 'Sign-in failed');
+  }
+});
+
 // ---- Dev / offline login (only when AUTH_MODE=dev) --------------------------
 
 const devSchema = z.object({
   email: z.string().min(3),
   name: z.string().optional(),
-  role: z.enum(['Analyst', 'Admin', 'Viewer']).optional(),
+  role: z.enum(['Analyst', 'Admin', 'Submitter', 'Viewer']).optional(),
+  tenant: z.string().optional(),
 });
 
 router.post('/dev-login', loginLimiter, async (req, res) => {
@@ -126,9 +200,21 @@ router.post('/dev-login', loginLimiter, async (req, res) => {
   const parsed = devSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, 'email is required');
   try {
-    const user = upsertUserOnLogin({ email: parsed.data.email, name: parsed.data.name });
-    // In dev, allow choosing a role to exercise RBAC (session-only override).
-    const sessionUser: SessionUser = parsed.data.role ? { ...user, role: parsed.data.role as Role } : user;
+    const base = upsertUserOnLogin({ email: parsed.data.email, name: parsed.data.name });
+    const chosenRole = parsed.data.role ?? 'Analyst';
+    // Make the global admin flag reflect the chosen role unconditionally, so a
+    // later dev-login as a non-Admin role RESETS it (otherwise a one-time Admin
+    // login would leave the user a permanent global admin).
+    setUserAdmin(base.id, chosenRole === 'Admin');
+    // Set up tenant context so the chosen role is consistent with resolveTenant:
+    // Admin -> global flag (no membership); others -> membership in a dev tenant.
+    let preferredTenant: number | null = null;
+    if (chosenRole !== 'Admin') {
+      const tenant = ensureTenant(parsed.data.tenant?.trim() || 'Dev Tenant');
+      setMembership(base.id, tenant.id, chosenRole as 'Analyst' | 'Submitter' | 'Viewer');
+      preferredTenant = tenant.id;
+    }
+    const sessionUser: SessionUser = buildSessionUser(base, preferredTenant);
     await loginUser(req, sessionUser);
     ok(res, { user: sessionUser, csrfToken: ensureCsrf(req) });
   } catch (e) {

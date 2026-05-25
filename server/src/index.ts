@@ -8,8 +8,10 @@ import passport from 'passport';
 import SqliteStoreFactory from 'better-sqlite3-session-store';
 import { db } from './db';
 import { authConfig } from './services/auth';
+import { bootstrapMultiTenancy } from './services/bootstrap';
 import { configurePassport } from './auth/passport';
 import { requireAuth, requireCsrf } from './middleware/auth';
+import { resolveTenant, requireAdmin } from './middleware/tenant';
 import vendorsRouter from './routes/vendors';
 import assessmentsRouter from './routes/assessments';
 import uploadRouter from './routes/upload';
@@ -19,6 +21,10 @@ import reportsRouter from './routes/reports';
 import auditRouter from './routes/audit';
 import demoRouter from './routes/demo';
 import authRouter from './routes/auth';
+import adminRouter from './routes/admin';
+
+// One-time, idempotent data backfill for the multi-tenancy migration.
+bootstrapMultiTenancy();
 
 const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
@@ -71,7 +77,12 @@ app.use(
     store: new SqliteStore({ client: db, expired: { clear: true, intervalMs: 15 * 60 * 1000 } }),
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
+      // In production the SPA (Pages) and API (Render) are on different origins,
+      // so the session cookie is cross-site: it must be SameSite=None (+Secure,
+      // which browsers require for None) or the browser drops it and the user
+      // appears logged out. Locally the SPA is same-origin via the Vite proxy,
+      // so Lax is correct (and avoids needing HTTPS in dev).
+      sameSite: isProd ? 'none' : 'lax',
       secure: isProd,
       maxAge: 8 * 60 * 60 * 1000, // 8h
     },
@@ -99,6 +110,12 @@ app.use('/api/auth', authRouter);
 
 // Everything else requires an authenticated session + CSRF token on mutations.
 app.use('/api', requireAuth, requireCsrf);
+// Resolve the per-request tenant scope (req.scope) from the session + live
+// memberships. 403s unprovisioned non-admins.
+app.use('/api', resolveTenant);
+
+// Admin-only tenant/user management.
+app.use('/api/admin', requireAdmin, adminRouter);
 
 app.use('/api', vendorsRouter);
 app.use('/api', assessmentsRouter);

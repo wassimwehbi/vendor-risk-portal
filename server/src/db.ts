@@ -116,12 +116,50 @@ export function initDb(): void {
       last_login TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS tenants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS memberships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      tenant_id INTEGER NOT NULL,
+      role TEXT NOT NULL DEFAULT 'Viewer',
+      created_at TEXT NOT NULL,
+      UNIQUE (user_id, tenant_id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    );
+
+    -- Tenant invitations. Only a SHA-256 hash of the token is stored; the raw
+    -- token lives only in the shared link. accepted_at marks single use.
+    CREATE TABLE IF NOT EXISTS invites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      tenant_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      invited_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      accepted_at TEXT,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_item ON findings(item_id);
     CREATE INDEX IF NOT EXISTS idx_evidence_assessment ON evidence_files(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_audit_assessment ON audit_log(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
+    CREATE INDEX IF NOT EXISTS idx_memberships_tenant ON memberships(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug);
+    CREATE INDEX IF NOT EXISTS idx_invites_token ON invites(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
   `);
 
   // --- Lightweight migrations for databases created before a column existed ---
@@ -130,6 +168,22 @@ export function initDb(): void {
   ensureColumn('evidence_files', 'extracted_chars', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('evidence_files', 'extracted_text', 'TEXT');
   ensureColumn('evidence_files', 'parse_note', 'TEXT');
+
+  // --- Multi-tenancy columns. Added NULLABLE because SQLite cannot add a NOT
+  // NULL column to a populated table; non-null is enforced in the app layer
+  // (store.ts always supplies tenant_id) after the startup backfill runs. ---
+  ensureColumn('users', 'is_admin', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('vendors', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
+  ensureColumn('assessments', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
+  ensureColumn('assessments', 'created_by', 'TEXT');
+  ensureColumn('audit_log', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_assessments_tenant ON assessments(tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_assessments_created_by ON assessments(created_by);
+    CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_log(tenant_id);
+  `);
 }
 
 /** Adds a column to a table if it does not already exist (SQLite has no IF NOT EXISTS for columns). */
@@ -162,6 +216,8 @@ export function mapAssessment(row: any): Assessment {
     id: row.id,
     vendor_id: row.vendor_id,
     vendor_name: row.vendor_name ?? '',
+    tenant_id: row.tenant_id ?? null,
+    created_by: row.created_by ?? null,
     questionnaire_type: row.questionnaire_type,
     date_submitted: row.date_submitted,
     status: row.status,
@@ -238,6 +294,7 @@ export function mapAudit(row: any): AuditEntry {
   return {
     id: row.id,
     assessment_id: row.assessment_id,
+    tenant_id: row.tenant_id ?? null,
     action: row.action,
     actor: row.actor,
     role: row.role,

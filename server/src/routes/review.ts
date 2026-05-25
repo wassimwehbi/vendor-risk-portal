@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { patchAssessment, patchFinding } from '../services/store';
-import { fail, getContext, ok, parseId } from './_helpers';
+import { fail, getScope, ok, parseId } from './_helpers';
+import { requireTenantRole } from '../middleware/tenant';
 
 const router = Router();
 
@@ -19,18 +20,21 @@ const findingSchema = z.object({
   analyst_status: z.enum(['pending', 'accepted', 'overridden']).optional(),
 });
 
-router.patch('/findings/:id', (req, res) => {
+// Reviewing/overriding findings and editing/approving assessments is Analyst (or
+// Admin) work. Submitters and Viewers are blocked by requireTenantRole.
+router.patch('/findings/:id', requireTenantRole('Analyst'), (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid finding id');
   const parsed = findingSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? 'Invalid request');
 
-  const { actor, role } = getContext(req);
-  if (role === 'Viewer') return fail(res, 403, 'Viewers cannot edit findings');
-
-  const updated = patchFinding(id, parsed.data, actor, role);
-  if (!updated) return fail(res, 404, 'Finding not found');
-  ok(res, updated);
+  try {
+    const updated = patchFinding(id, parsed.data, getScope(req));
+    if (!updated) return fail(res, 404, 'Finding not found');
+    ok(res, updated);
+  } catch (err) {
+    return fail(res, 400, (err as Error).message);
+  }
 });
 
 const assessmentSchema = z.object({
@@ -39,21 +43,19 @@ const assessmentSchema = z.object({
   validation_status: z.enum(['pending', 'approved']).optional(),
 });
 
-router.patch('/assessments/:id', (req, res) => {
+router.patch('/assessments/:id', requireTenantRole('Analyst'), (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid assessment id');
   const parsed = assessmentSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? 'Invalid request');
 
-  const { actor, role } = getContext(req);
-  if (role === 'Viewer') return fail(res, 403, 'Viewers cannot edit assessments');
-  if (parsed.data.validation_status === 'approved' && role !== 'Analyst' && role !== 'Admin') {
-    return fail(res, 403, 'Only an Analyst or Admin can approve an assessment');
+  try {
+    const updated = patchAssessment(id, parsed.data, getScope(req));
+    if (!updated) return fail(res, 404, 'Assessment not found');
+    ok(res, updated);
+  } catch (err) {
+    return fail(res, 400, (err as Error).message);
   }
-
-  const updated = patchAssessment(id, parsed.data, actor, role);
-  if (!updated) return fail(res, 404, 'Assessment not found');
-  ok(res, updated);
 });
 
 export default router;

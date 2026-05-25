@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { ErrorNote, PageHeader } from '../components/ui';
-import { useRole } from '../lib/RoleContext';
+import { useAuth } from '../lib/AuthContext';
 
 // Per-questionnaire-type sample templates (served statically from /public/samples).
 // Each is a blank fill-in template with the column structure the uploader expects.
@@ -21,7 +21,9 @@ const EVIDENCE_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.png,.jpg,.jpeg,.
 
 export function NewAssessment() {
   const navigate = useNavigate();
-  const { canEdit } = useRole();
+  const { canSubmit, isAdmin, activeTenantId } = useAuth();
+  // An admin in "all tenants" mode must pick a concrete tenant before creating.
+  const needsTenant = isAdmin && activeTenantId == null;
   const [vendorName, setVendorName] = useState('');
   const [type, setType] = useState('SIG Core');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -53,9 +55,14 @@ export function NewAssessment() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="New assessment" subtitle="Upload a completed SIG questionnaire and any supporting evidence." />
-      {!canEdit && (
+      {!canSubmit && (
         <div className="mb-4">
-          <ErrorNote message="The current role is Viewer. Switch to Analyst or Admin (top-right) to create an assessment." />
+          <ErrorNote message="Your role in this tenant cannot create assessments." />
+        </div>
+      )}
+      {canSubmit && needsTenant && (
+        <div className="mb-4">
+          <ErrorNote message="Select a tenant (top-right) to create an assessment in." />
         </div>
       )}
       <form onSubmit={submit} className="card flex flex-col gap-4 p-6">
@@ -117,8 +124,8 @@ export function NewAssessment() {
           <button type="button" className="btn-secondary" onClick={() => navigate('/')}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={!canEdit || busy}>
-            {busy ? 'Uploading…' : 'Upload & extract'}
+          <button type="submit" className="btn-primary" disabled={!canSubmit || needsTenant || busy}>
+            {busy ? 'Uploading…' : 'Upload & analyze'}
           </button>
         </div>
       </form>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { AuditEntry } from '../types';
-import { ErrorNote, PageHeader, Spinner } from '../components/ui';
+import { EmptyState, PageHeader, Spinner } from '../components/ui';
 import { formatDate } from '../lib/format';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -33,7 +33,12 @@ export function AuditTrail() {
         subtitle="Immutable record of uploads, AI analysis, analyst changes and final validation."
         actions={<Link to={`/assessments/${assessmentId}`} className="btn-ghost">← Back to review</Link>}
       />
-      {error && <ErrorNote message={error} />}
+      {error && (
+        <EmptyState title="Audit trail unavailable">
+          It may not exist, or you don’t have access to it.{' '}
+          <Link to="/" className="font-medium text-brand-700 hover:underline">Back to dashboard</Link>
+        </EmptyState>
+      )}
       {!entries && !error && <div className="card px-6 py-12"><Spinner /></div>}
       {entries && (
         <div className="card overflow-hidden">

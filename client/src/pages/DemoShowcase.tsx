@@ -5,14 +5,15 @@ import type { ScenarioSummary } from '../types';
 import { DATA_CATEGORY_LABELS } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
 import { DataCategoryChips, ErrorNote, PageHeader, Spinner } from '../components/ui';
-import { useRole } from '../lib/RoleContext';
+import { useAuth } from '../lib/AuthContext';
 
 export function DemoShowcase() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[] | null>(null);
   const [error, setError] = useState('');
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { canEdit } = useRole();
+  const { canEdit, isAdmin, activeTenantId } = useAuth();
+  const needsTenant = isAdmin && activeTenantId == null;
 
   useEffect(() => {
     api.listScenarios().then(setScenarios).catch((e) => setError(e.message));
@@ -39,7 +40,12 @@ export function DemoShowcase() {
       />
       {!canEdit && (
         <div className="mb-4">
-          <ErrorNote message="The current role is Viewer. Switch to Analyst or Admin (top-right) to load demo scenarios." />
+          <ErrorNote message="Your role in this tenant cannot load demo scenarios." />
+        </div>
+      )}
+      {canEdit && needsTenant && (
+        <div className="mb-4">
+          <ErrorNote message="Select a tenant (top-right) to load a demo scenario into." />
         </div>
       )}
       {error && (
@@ -73,7 +79,7 @@ export function DemoShowcase() {
               </div>
               <button
                 className="btn-primary mt-auto w-full"
-                disabled={!canEdit || busyKey !== null}
+                disabled={!canEdit || needsTenant || busyKey !== null}
                 onClick={() => runScenario(s.key)}
               >
                 {busyKey === s.key ? 'Analyzing…' : 'Load & Analyze'}

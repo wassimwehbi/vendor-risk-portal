@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { createAssessment, getAssessmentDetail, listAssessments } from '../services/store';
-import { fail, getContext, ok, parseId } from './_helpers';
+import { fail, getScope, ok, parseId } from './_helpers';
+import { requireTenantRole } from '../middleware/tenant';
 
 const router = Router();
 
-router.get('/assessments', (_req, res) => {
-  ok(res, listAssessments());
+router.get('/assessments', (req, res) => {
+  ok(res, listAssessments(getScope(req)));
 });
 
 const createSchema = z.object({
@@ -15,19 +16,22 @@ const createSchema = z.object({
   date_submitted: z.string().min(1),
 });
 
-router.post('/assessments', (req, res) => {
+router.post('/assessments', requireTenantRole('Analyst', 'Submitter'), (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? 'Invalid request');
-  const { actor, role } = getContext(req);
-  if (role === 'Viewer') return fail(res, 403, 'Viewers cannot create assessments');
-  const assessment = createAssessment(parsed.data, actor, role);
-  ok(res, assessment, 201);
+  try {
+    const assessment = createAssessment(parsed.data, getScope(req));
+    ok(res, assessment, 201);
+  } catch (err) {
+    // e.g. an admin in "all tenants" mode must select a tenant first.
+    return fail(res, 400, (err as Error).message);
+  }
 });
 
 router.get('/assessments/:id', (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid assessment id');
-  const detail = getAssessmentDetail(id);
+  const detail = getAssessmentDetail(id, getScope(req));
   if (!detail) return fail(res, 404, 'Assessment not found');
   ok(res, detail);
 });
