@@ -16,6 +16,9 @@ function sampleUrlFor(type: string): string {
   return SAMPLE_TEMPLATES[type] ?? SAMPLE_TEMPLATES['SIG Core'];
 }
 
+// Supported evidence file types (mirrors ALLOWED_EVIDENCE_ACCEPT on the server).
+const EVIDENCE_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.xlsm,.csv,.png,.jpg,.jpeg,.gif,.webp,.bmp,.tif,.tiff,.svg';
+
 export function NewAssessment() {
   const navigate = useNavigate();
   const { canEdit } = useRole();
@@ -98,9 +101,14 @@ export function NewAssessment() {
           <input
             type="file"
             multiple
+            accept={EVIDENCE_ACCEPT}
             className="input"
             onChange={(e) => setEvidence(Array.from(e.target.files ?? []))}
           />
+          <p className="mt-1 text-xs text-slate-500">
+            Supported: PDF, Word (.doc/.docx), CSV, Excel (.xls/.xlsx), images (PNG/JPG/GIF/WebP/BMP/TIFF). Text is
+            extracted from documents on upload (images are stored without OCR). Max 20 files, 25 MB each.
+          </p>
           {evidence.length > 0 && <p className="mt-1 text-xs text-slate-500">{evidence.length} evidence file(s) attached.</p>}
         </div>
         <div className="flex justify-end gap-2">

@@ -89,6 +89,11 @@ export function initDb(): void {
       mime_type TEXT NOT NULL,
       size INTEGER NOT NULL,
       uploaded_at TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'unknown',
+      parse_status TEXT NOT NULL DEFAULT 'no_text',
+      extracted_chars INTEGER NOT NULL DEFAULT 0,
+      extracted_text TEXT,
+      parse_note TEXT,
       FOREIGN KEY (assessment_id) REFERENCES assessments(id)
     );
 
@@ -108,6 +113,21 @@ export function initDb(): void {
     CREATE INDEX IF NOT EXISTS idx_evidence_assessment ON evidence_files(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_audit_assessment ON audit_log(assessment_id);
   `);
+
+  // --- Lightweight migrations for databases created before a column existed ---
+  ensureColumn('evidence_files', 'kind', "TEXT NOT NULL DEFAULT 'unknown'");
+  ensureColumn('evidence_files', 'parse_status', "TEXT NOT NULL DEFAULT 'no_text'");
+  ensureColumn('evidence_files', 'extracted_chars', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('evidence_files', 'extracted_text', 'TEXT');
+  ensureColumn('evidence_files', 'parse_note', 'TEXT');
+}
+
+/** Adds a column to a table if it does not already exist (SQLite has no IF NOT EXISTS for columns). */
+function ensureColumn(table: string, column: string, ddl: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
 }
 
 initDb();
@@ -196,6 +216,11 @@ export function mapEvidence(row: any): EvidenceFile {
     mime_type: row.mime_type,
     size: row.size,
     uploaded_at: row.uploaded_at,
+    kind: row.kind ?? 'unknown',
+    parse_status: row.parse_status ?? 'no_text',
+    extracted_chars: row.extracted_chars ?? 0,
+    extracted_text: row.extracted_text ?? null,
+    parse_note: row.parse_note ?? null,
   };
 }
 

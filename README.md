@@ -19,7 +19,9 @@ everything to a human analyst for review and approval.
 ## Highlights
 
 - **Document intake** — upload SIG questionnaires as `.xlsx` / `.xls` / `.csv`;
-  attach supporting evidence files (SOC 2, ISO certs, policies, screenshots).
+  attach supporting evidence files (SOC 2, ISO certs, policies, screenshots). Evidence
+  is type-checked (PDF, Word, CSV, Excel, image) and **parsed on upload** — text is
+  extracted from PDF / Word / CSV / Excel (images are stored with dimensions, not OCR'd).
   The original is preserved and a structured extraction layer is created.
 - **Response extraction** — Question ID, text, response, response type
   (Yes / No / Partial / N/A / Free text), evidence, evidence location, comments,
@@ -143,7 +145,8 @@ vendor-risk-portal/
 ## v1 limitations (not yet implemented)
 
 - Real authentication / SSO and multi-tenant isolation.
-- Deep text extraction from PDF / Word evidence (evidence is stored with
-  metadata, not parsed in v1).
+- OCR of image evidence (images are stored with dimensions but their text is not
+  extracted) and parsing of legacy binary `.doc` files. PDF / Word (`.docx`) / CSV /
+  Excel evidence **is** text-extracted on upload.
 - Direct GRC-platform integration and a background job queue.
 - The AI never makes the final risk decision — this is enforced by design.

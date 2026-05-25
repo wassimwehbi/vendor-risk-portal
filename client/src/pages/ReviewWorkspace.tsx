@@ -7,6 +7,7 @@ import { RiskBadge } from '../components/RiskBadge';
 import { StatusChip, ValidationChip } from '../components/StatusChip';
 import { PreliminaryBanner } from '../components/PreliminaryBanner';
 import { FindingRow } from '../components/FindingRow';
+import { EvidencePanel } from '../components/EvidencePanel';
 import { DataCategoryChips, ErrorNote, FrameworkChips, PageHeader, Spinner } from '../components/ui';
 import { formatDay } from '../lib/format';
 import { useRole } from '../lib/RoleContext';
@@ -87,7 +88,7 @@ export function ReviewWorkspace() {
   if (error && !detail) return <ErrorNote message={error} />;
   if (!detail) return <div className="card px-6 py-12"><Spinner /></div>;
 
-  const { assessment, items, findings } = detail;
+  const { assessment, items, findings, evidence } = detail;
   const findingsByItem = new Map(findings.map((f) => [f.item_id, f]));
   const analyzed = findings.length > 0;
 
@@ -149,6 +150,8 @@ export function ReviewWorkspace() {
           </div>
         </div>
       </div>
+
+      <EvidencePanel evidence={evidence} />
 
       {analyzed && <PreliminaryBanner />}
 

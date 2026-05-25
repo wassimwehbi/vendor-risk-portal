@@ -17,6 +17,16 @@ export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
 export type Role = 'Analyst' | 'Admin' | 'Viewer';
 
+// Supported evidence-file kinds (validated + parsed on upload).
+export type EvidenceKind = 'pdf' | 'word' | 'excel' | 'csv' | 'image' | 'unknown';
+// Outcome of attempting to extract text/metadata from an evidence file.
+//  extracted   -> text was pulled out
+//  no_text     -> file recognised but carries no machine-readable text (e.g. image)
+//  empty       -> parsed but produced no content
+//  unsupported -> recognised container but this variant can't be parsed (e.g. legacy .doc)
+//  error       -> parsing failed
+export type EvidenceParseStatus = 'extracted' | 'no_text' | 'empty' | 'unsupported' | 'error';
+
 export type DataCategory =
   | 'personal'
   | 'sensitive_personal'
@@ -108,6 +118,12 @@ export interface EvidenceFile {
   mime_type: string;
   size: number;
   uploaded_at: string;
+  // Parsing layer (added when the file is uploaded).
+  kind: EvidenceKind;
+  parse_status: EvidenceParseStatus;
+  extracted_chars: number;
+  extracted_text: string | null;
+  parse_note: string | null;
 }
 
 export interface Assessment {

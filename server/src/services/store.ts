@@ -13,6 +13,8 @@ import type {
   AssessmentDetail,
   AuditEntry,
   EvidenceFile,
+  EvidenceKind,
+  EvidenceParseStatus,
   Finding,
   FrameworkMapping,
   NewQuestionnaireItem,
@@ -122,21 +124,46 @@ export interface NewEvidence {
   stored_name: string;
   mime_type: string;
   size: number;
+  kind: EvidenceKind;
+  parse_status: EvidenceParseStatus;
+  extracted_chars: number;
+  extracted_text: string | null;
+  parse_note: string | null;
 }
 
 export function addEvidenceFiles(assessmentId: number, files: NewEvidence[], actor: string, role: Role): EvidenceFile[] {
   const insert = db.prepare(`
-    INSERT INTO evidence_files (assessment_id, original_name, stored_name, mime_type, size, uploaded_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO evidence_files
+      (assessment_id, original_name, stored_name, mime_type, size, uploaded_at,
+       kind, parse_status, extracted_chars, extracted_text, parse_note)
+    VALUES
+      (@assessment_id, @original_name, @stored_name, @mime_type, @size, @uploaded_at,
+       @kind, @parse_status, @extracted_chars, @extracted_text, @parse_note)
   `);
+  const ts = nowIso();
   const tx = db.transaction(() => {
     for (const f of files) {
-      insert.run(assessmentId, f.original_name, f.stored_name, f.mime_type, f.size, nowIso());
+      insert.run({ assessment_id: assessmentId, uploaded_at: ts, ...f });
     }
   });
   tx();
   if (files.length > 0) {
-    logAudit({ assessment_id: assessmentId, action: 'evidence_uploaded', actor, role, details: { files: files.map((f) => f.original_name) } });
+    logAudit({
+      assessment_id: assessmentId,
+      action: 'evidence_uploaded',
+      actor,
+      role,
+      details: {
+        files: files.map((f) => ({
+          name: f.original_name,
+          kind: f.kind,
+          parse_status: f.parse_status,
+          extracted_chars: f.extracted_chars,
+        })),
+        extracted: files.filter((f) => f.parse_status === 'extracted').length,
+        total: files.length,
+      },
+    });
   }
   return db.prepare('SELECT * FROM evidence_files WHERE assessment_id = ? ORDER BY id').all(assessmentId).map(mapEvidence);
 }

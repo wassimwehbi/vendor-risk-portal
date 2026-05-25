@@ -10,6 +10,8 @@ export type AssessmentStatus = 'uploaded' | 'extracted' | 'analyzed' | 'approved
 export type ValidationStatus = 'pending' | 'approved';
 export type AiEngine = 'claude' | 'rule';
 export type Role = 'Analyst' | 'Admin' | 'Viewer';
+export type EvidenceKind = 'pdf' | 'word' | 'excel' | 'csv' | 'image' | 'unknown';
+export type EvidenceParseStatus = 'extracted' | 'no_text' | 'empty' | 'unsupported' | 'error';
 
 export type DataCategory =
   | 'personal'
@@ -92,6 +94,11 @@ export interface EvidenceFile {
   mime_type: string;
   size: number;
   uploaded_at: string;
+  kind: EvidenceKind;
+  parse_status: EvidenceParseStatus;
+  extracted_chars: number;
+  extracted_text: string | null;
+  parse_note: string | null;
 }
 
 export interface Assessment {

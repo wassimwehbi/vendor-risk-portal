@@ -67,7 +67,7 @@ export const api = {
     post<Assessment>('/assessments', input),
   getAssessment: (id: number) => get<AssessmentDetail>(`/assessments/${id}`),
 
-  uploadFiles: async (id: number, questionnaire: File, evidence: File[]): Promise<{ assessment: Assessment; items: AssessmentDetail['items'] }> => {
+  uploadFiles: async (id: number, questionnaire: File, evidence: File[]): Promise<{ assessment: Assessment; items: AssessmentDetail['items']; evidence: AssessmentDetail['evidence'] }> => {
     const form = new FormData();
     form.append('questionnaire', questionnaire);
     for (const f of evidence) form.append('evidence', f);
