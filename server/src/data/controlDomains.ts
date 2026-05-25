@@ -26,7 +26,11 @@ export const CONTROL_DOMAINS: ControlDomain[] = [
   {
     id: 'enc_rest',
     name: 'Encryption at Rest',
-    keywords: ['at rest', 'data at rest', 'aes', 'aes-256', 'disk encryption', 'encrypted storage', 'tde', 'transparent data encryption', 'encryption at rest'],
+    // Generic encryption stems (encrypt/encryption/encrypted/cryptography) live
+    // here so a non-specific "How is data encrypted?" classifies as encryption
+    // (rather than Uncategorized); specific "in transit"/TLS phrasing still wins
+    // the Encryption in Transit domain via higher-weighted multi-word matches.
+    keywords: ['at rest', 'data at rest', 'aes', 'aes-256', 'disk encryption', 'encrypted storage', 'tde', 'transparent data encryption', 'encryption at rest', 'encryption', 'encrypt', 'encrypted', 'cryptography', 'cryptographic'],
   },
   {
     id: 'enc_transit',
@@ -71,7 +75,9 @@ export const CONTROL_DOMAINS: ControlDomain[] = [
   {
     id: 'privacy_gov',
     name: 'Data Privacy Governance',
-    keywords: ['privacy', 'data protection officer', 'dpo', 'privacy program', 'privacy governance', 'gdpr', 'records of processing', 'ropa', 'dpia'],
+    // "What personal data do you process?" and similar processing-scope questions
+    // belong here rather than in the Uncategorized catch-all.
+    keywords: ['privacy', 'data protection officer', 'dpo', 'privacy program', 'privacy governance', 'gdpr', 'records of processing', 'ropa', 'dpia', 'personal data', 'process personal data', 'processes personal data', 'personally identifiable information'],
   },
   {
     id: 'dsr',
