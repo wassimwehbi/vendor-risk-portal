@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { EvidenceFile, EvidenceKind, EvidenceParseStatus } from '../types';
 
 const KIND_LABEL: Record<EvidenceKind, string> = {
@@ -34,6 +34,7 @@ function formatBytes(n: number): string {
 
 function EvidenceItem({ ev }: { ev: EvidenceFile }) {
   const [open, setOpen] = useState(false);
+  const textId = useId();
   const hasText = Boolean(ev.extracted_text && ev.extracted_text.length > 0);
   return (
     <li className="py-3">
@@ -42,20 +43,27 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
           {KIND_LABEL[ev.kind]}
         </span>
         <span className="text-sm font-medium text-slate-800">{ev.original_name}</span>
-        <span className="text-xs text-slate-400">{formatBytes(ev.size)}</span>
+        <span className="text-xs text-slate-500">{formatBytes(ev.size)}</span>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_CLASSES[ev.parse_status]}`}>
           {STATUS_LABEL[ev.parse_status]}
           {ev.parse_status === 'extracted' && ev.extracted_chars > 0 ? ` · ${ev.extracted_chars.toLocaleString()} chars` : ''}
         </span>
         {hasText && (
-          <button type="button" className="text-xs font-medium text-brand-700 hover:underline" onClick={() => setOpen((o) => !o)}>
+          <button
+            type="button"
+            className="text-xs font-medium text-brand-700 hover:underline"
+            aria-expanded={open}
+            aria-controls={textId}
+            onClick={() => setOpen((o) => !o)}
+          >
             {open ? 'Hide extracted text' : 'Show extracted text'}
+            <span className="sr-only"> for {ev.original_name}</span>
           </button>
         )}
       </div>
       {ev.parse_note && <p className="mt-1 text-xs text-slate-500">{ev.parse_note}</p>}
       {open && hasText && (
-        <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700 ring-1 ring-inset ring-slate-200 whitespace-pre-wrap">
+        <pre id={textId} className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700 ring-1 ring-inset ring-slate-200 whitespace-pre-wrap">
           {ev.extracted_text}
         </pre>
       )}

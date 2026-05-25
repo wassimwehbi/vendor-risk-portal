@@ -10,7 +10,7 @@ import { formatDate, formatDay } from '../lib/format';
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
       <div className="mt-0.5 text-sm text-slate-800">{children}</div>
     </div>
   );
@@ -48,7 +48,7 @@ export function ReportView() {
           </div>
           <div className="text-right">
             <RiskBadge level={report.overall_risk} size="lg" />
-            <p className="mt-1 text-xs text-slate-400">Generated {formatDate(report.generated_at)}</p>
+            <p className="mt-1 text-xs text-slate-500">Generated {formatDate(report.generated_at)}</p>
           </div>
         </div>
 
@@ -78,14 +78,15 @@ export function ReportView() {
           <h2 className="mb-2 text-sm font-semibold text-slate-800">Control-by-control assessment</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <caption className="sr-only">Control-by-control assessment results</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Control area</th>
-                  <th className="px-3 py-2 font-medium">Vendor response</th>
-                  <th className="px-3 py-2 font-medium">Framework mapping</th>
-                  <th className="px-3 py-2 font-medium">AI finding</th>
-                  <th className="px-3 py-2 font-medium">Risk</th>
-                  <th className="px-3 py-2 font-medium">Follow-up</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Control area</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Vendor response</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Framework mapping</th>
+                  <th scope="col" className="px-3 py-2 font-medium">AI finding</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Risk</th>
+                  <th scope="col" className="px-3 py-2 font-medium">Follow-up</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 align-top">
@@ -113,7 +114,7 @@ export function ReportView() {
           <section>
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Missing / weak controls ({report.weak_or_missing.length})</h2>
             <ul className="ml-4 list-disc space-y-1 text-sm text-slate-600">
-              {report.weak_or_missing.length === 0 ? <li className="text-slate-400">None identified</li> : report.weak_or_missing.map((f) => (
+              {report.weak_or_missing.length === 0 ? <li className="text-slate-500">None identified</li> : report.weak_or_missing.map((f) => (
                 <li key={f.id}>{effectiveFinding(f).control_domain}: {f.ai_finding}</li>
               ))}
             </ul>
@@ -121,7 +122,7 @@ export function ReportView() {
           <section>
             <h2 className="mb-2 text-sm font-semibold text-slate-800">Evidence gaps ({report.evidence_gaps.length})</h2>
             <ul className="ml-4 list-disc space-y-1 text-sm text-slate-600">
-              {report.evidence_gaps.length === 0 ? <li className="text-slate-400">None identified</li> : report.evidence_gaps.map((f) => (
+              {report.evidence_gaps.length === 0 ? <li className="text-slate-500">None identified</li> : report.evidence_gaps.map((f) => (
                 <li key={f.id}>{effectiveFinding(f).control_domain}: {effectiveFinding(f).evidence_sufficiency}</li>
               ))}
             </ul>
@@ -131,13 +132,13 @@ export function ReportView() {
         <section>
           <h2 className="mb-2 text-sm font-semibold text-slate-800">Recommended follow-up questions ({report.follow_ups.length})</h2>
           <ul className="ml-4 list-decimal space-y-1 text-sm text-slate-600">
-            {report.follow_ups.length === 0 ? <li className="text-slate-400">None</li> : report.follow_ups.map((q, i) => <li key={i}>{q}</li>)}
+            {report.follow_ups.length === 0 ? <li className="text-slate-500">None</li> : report.follow_ups.map((q, i) => <li key={i}>{q}</li>)}
           </ul>
         </section>
 
         <section>
           <h2 className="mb-1 text-sm font-semibold text-slate-800">Analyst notes</h2>
-          <p className="whitespace-pre-wrap text-sm text-slate-600">{report.analyst_notes || <span className="text-slate-400">No notes added.</span>}</p>
+          <p className="whitespace-pre-wrap text-sm text-slate-600">{report.analyst_notes || <span className="text-slate-500">No notes added.</span>}</p>
         </section>
       </div>
     </div>

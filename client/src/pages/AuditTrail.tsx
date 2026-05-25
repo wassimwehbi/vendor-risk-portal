@@ -38,13 +38,14 @@ export function AuditTrail() {
       {entries && (
         <div className="card overflow-hidden">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <caption className="sr-only">Audit trail entries</caption>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3 font-medium">When</th>
-                <th className="px-4 py-3 font-medium">Action</th>
-                <th className="px-4 py-3 font-medium">Actor</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Details</th>
+                <th scope="col" className="px-4 py-3 font-medium">When</th>
+                <th scope="col" className="px-4 py-3 font-medium">Action</th>
+                <th scope="col" className="px-4 py-3 font-medium">Actor</th>
+                <th scope="col" className="px-4 py-3 font-medium">Role</th>
+                <th scope="col" className="px-4 py-3 font-medium">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 align-top">

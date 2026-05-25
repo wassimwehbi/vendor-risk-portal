@@ -88,7 +88,7 @@ export function Login() {
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <span className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white">VR</span>
+            <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white">VR</span>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">Vendor Risk Portal</h1>
               <p className="text-sm text-slate-500">AI-assisted vendor security &amp; privacy reviews</p>
@@ -102,7 +102,7 @@ export function Login() {
             <div className="mt-5 space-y-4">
               {error && <ErrorNote message={error} />}
               {status && (
-                <div className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
+                <div role="status" className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
                   <p>{status}</p>
                   {devLink && (
                     <a href={devLink} className="mt-1 block break-all font-medium underline">
@@ -171,7 +171,7 @@ export function Login() {
                 <button
                   type="button"
                   onClick={() => setShowDev(true)}
-                  className="text-xs font-medium text-slate-400 hover:text-slate-600"
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700"
                 >
                   Developer sign-in (local only)
                 </button>
@@ -179,7 +179,7 @@ export function Login() {
                 <div className="card p-4 text-left">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">Developer sign-in · local only</span>
-                    <button type="button" className="text-xs text-slate-400 hover:text-slate-600" onClick={() => setShowDev(false)}>
+                    <button type="button" className="text-xs text-slate-500 hover:text-slate-700" onClick={() => setShowDev(false)}>
                       Hide
                     </button>
                   </div>
@@ -187,12 +187,18 @@ export function Login() {
                   <form onSubmit={devLogin} className="mt-3 flex gap-2">
                     <input
                       type="email"
+                      aria-label="Email for local developer session"
                       className="input"
                       placeholder="you@company.com"
                       value={devEmail}
                       onChange={(e) => setDevEmail(e.target.value)}
                     />
-                    <select className="input w-28" value={devRole} onChange={(e) => setDevRole(e.target.value)}>
+                    <select
+                      aria-label="Role for local developer session"
+                      className="input w-28"
+                      value={devRole}
+                      onChange={(e) => setDevRole(e.target.value)}
+                    >
                       <option>Analyst</option>
                       <option>Admin</option>
                       <option>Viewer</option>

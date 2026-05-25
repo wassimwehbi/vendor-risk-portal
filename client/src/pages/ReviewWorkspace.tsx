@@ -115,11 +115,12 @@ export function ReviewWorkspace() {
       {/* Summary header */}
       <div className="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Preliminary overall risk</p>
+          <p id="overall-risk-label" className="text-xs uppercase tracking-wide text-slate-500">Preliminary overall risk</p>
           <div className="mt-1 flex items-center gap-2">
             <RiskBadge level={assessment.overall_risk} size="lg" />
             {canEdit && analyzed && (
               <select
+                aria-labelledby="overall-risk-label"
                 aria-label="Override overall risk"
                 className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
                 value={assessment.overall_risk ?? ''}
@@ -131,20 +132,20 @@ export function ReviewWorkspace() {
           </div>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Status</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
           <div className="mt-1 flex items-center gap-2">
             <StatusChip status={assessment.status} />
             <ValidationChip status={assessment.validation_status} />
           </div>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Data processed</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Data processed</p>
           <div className="mt-1">
             <DataCategoryChips categories={assessment.data_categories} labels={DATA_CATEGORY_LABELS} />
           </div>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">Applicable frameworks</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Applicable frameworks</p>
           <div className="mt-1">
             <FrameworkChips frameworks={assessment.applicable_frameworks.length ? assessment.applicable_frameworks : ['ISO 27001', 'ISO 27002']} />
           </div>
@@ -164,16 +165,17 @@ export function ReviewWorkspace() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200">
+            <caption className="sr-only">Control-by-control AI analysis with analyst review actions</caption>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-3 py-3 font-medium">Control area</th>
-                <th className="px-3 py-3 font-medium">Vendor response</th>
-                <th className="px-3 py-3 font-medium">Framework mapping</th>
-                <th className="px-3 py-3 font-medium">AI finding</th>
-                <th className="px-3 py-3 font-medium">Evidence</th>
-                <th className="px-3 py-3 font-medium">Risk</th>
-                <th className="px-3 py-3 font-medium">Analyst</th>
-                <th className="px-3 py-3" />
+                <th scope="col" className="px-3 py-3 font-medium">Control area</th>
+                <th scope="col" className="px-3 py-3 font-medium">Vendor response</th>
+                <th scope="col" className="px-3 py-3 font-medium">Framework mapping</th>
+                <th scope="col" className="px-3 py-3 font-medium">AI finding</th>
+                <th scope="col" className="px-3 py-3 font-medium">Evidence</th>
+                <th scope="col" className="px-3 py-3 font-medium">Risk</th>
+                <th scope="col" className="px-3 py-3 font-medium">Analyst</th>
+                <th scope="col" className="px-3 py-3"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -191,7 +193,9 @@ export function ReviewWorkspace() {
       {analyzed && (
         <div className="card space-y-3 p-5">
           <h3 className="text-sm font-semibold text-slate-800">Analyst decision</h3>
+          <label htmlFor="analyst-notes" className="label">Analyst notes</label>
           <textarea
+            id="analyst-notes"
             className="input h-24"
             placeholder="Add business context, rationale, and your recommendation…"
             value={notes}

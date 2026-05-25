@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-slate-500">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
+    <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-slate-500">
+      <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
       {label ?? 'Loading…'}
     </div>
   );
@@ -11,7 +11,7 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorNote({ message }: { message: string }) {
   return (
-    <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{message}</div>
+    <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{message}</div>
   );
 }
 
@@ -37,7 +37,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 }
 
 export function DataCategoryChips({ categories, labels }: { categories: string[]; labels: Record<string, string> }) {
-  if (categories.length === 0) return <span className="text-sm text-slate-400">None detected</span>;
+  if (categories.length === 0) return <span className="text-sm text-slate-500">None detected</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {categories.map((c) => (
@@ -50,7 +50,7 @@ export function DataCategoryChips({ categories, labels }: { categories: string[]
 }
 
 export function FrameworkChips({ frameworks }: { frameworks: string[] }) {
-  if (frameworks.length === 0) return <span className="text-sm text-slate-400">—</span>;
+  if (frameworks.length === 0) return <span className="text-sm text-slate-500">—</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {frameworks.map((f) => (

@@ -61,13 +61,13 @@ export function NewAssessment() {
       <form onSubmit={submit} className="card flex flex-col gap-4 p-6">
         {error && <ErrorNote message={error} />}
         <div>
-          <label className="label">Vendor name</label>
-          <input className="input" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="Acme Corp" />
+          <label htmlFor="na-vendor" className="label">Vendor name</label>
+          <input id="na-vendor" className="input" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="Acme Corp" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Questionnaire type</label>
-            <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+            <label htmlFor="na-type" className="label">Questionnaire type</label>
+            <select id="na-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
               <option>SIG Core</option>
               <option>SIG Lite</option>
               <option>SIG Full</option>
@@ -75,13 +75,14 @@ export function NewAssessment() {
             </select>
           </div>
           <div>
-            <label className="label">Date submitted</label>
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+            <label htmlFor="na-date" className="label">Date submitted</label>
+            <input id="na-date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
         </div>
         <div>
-          <label className="label">SIG questionnaire (.xlsx, .xls, .csv)</label>
+          <label htmlFor="na-questionnaire" className="label">SIG questionnaire (.xlsx, .xls, .csv)</label>
           <input
+            id="na-questionnaire"
             type="file"
             accept=".xlsx,.xls,.csv"
             className="input"
@@ -93,12 +94,13 @@ export function NewAssessment() {
               Download a {sampleLabel}
             </a>{' '}
             template and complete the response columns.
-            {isCustom && <span className="text-slate-400"> (based on SIG Core)</span>}
+            {isCustom && <span className="text-slate-500"> (based on SIG Core)</span>}
           </p>
         </div>
         <div>
-          <label className="label">Evidence files (optional — SOC 2, ISO cert, policies, screenshots)</label>
+          <label htmlFor="na-evidence" className="label">Evidence files (optional — SOC 2, ISO cert, policies, screenshots)</label>
           <input
+            id="na-evidence"
             type="file"
             multiple
             accept={EVIDENCE_ACCEPT}

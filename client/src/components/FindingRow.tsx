@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { EvidenceSufficiency, Finding, FrameworkMapping, QuestionnaireItem, RiskLevel } from '../types';
 import { effectiveFinding } from '../types';
 import { api } from '../api/client';
@@ -55,6 +55,9 @@ export function FindingRow({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+
+  // Unique field ids so labels associate correctly across many rendered rows.
+  const fid = useId();
 
   // edit form state
   const [domain, setDomain] = useState(eff.control_domain);
@@ -116,21 +119,27 @@ export function FindingRow({
     <>
       <tr className="align-top hover:bg-slate-50/60">
         <td className="px-3 py-3">
-          <button onClick={() => setOpen((o) => !o)} className="text-left">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-left"
+            aria-expanded={open}
+            aria-label={`${open ? 'Hide' : 'Show'} details for ${eff.control_domain} (${item.question_id})`}
+          >
             <span className="font-medium text-slate-800">{eff.control_domain}</span>
-            <span className="ml-1 text-slate-400">{open ? '▾' : '▸'}</span>
-            <div className="text-xs text-slate-400">{item.question_id}</div>
+            <span aria-hidden="true" className="ml-1 text-slate-400">{open ? '▾' : '▸'}</span>
+            <span className="block text-xs text-slate-500">{item.question_id}</span>
           </button>
         </td>
         <td className="px-3 py-3">
           <span className={`mb-1 inline-flex rounded px-1.5 py-0.5 text-[11px] font-medium ${RESPONSE_TYPE_CLASSES[item.response_type] ?? 'bg-slate-100'}`}>
             {item.response_type}
           </span>
-          <p className="line-clamp-2 max-w-[18rem] text-sm text-slate-700">{item.response || <span className="italic text-slate-400">(blank)</span>}</p>
+          <p className="line-clamp-2 max-w-[18rem] text-sm text-slate-700">{item.response || <span className="italic text-slate-500">(blank)</span>}</p>
         </td>
         <td className="px-3 py-3 text-xs text-slate-600">
           {eff.framework_mappings.length === 0 ? (
-            <span className="text-slate-400">—</span>
+            <span className="text-slate-500">—</span>
           ) : (
             <ul className="space-y-0.5">
               {eff.framework_mappings.map((m) => (
@@ -143,7 +152,7 @@ export function FindingRow({
         </td>
         <td className="px-3 py-3 text-sm text-slate-700">
           <p className="max-w-[16rem]">{finding.ai_finding}</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             strength <span className={STRENGTH_CLASSES[finding.control_strength]}>{finding.control_strength}</span> · {finding.completeness}
           </p>
         </td>
@@ -159,12 +168,23 @@ export function FindingRow({
         <td className="px-3 py-3 text-right">
           {canEdit && (
             <div className="flex flex-col items-end gap-1">
-              <button className="text-xs font-medium text-brand-600 hover:underline" onClick={() => { setOpen(true); setEditing((e) => !e); }}>
+              <button
+                type="button"
+                className="text-xs font-medium text-brand-700 hover:underline"
+                aria-expanded={editing}
+                onClick={() => { setOpen(true); setEditing((e) => !e); }}
+              >
                 {editing ? 'Close' : 'Override'}
+                <span className="sr-only"> {eff.control_domain} finding</span>
               </button>
               {finding.analyst_status !== 'accepted' && (
-                <button className="text-xs font-medium text-green-600 hover:underline" onClick={accept} disabled={busy}>
-                  Accept AI
+                <button
+                  type="button"
+                  className="text-xs font-medium text-green-700 hover:underline"
+                  onClick={accept}
+                  disabled={busy}
+                >
+                  Accept AI<span className="sr-only"> finding for {eff.control_domain}</span>
                 </button>
               )}
             </div>
@@ -184,42 +204,42 @@ export function FindingRow({
                 <div>
                   <p className="font-medium text-slate-600">Follow-up questions:</p>
                   <ul className="ml-4 list-disc text-slate-600">
-                    {eff.follow_up_questions.length === 0 ? <li className="text-slate-400">None</li> : eff.follow_up_questions.map((q, i) => <li key={i}>{q}</li>)}
+                    {eff.follow_up_questions.length === 0 ? <li className="text-slate-500">None</li> : eff.follow_up_questions.map((q, i) => <li key={i}>{q}</li>)}
                   </ul>
                 </div>
               </div>
               {editing && canEdit && (
                 <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Analyst override</p>
-                  {err && <p className="text-xs text-red-600">{err}</p>}
+                  {err && <p role="alert" className="text-xs text-red-600">{err}</p>}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label text-xs">Control area</label>
-                      <input className="input" value={domain} onChange={(e) => setDomain(e.target.value)} />
+                      <label htmlFor={`${fid}-domain`} className="label text-xs">Control area</label>
+                      <input id={`${fid}-domain`} className="input" value={domain} onChange={(e) => setDomain(e.target.value)} />
                     </div>
                     <div>
-                      <label className="label text-xs">Risk level</label>
-                      <select className="input" value={risk} onChange={(e) => setRisk(e.target.value as RiskLevel)}>
+                      <label htmlFor={`${fid}-risk`} className="label text-xs">Risk level</label>
+                      <select id={`${fid}-risk`} className="input" value={risk} onChange={(e) => setRisk(e.target.value as RiskLevel)}>
                         {RISK_OPTIONS.map((r) => <option key={r}>{r}</option>)}
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label className="label text-xs">Evidence sufficiency</label>
-                    <select className="input" value={evidence} onChange={(e) => setEvidence(e.target.value as EvidenceSufficiency)}>
+                    <label htmlFor={`${fid}-evidence`} className="label text-xs">Evidence sufficiency</label>
+                    <select id={`${fid}-evidence`} className="input" value={evidence} onChange={(e) => setEvidence(e.target.value as EvidenceSufficiency)}>
                       {EVIDENCE_OPTIONS.map((ev) => <option key={ev}>{ev}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="label text-xs">Framework mapping (one per line — <code>Framework: ref1; ref2</code>)</label>
-                    <textarea className="input h-24 font-mono text-xs" value={mappings} onChange={(e) => setMappings(e.target.value)} />
+                    <label htmlFor={`${fid}-mappings`} className="label text-xs">Framework mapping (one per line — <code>Framework: ref1; ref2</code>)</label>
+                    <textarea id={`${fid}-mappings`} className="input h-24 font-mono text-xs" value={mappings} onChange={(e) => setMappings(e.target.value)} />
                   </div>
                   <div>
-                    <label className="label text-xs">Follow-up questions (one per line)</label>
-                    <textarea className="input h-24" value={followUps} onChange={(e) => setFollowUps(e.target.value)} />
+                    <label htmlFor={`${fid}-followups`} className="label text-xs">Follow-up questions (one per line)</label>
+                    <textarea id={`${fid}-followups`} className="input h-24" value={followUps} onChange={(e) => setFollowUps(e.target.value)} />
                   </div>
                   <div className="flex justify-end">
-                    <button className="btn-primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save override'}</button>
+                    <button type="button" className="btn-primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save override'}</button>
                   </div>
                 </div>
               )}
