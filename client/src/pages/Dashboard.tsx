@@ -87,49 +87,51 @@ export function Dashboard() {
 
       {assessments && assessments.length > 0 && (
         <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <caption className="sr-only">Vendor risk assessments</caption>
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">Vendor</th>
-                {showTenantCol && <th scope="col" className="px-4 py-3 font-medium">Tenant</th>}
-                <th scope="col" className="px-4 py-3 font-medium">Questionnaire</th>
-                <th scope="col" className="px-4 py-3 font-medium">Submitted</th>
-                <th scope="col" className="px-4 py-3 font-medium">Items</th>
-                <th scope="col" className="px-4 py-3 font-medium">Preliminary risk</th>
-                <th scope="col" className="px-4 py-3 font-medium">Status</th>
-                <th scope="col" className="px-4 py-3 font-medium">Validation</th>
-                <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {assessments.map((a) => (
-                <tr key={a.id} className="hover:bg-slate-50/60">
-                  <td className="px-4 py-3 font-medium text-slate-800">{a.vendor_name}</td>
-                  {showTenantCol && (
-                    <td className="px-4 py-3 text-slate-600">{a.tenant_id != null ? tenantNames[a.tenant_id] ?? `#${a.tenant_id}` : '—'}</td>
-                  )}
-                  <td className="px-4 py-3 text-slate-600">{a.questionnaire_type}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDay(a.date_submitted)}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.item_count ?? 0}</td>
-                  <td className="px-4 py-3">
-                    <RiskBadge level={a.overall_risk} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusChip status={a.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <ValidationChip status={a.validation_status} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link to={`/assessments/${a.id}`} className="font-medium text-brand-700 hover:underline">
-                      Open<span className="sr-only"> {a.vendor_name} assessment</span> →
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <caption className="sr-only">Vendor risk assessments</caption>
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th scope="col" className="px-4 py-3 font-medium">Vendor</th>
+                  {showTenantCol && <th scope="col" className="px-4 py-3 font-medium">Tenant</th>}
+                  <th scope="col" className="px-4 py-3 font-medium">Questionnaire</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Submitted</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Items</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Preliminary risk</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Status</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Validation</th>
+                  <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assessments.map((a) => (
+                  <tr key={a.id} className="hover:bg-slate-50/60">
+                    <td className="px-4 py-3 font-medium text-slate-800">{a.vendor_name}</td>
+                    {showTenantCol && (
+                      <td className="px-4 py-3 text-slate-600">{a.tenant_id != null ? tenantNames[a.tenant_id] ?? `#${a.tenant_id}` : '—'}</td>
+                    )}
+                    <td className="px-4 py-3 text-slate-600">{a.questionnaire_type}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDay(a.date_submitted)}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.item_count ?? 0}</td>
+                    <td className="px-4 py-3">
+                      <RiskBadge level={a.overall_risk} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusChip status={a.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <ValidationChip status={a.validation_status} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link to={`/assessments/${a.id}`} className="font-medium text-brand-700 hover:underline">
+                        Open<span className="sr-only"> {a.vendor_name} assessment</span> →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

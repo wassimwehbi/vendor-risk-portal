@@ -65,13 +65,13 @@ export function NewAssessment() {
           <ErrorNote message="Select a tenant (top-right) to create an assessment in." />
         </div>
       )}
-      <form onSubmit={submit} className="card flex flex-col gap-4 p-6">
+      <form onSubmit={submit} className="card flex flex-col gap-4 p-4 sm:p-6">
         {error && <ErrorNote message={error} />}
         <div>
           <label htmlFor="na-vendor" className="label">Vendor name</label>
           <input id="na-vendor" className="input" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="Acme Corp" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="na-type" className="label">Questionnaire type</label>
             <select id="na-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
@@ -120,11 +120,11 @@ export function NewAssessment() {
           </p>
           {evidence.length > 0 && <p className="mt-1 text-xs text-slate-500">{evidence.length} evidence file(s) attached.</p>}
         </div>
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-secondary" onClick={() => navigate('/')}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" className="btn-secondary w-full sm:w-auto" onClick={() => navigate('/')}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={!canSubmit || needsTenant || busy}>
+          <button type="submit" className="btn-primary w-full sm:w-auto" disabled={!canSubmit || needsTenant || busy}>
             {busy ? 'Uploading…' : 'Upload & analyze'}
           </button>
         </div>

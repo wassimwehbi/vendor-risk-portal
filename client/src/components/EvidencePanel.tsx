@@ -42,7 +42,7 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
         <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">
           {KIND_LABEL[ev.kind]}
         </span>
-        <span className="text-sm font-medium text-slate-800">{ev.original_name}</span>
+        <span className="break-all text-sm font-medium text-slate-800">{ev.original_name}</span>
         <span className="text-xs text-slate-500">{formatBytes(ev.size)}</span>
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_CLASSES[ev.parse_status]}`}>
           {STATUS_LABEL[ev.parse_status]}
@@ -75,8 +75,8 @@ export function EvidencePanel({ evidence }: { evidence: EvidenceFile[] }) {
   if (!evidence || evidence.length === 0) return null;
   const extracted = evidence.filter((e) => e.parse_status === 'extracted').length;
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between">
+    <div className="card p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h3 className="text-sm font-semibold text-slate-800">Evidence files ({evidence.length})</h3>
         <span className="text-xs text-slate-500">{extracted} parsed with extractable text</span>
       </div>

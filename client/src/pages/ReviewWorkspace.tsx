@@ -120,7 +120,7 @@ export function ReviewWorkspace() {
       {error && <ErrorNote message={error} />}
 
       {/* Summary header */}
-      <div className="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="card grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
         <div>
           <p id="overall-risk-label" className="text-xs uppercase tracking-wide text-slate-500">Preliminary overall risk</p>
           <div className="mt-1 flex items-center gap-2">
@@ -165,7 +165,7 @@ export function ReviewWorkspace() {
 
       {/* Control-by-control table */}
       {!analyzed ? (
-        <div className="card px-6 py-10 text-center">
+        <div className="card px-4 py-8 text-center sm:px-6 sm:py-10">
           <p className="text-slate-600">{items.length} questionnaire items extracted.</p>
           <p className="mt-1 text-sm text-slate-500">Run AI analysis to classify controls, map frameworks, score risk and generate follow-ups.</p>
         </div>
@@ -198,7 +198,7 @@ export function ReviewWorkspace() {
 
       {/* Analyst notes + approval (analysts/admins only; submitters & viewers see a read-only outcome) */}
       {analyzed && canEdit && (
-        <div className="card space-y-3 p-5">
+        <div className="card space-y-3 p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-slate-800">Analyst decision</h3>
           <label htmlFor="analyst-notes" className="label">Analyst notes</label>
           <textarea
@@ -217,7 +217,7 @@ export function ReviewWorkspace() {
                 'The final risk decision must be made by a human analyst.'
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {canEdit && (
                 <button className="btn-secondary" onClick={saveNotes} disabled={savingNotes}>
                   {savingNotes ? 'Saving…' : 'Save notes'}

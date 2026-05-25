@@ -42,6 +42,7 @@ export function AuditTrail() {
       {!entries && !error && <div className="card px-6 py-12"><Spinner /></div>}
       {entries && (
         <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <caption className="sr-only">Audit trail entries</caption>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -71,6 +72,7 @@ export function AuditTrail() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

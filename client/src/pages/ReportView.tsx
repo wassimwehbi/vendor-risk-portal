@@ -38,22 +38,22 @@ export function ReportView() {
 
   return (
     <div className="space-y-5">
-      <div className="no-print flex items-center justify-between">
+      <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link to={`/assessments/${assessmentId}`} className="btn-ghost">← Back to review</Link>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <a className="btn-secondary" href={api.exportUrl(assessmentId, 'csv')}>Export CSV</a>
           <a className="btn-secondary" href={api.exportUrl(assessmentId, 'xlsx')}>Export Excel</a>
           <button className="btn-primary" onClick={() => window.print()}>Print / PDF</button>
         </div>
       </div>
 
-      <div className="card space-y-6 p-6">
-        <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+      <div className="card space-y-6 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">{report.vendor_name}</h1>
             <p className="text-sm text-slate-500">Vendor Risk Analyst Review Report</p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <RiskBadge level={report.overall_risk} size="lg" />
             <p className="mt-1 text-xs text-slate-500">Generated {formatDate(report.generated_at)}</p>
           </div>

@@ -35,6 +35,14 @@
   }
 }
 
+/* Comfortable touch targets on phones — buttons are denser (py-1.5 ≈ 32px) on
+   desktop; bump to ~40px below the sm breakpoint without affecting larger screens. */
+@media (max-width: 639px) {
+  .btn {
+    min-height: 2.5rem;
+  }
+}
+
 /* Print styles for the analyst report */
 @media print {
   .no-print {

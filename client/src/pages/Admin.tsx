@@ -31,9 +31,9 @@ function UserRow({
 
   return (
     <div className="card space-y-3 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="font-medium text-slate-800">{u.email}</div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="break-words font-medium text-slate-800">{u.email}</div>
           {u.name && <div className="text-xs text-slate-500">{u.name}</div>}
         </div>
         <div className="flex items-center gap-3">
@@ -275,11 +275,11 @@ export function Admin() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">Tenants</h2>
-        <form onSubmit={createTenant} className="flex items-center gap-2">
+        <form onSubmit={createTenant} className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <label className="sr-only" htmlFor="new-tenant">New tenant name</label>
           <input
             id="new-tenant"
-            className="input max-w-xs"
+            className="input sm:max-w-xs"
             placeholder="New tenant name"
             value={newTenant}
             onChange={(e) => setNewTenant(e.target.value)}
@@ -293,7 +293,7 @@ export function Admin() {
         ) : tenants.length === 0 ? (
           <EmptyState title="No tenants yet">Create one above to start assigning users.</EmptyState>
         ) : (
-          <div className="card overflow-hidden">
+          <div className="card overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <caption className="sr-only">Tenants</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
@@ -330,7 +330,7 @@ export function Admin() {
           them directly (it’s also emailed when SMTP is configured).
         </p>
         <form onSubmit={sendInvite} className="card flex flex-wrap items-end gap-2 p-4">
-          <div className="min-w-[14rem] flex-1">
+          <div className="w-full flex-1 sm:min-w-[14rem]">
             <label htmlFor="inv-email" className="label">Email</label>
             <input
               id="inv-email"
@@ -341,7 +341,7 @@ export function Admin() {
               onChange={(e) => setInviteEmail(e.target.value)}
             />
           </div>
-          <div>
+          <div className="flex-1 sm:flex-none">
             <label htmlFor="inv-tenant" className="label">Tenant</label>
             <select
               id="inv-tenant"
@@ -355,7 +355,7 @@ export function Admin() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="flex-1 sm:flex-none">
             <label htmlFor="inv-role" className="label">Role</label>
             <select id="inv-role" className="input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MembershipRole)}>
               {MEMBERSHIP_ROLES.map((r) => (
@@ -363,7 +363,7 @@ export function Admin() {
               ))}
             </select>
           </div>
-          <button type="submit" className="btn-primary" disabled={inviteBusy || !inviteEmail.trim() || inviteTenant === ''}>
+          <button type="submit" className="btn-primary w-full sm:w-auto" disabled={inviteBusy || !inviteEmail.trim() || inviteTenant === ''}>
             {inviteBusy ? 'Generating…' : 'Generate invite link'}
           </button>
         </form>
@@ -381,7 +381,7 @@ export function Admin() {
         )}
 
         {invites && invites.length > 0 && (
-          <div className="card overflow-hidden">
+          <div className="card overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <caption className="sr-only">Pending invitations</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

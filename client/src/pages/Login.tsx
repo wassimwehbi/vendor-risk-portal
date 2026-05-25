@@ -96,7 +96,7 @@ export function Login() {
             </div>
           </div>
 
-          <div className="card p-7">
+          <div className="card p-5 sm:p-7">
             <h2 className="text-base font-semibold text-slate-900">Sign in</h2>
             <p className="mt-1 text-sm text-slate-500">Use your organization account to continue.</p>
 
@@ -150,7 +150,7 @@ export function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
-                    <button type="submit" className="btn-primary w-full" disabled={busy}>
+                    <button type="submit" className="btn-primary min-h-[42px] w-full" disabled={busy}>
                       {busy ? 'Sending…' : 'Email me a sign-in link'}
                     </button>
                   </form>
@@ -194,10 +194,10 @@ export function Login() {
                       value={devEmail}
                       onChange={(e) => setDevEmail(e.target.value)}
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <select
                         aria-label="Role for local developer session"
-                        className="input w-32"
+                        className="input sm:w-32"
                         value={devRole}
                         onChange={(e) => setDevRole(e.target.value)}
                       >
@@ -208,14 +208,14 @@ export function Login() {
                       </select>
                       <input
                         aria-label="Tenant for local developer session"
-                        className="input flex-1"
+                        className="input sm:flex-1"
                         placeholder="Tenant (e.g. Acme)"
                         value={devTenant}
                         onChange={(e) => setDevTenant(e.target.value)}
                         disabled={devRole === 'Admin'}
                       />
                     </div>
-                    <button type="submit" className="btn-secondary w-full whitespace-nowrap" disabled={busy}>
+                    <button type="submit" className="btn-secondary min-h-[42px] w-full whitespace-nowrap" disabled={busy}>
                       Sign in
                     </button>
                   </form>
