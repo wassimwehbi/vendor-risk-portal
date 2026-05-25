@@ -1,0 +1,17 @@
+# Continuous replication of the app's SQLite DB to a Cloudflare R2 bucket.
+# Litestream expands ${VAR} at runtime — set these on the Render service:
+#   R2_ACCOUNT_ID         (your Cloudflare account id; forms the S3 endpoint)
+#   R2_ACCESS_KEY_ID      (R2 API token access key)
+#   R2_SECRET_ACCESS_KEY  (R2 API token secret)
+#
+# The db `path` must match VRP_DB_PATH passed to the app.
+dbs:
+  - path: /data/vendor-risk.db
+    replicas:
+      - type: s3
+        bucket: vrp-litestream
+        path: vendor-risk
+        endpoint: https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+        region: auto
+        access-key-id: ${R2_ACCESS_KEY_ID}
+        secret-access-key: ${R2_SECRET_ACCESS_KEY}

@@ -1,0 +1,21 @@
+# The backend image only needs server/ (+ litestream.yml, docker-entrypoint.sh).
+# Keep the build context small and never bake in local state.
+**/node_modules
+.git
+.gitignore
+.github
+
+# Frontend (deployed separately to Cloudflare Pages).
+client
+
+# Local SQLite DB + uploads must never be copied into the image.
+**/*.db
+**/*.db-wal
+**/*.db-shm
+server/uploads
+
+# Docs / tooling not needed at runtime.
+specs
+.claude
+**/*.md
+**/.DS_Store

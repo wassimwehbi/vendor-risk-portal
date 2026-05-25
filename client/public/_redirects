@@ -1,0 +1,3 @@
+# Cloudflare Pages: serve the SPA shell for any path that isn't a real asset,
+# so client-side (React Router) deep links like /assessments/1 resolve.
+/*    /index.html   200
