@@ -5,8 +5,8 @@
 # replicates the SQLite DB to Cloudflare R2 and restores it on boot, so data
 # survives container restarts/redeploys. See docker-entrypoint.sh + litestream.yml.
 
-# Pinned Litestream binary.
-FROM litestream/litestream:0.3.13 AS litestream
+# Pinned Litestream binary (multi-stage copy, per Litestream's container docs).
+FROM litestream/litestream:0.3.14 AS litestream
 
 FROM node:22-bookworm-slim
 
