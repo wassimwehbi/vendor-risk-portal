@@ -237,7 +237,7 @@ export function Layout() {
               type="button"
               aria-label="Toggle navigation menu"
               aria-expanded={mobileOpen}
-              aria-controls="mobile-menu"
+              aria-controls={mobileOpen ? 'mobile-menu' : undefined}
               onClick={() => setMobileOpen((v) => !v)}
               className="inline-flex shrink-0 items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-600/30 lg:hidden"
             >
