@@ -45,8 +45,10 @@ Tailwind classes, minimal structural wrappers, and the shared button touch-targe
   on route change and when the viewport grows past `lg`. `aria-expanded`/`aria-controls`
   on the toggle; the skip-link and `no-print` behavior are unchanged.
 - **`index.css`:** added a **mobile-only** (`max-width: 639px`) `min-height: 2.5rem` on
-  `.btn` so buttons are a comfortable touch target on phones without affecting desktop
-  density.
+  the button classes (`.btn` / `.btn-primary` / `.btn-secondary` / `.btn-ghost` — the
+  variants are what the DOM actually carries, since Tailwind inlines `@apply btn` into
+  each) so buttons are a comfortable touch target on phones without affecting desktop
+  density. Per-button `min-h-[42px]` overrides were removed in favour of this single rule.
 - **Dashboard / AuditTrail / Admin:** wide tables wrapped in `overflow-x-auto`; Admin user
   rows stack, and the create-tenant / invite forms stack with full-width controls on mobile.
 - **ReportView:** toolbar and report header stack on mobile; export buttons wrap; **print

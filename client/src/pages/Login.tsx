@@ -150,7 +150,7 @@ export function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
-                    <button type="submit" className="btn-primary min-h-[42px] w-full" disabled={busy}>
+                    <button type="submit" className="btn-primary w-full" disabled={busy}>
                       {busy ? 'Sending…' : 'Email me a sign-in link'}
                     </button>
                   </form>
@@ -215,7 +215,7 @@ export function Login() {
                         disabled={devRole === 'Admin'}
                       />
                     </div>
-                    <button type="submit" className="btn-secondary min-h-[42px] w-full whitespace-nowrap" disabled={busy}>
+                    <button type="submit" className="btn-secondary w-full whitespace-nowrap" disabled={busy}>
                       Sign in
                     </button>
                   </form>
