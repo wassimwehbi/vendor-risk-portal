@@ -95,9 +95,10 @@ Run the server or client individually with `npm run dev:server` / `npm run dev:c
    - *SecureHealth Systems* → **High** (HIPAA / PHI)
    - *CloudPay Inc.* → **Critical**
    - *VagueVendor LLC* → **High** (evidence-gap showcase)
-2. **Upload path:** **New Assessment** → upload
-   `server/src/data/sample-sig.csv` (and any dummy evidence file) → open the
-   assessment → **Run AI analysis**.
+2. **Upload path:** **New Assessment** → choose a **Questionnaire type**, click
+   **Download a sample … questionnaire** to get a matching CSV template (SIG Lite /
+   Core / Full), fill in the response columns, then upload it (plus any dummy evidence
+   file) → open the assessment → **Run AI analysis**.
 3. In the **Review Workspace**, override a finding's risk / mapping / evidence,
    edit follow-ups, adjust the overall risk, add notes, then **Approve**
    (as an Analyst or Admin — use the role selector, top-right).

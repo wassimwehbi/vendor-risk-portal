@@ -4,6 +4,18 @@ import { api } from '../api/client';
 import { ErrorNote, PageHeader } from '../components/ui';
 import { useRole } from '../lib/RoleContext';
 
+// Per-questionnaire-type sample templates (served statically from /public/samples).
+// Each is a blank fill-in template with the column structure the uploader expects.
+const SAMPLE_TEMPLATES: Record<string, string> = {
+  'SIG Lite': '/samples/sig-lite.csv',
+  'SIG Core': '/samples/sig-core.csv',
+  'SIG Full': '/samples/sig-full.csv',
+};
+// "Custom" has no canonical template — fall back to the Core sample.
+function sampleUrlFor(type: string): string {
+  return SAMPLE_TEMPLATES[type] ?? SAMPLE_TEMPLATES['SIG Core'];
+}
+
 export function NewAssessment() {
   const navigate = useNavigate();
   const { canEdit } = useRole();
@@ -14,6 +26,10 @@ export function NewAssessment() {
   const [evidence, setEvidence] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  const isCustom = !SAMPLE_TEMPLATES[type];
+  const sampleUrl = sampleUrlFor(type);
+  const sampleLabel = isCustom ? 'sample SIG questionnaire' : `sample ${type} questionnaire`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,7 +85,12 @@ export function NewAssessment() {
             onChange={(e) => setQuestionnaire(e.target.files?.[0] ?? null)}
           />
           <p className="mt-1 text-xs text-slate-500">
-            A sample file is provided at <code className="rounded bg-slate-100 px-1">server/src/data/sample-sig.csv</code>.
+            Not sure what to fill in?{' '}
+            <a href={sampleUrl} download className="font-medium text-brand-700 hover:underline">
+              Download a {sampleLabel}
+            </a>{' '}
+            template and complete the response columns.
+            {isCustom && <span className="text-slate-400"> (based on SIG Core)</span>}
           </p>
         </div>
         <div>

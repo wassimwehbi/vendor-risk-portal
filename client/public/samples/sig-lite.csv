@@ -1,0 +1,12 @@
+Question ID,Question,Response,Response Type,Evidence,Evidence Location,Comments,Expiration Date
+EXAMPLE,Do you enforce MFA for all users? - example row - replace or delete,Yes MFA is enforced for all users via authenticator app and hardware security keys,Yes,IdP MFA configuration screenshot,Access control policy p.4,Example answer - delete this row before submitting,
+L-1,Do you maintain a formal information security program (ISMS) and hold any certifications such as ISO 27001 or SOC 2?,,,,,,
+L-2,Is MFA enforced for all users and administrators?,,,,,,
+L-3,Is data encrypted at rest and which standard is used (for example AES-256)?,,,,,,
+L-4,Is data encrypted in transit and which TLS version is enforced (for example TLS 1.2+)?,,,,,,
+L-5,Do you centrally collect and monitor security logs?,,,,,,
+L-6,Do you maintain a documented incident response plan and what is your breach notification timeline?,,,,,,
+L-7,Do you maintain and test business continuity and disaster recovery plans?,,,,,,
+L-8,What personal data do you process and for which customers or regions?,,,,,,
+L-9,Do you use subprocessors and do you maintain a current subprocessor list?,,,,,,
+L-10,What is your data retention and secure deletion practice?,,,,,,
