@@ -5,7 +5,7 @@
 # ///
 """ADW SDLC (isolated) — plan → build → test → review → document (no ship).
 
-Usage: uv run adws/adw_sdlc_iso.py <issue-number> [adw-id] [--skip-e2e]
+Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e]
 """
 
 import sys
@@ -23,7 +23,7 @@ def main():
         sys.argv.remove("--skip-e2e")
 
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_sdlc_iso.py <issue-number> [adw-id] [--skip-e2e]")
+        print("Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
@@ -32,11 +32,11 @@ def main():
 
     test_args = ["--skip-e2e"] if skip_e2e else []
     phases = [
-        ("adw_plan_iso.py", [], True),
-        ("adw_build_iso.py", [], True),
-        ("adw_test_iso.py", test_args, False),
-        ("adw_review_iso.py", [], False),
-        ("adw_document_iso.py", [], False),
+        ("adw_plan.py", [], True),
+        ("adw_build.py", [], True),
+        ("adw_test.py", test_args, False),
+        ("adw_review.py", [], False),
+        ("adw_document.py", [], False),
     ]
     rc = run_pipeline(issue_number, adw_id, phases)
     if rc == 0:

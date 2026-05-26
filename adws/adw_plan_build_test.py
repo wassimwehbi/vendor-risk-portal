@@ -3,8 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["python-dotenv>=1.0", "pydantic>=2.7", "requests>=2.32"]
 # ///
-"""ADW Plan+Build+Test+Review (isolated).
-Usage: uv run adws/adw_plan_build_test_review_iso.py <issue> [adw-id] [--skip-e2e]"""
+"""ADW Plan+Build+Test (isolated). Usage: uv run adws/adw_plan_build_test.py <issue> [adw-id] [--skip-e2e]"""
 
 import sys
 import os
@@ -20,7 +19,7 @@ def main():
     if skip_e2e:
         sys.argv.remove("--skip-e2e")
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_plan_build_test_review_iso.py <issue-number> [adw-id] [--skip-e2e]")
+        print("Usage: uv run adws/adw_plan_build_test.py <issue-number> [adw-id] [--skip-e2e]")
         sys.exit(1)
     issue_number = sys.argv[1]
     adw_id = ensure_adw_id(issue_number, sys.argv[2] if len(sys.argv) > 2 else None)
@@ -29,10 +28,9 @@ def main():
             issue_number,
             adw_id,
             [
-                ("adw_plan_iso.py", [], True),
-                ("adw_build_iso.py", [], True),
-                ("adw_test_iso.py", ["--skip-e2e"] if skip_e2e else [], False),
-                ("adw_review_iso.py", [], False),
+                ("adw_plan.py", [], True),
+                ("adw_build.py", [], True),
+                ("adw_test.py", ["--skip-e2e"] if skip_e2e else [], False),
             ],
         )
     )

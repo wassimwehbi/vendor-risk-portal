@@ -38,11 +38,11 @@ comments), `orchestrate.py` (pipeline runner), `test_ops.py` (test+resolution lo
 `ship_ops.py` (required-check polling), `copilot_ops.py` (Copilot feedback classify +
 resolve).
 
-**Phase scripts (`adws/adw_*_iso.py`)** — `adw_plan_iso` (entry: classify → branch →
-worktree → plan-spec → PR), `adw_build_iso`, `adw_test_iso`, `adw_review_iso`,
-`adw_document_iso`, `adw_patch_iso`, `adw_ship_iso` (the ZTE shipper), orchestrators
-`adw_plan_build_iso`, `adw_plan_build_test_iso`, `adw_plan_build_test_review_iso`,
-`adw_sdlc_iso`, and `adw_sdlc_zte_iso` (the full pipeline + ship).
+**Phase scripts (`adws/adw_*.py`)** — `adw_plan` (entry: classify → branch →
+worktree → plan-spec → PR), `adw_build`, `adw_test`, `adw_review`,
+`adw_document`, `adw_patch`, `adw_ship` (the ZTE shipper), orchestrators
+`adw_plan_build`, `adw_plan_build_test`, `adw_plan_build_test_review`,
+`adw_sdlc`, and `adw_sdlc_zte` (the full pipeline + ship).
 
 **Commands (`.claude/commands/`)** — 18 templates retargeted to this repo:
 `test.md` runs `npm run check → typecheck → test → build` (returning a `TestResult`
@@ -51,7 +51,7 @@ commands write to `specs/adw/issue-<n>-adw-<id>-<slug>-plan.md`; plus the new
 `resolve_copilot_feedback.md`.
 
 **Triggers (3 ways):**
-- Local CLI: `uv run adws/adw_sdlc_zte_iso.py <issue> [adw-id] [--dry-run] [--skip-e2e] [--admin] [--max-ship-iters N]`.
+- Local CLI: `uv run adws/adw_sdlc_zte.py <issue> [adw-id] [--dry-run] [--skip-e2e] [--admin] [--max-ship-iters N]`.
 - Cron: `adws/adw_triggers/trigger_cron.py` polls issues (label `adw:zte`/`adw:ship`, or a
   comment starting with `adw`), de-dupes via `.cron_state.json` + an open-PR check, and
   launches `run_zte.py`.
@@ -59,7 +59,7 @@ commands write to `specs/adw/issue-<n>-adw-<id>-<slug>-plan.md`; plus the new
   `workflow_dispatch`/`repository_dispatch` and runs the pipeline in CI (the
   network-friendly substitute for an inbound webhook).
 
-**The ZTE ship loop (`adw_ship_iso.py`)** replaces tac-8's local merge with a PR-based,
+**The ZTE ship loop (`adw_ship.py`)** replaces tac-8's local merge with a PR-based,
 Copilot-iterating, auto-merge loop: open/find PR → wait for the 4 required checks green on
 the head SHA (auto-fixing quality/e2e failures) → fetch Copilot review → classify
 high-importance (keyword pre-filter ∪ LLM via `/resolve_copilot_feedback`) → patch, push,
@@ -123,7 +123,7 @@ in `ci.yml`. The `playwright.config.ts` change is additive with unchanged defaul
 existing E2E behavior is preserved.
 
 End-to-end smoke (run once secrets are set — see §5): create a throwaway issue, label it
-`adw:zte`, and run `uv run adws/adw_sdlc_zte_iso.py <issue> --dry-run`; confirm a worktree
+`adw:zte`, and run `uv run adws/adw_sdlc_zte.py <issue> --dry-run`; confirm a worktree
 under `trees/`, a plan-spec under `specs/adw/`, a pushed branch + open PR, the checks
 observed green, the Copilot loop running, and that it **stops before merge** (dry run).
 

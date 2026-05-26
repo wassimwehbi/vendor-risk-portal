@@ -8,7 +8,7 @@ targeted patch (no full feature plan). Creates the worktree/branch like the plan
 phase, then runs /patch + /implement.
 
 Usage:
-  uv run adws/adw_patch_iso.py <issue-number> [adw-id]
+  uv run adws/adw_patch.py <issue-number> [adw-id]
 """
 
 import sys
@@ -43,18 +43,18 @@ AGENT_PATCHER = "sdlc_patcher"
 def main():
     load_dotenv()
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_patch_iso.py <issue-number> [adw-id]")
+        print("Usage: uv run adws/adw_patch.py <issue-number> [adw-id]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2] if len(sys.argv) > 2 else None
 
-    temp_logger = setup_logger(adw_id, "adw_patch_iso") if adw_id else None
+    temp_logger = setup_logger(adw_id, "adw_patch") if adw_id else None
     adw_id = ensure_adw_id(issue_number, adw_id, temp_logger)
     state = ADWState.load(adw_id, temp_logger)
-    state.append_adw_id("adw_patch_iso")
+    state.append_adw_id("adw_patch")
 
-    logger = setup_logger(adw_id, "adw_patch_iso")
+    logger = setup_logger(adw_id, "adw_patch")
     check_env_vars(logger)
 
     try:
@@ -71,7 +71,7 @@ def main():
         post(issue_number, adw_id, "ops", f"❌ Error generating branch name: {error}")
         sys.exit(1)
     state.update(branch_name=branch_name)
-    state.save("adw_patch_iso")
+    state.save("adw_patch")
 
     if is_in_ci():
         worktree_path = project_root()
@@ -94,7 +94,7 @@ def main():
             e2e_client_port=ports.e2e_client,
             db_path=db_path,
         )
-        state.save("adw_patch_iso")
+        state.save("adw_patch")
 
     post(issue_number, adw_id, AGENT_PATCHER, "🩹 Creating + implementing patch…")
     change_request = f"{issue.title}\n\n{issue.body}"
@@ -116,7 +116,7 @@ def main():
         commit_changes(commit_msg, cwd=worktree_path)
     finalize_git_operations(state, logger, cwd=worktree_path)
 
-    state.save("adw_patch_iso")
+    state.save("adw_patch")
     post(issue_number, adw_id, "ops", "✅ Patch phase completed")
     state.to_stdout()
 

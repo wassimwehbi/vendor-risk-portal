@@ -8,7 +8,7 @@
 plan → build → test → review → document → ship (PR + Copilot iteration + auto-merge).
 
 Usage:
-  uv run adws/adw_sdlc_zte_iso.py <issue-number> [adw-id]
+  uv run adws/adw_sdlc_zte.py <issue-number> [adw-id]
     [--skip-e2e] [--dry-run] [--admin] [--no-copilot] [--max-ship-iters N]
 
 --dry-run runs the entire pipeline but stops before the final merge.
@@ -52,7 +52,7 @@ def main():
             sys.argv.remove(f)
 
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_sdlc_zte_iso.py <issue-number> [adw-id] [flags]")
+        print("Usage: uv run adws/adw_sdlc_zte.py <issue-number> [adw-id] [flags]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
@@ -72,12 +72,12 @@ def main():
     test_args = ["--skip-e2e"] if skip_e2e else []
 
     phases = [
-        ("adw_plan_iso.py", [], True),
-        ("adw_build_iso.py", [], True),
-        ("adw_test_iso.py", test_args, False),
-        ("adw_review_iso.py", [], False),
-        ("adw_document_iso.py", [], False),
-        ("adw_ship_iso.py", ship_args, True),
+        ("adw_plan.py", [], True),
+        ("adw_build.py", [], True),
+        ("adw_test.py", test_args, False),
+        ("adw_review.py", [], False),
+        ("adw_document.py", [], False),
+        ("adw_ship.py", ship_args, True),
     ]
     rc = run_pipeline(issue_number, adw_id, phases)
     if rc == 0:

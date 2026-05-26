@@ -14,7 +14,7 @@ Unlike tac-8's local-merge shipper, this ships through a PR so branch protection
   5. squash-merges to main (Mode A: no human approval is required on this repo).
 
 Usage:
-  uv run adws/adw_ship_iso.py <issue-number> <adw-id>
+  uv run adws/adw_ship.py <issue-number> <adw-id>
     [--max-ship-iters N] [--checks-timeout MIN] [--dry-run] [--admin] [--no-copilot]
 """
 
@@ -106,7 +106,7 @@ def main():
             sys.argv.remove(f)
 
     if len(sys.argv) < 3:
-        print("Usage: uv run adws/adw_ship_iso.py <issue-number> <adw-id> [flags]")
+        print("Usage: uv run adws/adw_ship.py <issue-number> <adw-id> [flags]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
@@ -116,8 +116,8 @@ def main():
         print("ADW_DISABLED=true — ship is disabled; exiting.")
         sys.exit(0)
 
-    logger = setup_logger(adw_id, "adw_ship_iso")
-    state = load_state_or_exit(adw_id, "adw_ship_iso", logger)
+    logger = setup_logger(adw_id, "adw_ship")
+    state = load_state_or_exit(adw_id, "adw_ship", logger)
     issue_number = state.get("issue_number", issue_number)
     check_env_vars(logger)
 
@@ -224,7 +224,7 @@ def main():
             post(issue_number, adw_id, AGENT_SHIPPER,
                  "🟢 Dry run: checks green and Copilot clean — stopping before merge")
             logger.info("Dry run complete; not merging")
-            state.save("adw_ship_iso")
+            state.save("adw_ship")
             state.to_stdout()
             return
 
@@ -242,7 +242,7 @@ def main():
 
         post(issue_number, adw_id, AGENT_SHIPPER,
              f"🎉 Shipped! Squash-merged PR #{pr_number} to main and deleted the branch.")
-        state.save("adw_ship_iso")
+        state.save("adw_ship")
         state.to_stdout()
         return
 

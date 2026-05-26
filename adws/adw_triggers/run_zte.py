@@ -6,7 +6,7 @@
 """Thin wrapper that launches the ZTE pipeline for one issue.
 
 Used by the cron trigger and the GitHub Actions trigger so they have a single,
-stable entry point. Forwards any extra flags to adw_sdlc_zte_iso.py.
+stable entry point. Forwards any extra flags to adw_sdlc_zte.py.
 
 Usage:
   uv run adws/adw_triggers/run_zte.py <issue-number> [adw-id] [flags...]
@@ -23,7 +23,7 @@ def main():
         sys.exit(1)
 
     adws_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    zte = os.path.join(adws_dir, "adw_sdlc_zte_iso.py")
+    zte = os.path.join(adws_dir, "adw_sdlc_zte.py")
     cmd = ["uv", "run", zte, *sys.argv[1:]]
     print(f"Launching ZTE: {' '.join(cmd)}")
     sys.exit(subprocess.run(cmd).returncode)

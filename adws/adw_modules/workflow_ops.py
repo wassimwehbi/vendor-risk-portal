@@ -35,20 +35,20 @@ AGENT_PR_CREATOR = "pr_creator"
 ADW_SPEC_DIR = "specs/adw"
 
 AVAILABLE_ADW_WORKFLOWS = [
-    "adw_plan_iso",
-    "adw_patch_iso",
-    "adw_build_iso",
-    "adw_test_iso",
-    "adw_review_iso",
-    "adw_document_iso",
-    "adw_ship_iso",
-    "adw_sdlc_zte_iso",
-    "adw_plan_build_iso",
-    "adw_plan_build_test_iso",
-    "adw_plan_build_test_review_iso",
-    "adw_plan_build_document_iso",
-    "adw_plan_build_review_iso",
-    "adw_sdlc_iso",
+    "adw_plan",
+    "adw_patch",
+    "adw_build",
+    "adw_test",
+    "adw_review",
+    "adw_document",
+    "adw_ship",
+    "adw_sdlc_zte",
+    "adw_plan_build",
+    "adw_plan_build_test",
+    "adw_plan_build_test_review",
+    "adw_plan_build_document",
+    "adw_plan_build_review",
+    "adw_sdlc",
 ]
 
 
@@ -81,8 +81,8 @@ def extract_adw_info(text: str, temp_adw_id: str) -> ADWExtractionResult:
             adw_id = data.get("adw_id")
             model_set = data.get("model_set", "base")
             # Case-insensitive match → canonical workflow name, so the
-            # uppercase-ZTE safety signal ("adw_sdlc_ZTE_iso") still resolves to
-            # the real lowercase "adw_sdlc_zte_iso" instead of being dropped.
+            # uppercase-ZTE safety signal ("adw_sdlc_ZTE") still resolves to
+            # the real lowercase "adw_sdlc_zte" instead of being dropped.
             canonical = next(
                 (w for w in AVAILABLE_ADW_WORKFLOWS if w.lower() == adw_command.lower()),
                 None,
@@ -285,7 +285,7 @@ def ensure_plan_exists(state: ADWState, issue_number: str) -> str:
                 return plans[0]
 
     raise ValueError(
-        f"No plan found for issue {issue_number}. Run adw_plan_iso.py first."
+        f"No plan found for issue {issue_number}. Run adw_plan.py first."
     )
 
 

@@ -6,7 +6,7 @@
 """ADW Document (isolated) — generate feature documentation under app_docs/.
 
 Usage:
-  uv run adws/adw_document_iso.py <issue-number> <adw-id>
+  uv run adws/adw_document.py <issue-number> <adw-id>
 """
 
 import sys
@@ -30,14 +30,14 @@ AGENT_DOCUMENTER = "sdlc_documenter"
 def main():
     load_dotenv()
     if len(sys.argv) < 3:
-        print("Usage: uv run adws/adw_document_iso.py <issue-number> <adw-id>")
+        print("Usage: uv run adws/adw_document.py <issue-number> <adw-id>")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2]
 
-    logger = setup_logger(adw_id, "adw_document_iso")
-    state = load_state_or_exit(adw_id, "adw_document_iso", logger)
+    logger = setup_logger(adw_id, "adw_document")
+    state = load_state_or_exit(adw_id, "adw_document", logger)
     issue_number = state.get("issue_number", issue_number)
     check_env_vars(logger)
     worktree_path = require_worktree_or_ci(adw_id, state, logger, issue_number)
@@ -70,7 +70,7 @@ def main():
         commit_changes(commit_msg, cwd=worktree_path)
         finalize_git_operations(state, logger, cwd=worktree_path)
 
-    state.save("adw_document_iso")
+    state.save("adw_document")
     post(issue_number, adw_id, "ops", "✅ Documentation phase completed")
     state.to_stdout()
 

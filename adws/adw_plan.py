@@ -6,7 +6,7 @@
 """ADW Plan (isolated) — classify an issue, branch, plan, and open a draft PR.
 
 Usage:
-  uv run adws/adw_plan_iso.py <issue-number> [adw-id]
+  uv run adws/adw_plan.py <issue-number> [adw-id]
 
 Creates a git worktree under trees/<adw_id>/ (or, when ADW_IN_CI=true, works in
 place on a branch in the checked-out repo), classifies the issue, generates a
@@ -55,21 +55,21 @@ def main():
     load_dotenv()
 
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_plan_iso.py <issue-number> [adw-id]")
+        print("Usage: uv run adws/adw_plan.py <issue-number> [adw-id]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2] if len(sys.argv) > 2 else None
 
-    temp_logger = setup_logger(adw_id, "adw_plan_iso") if adw_id else None
+    temp_logger = setup_logger(adw_id, "adw_plan") if adw_id else None
     adw_id = ensure_adw_id(issue_number, adw_id, temp_logger)
 
     state = ADWState.load(adw_id, temp_logger)
     if not state.get("adw_id"):
         state.update(adw_id=adw_id)
-    state.append_adw_id("adw_plan_iso")
+    state.append_adw_id("adw_plan")
 
-    logger = setup_logger(adw_id, "adw_plan_iso")
+    logger = setup_logger(adw_id, "adw_plan")
     logger.info(f"ADW Plan Iso starting - ID: {adw_id}, Issue: {issue_number}, CI: {is_in_ci()}")
 
     check_env_vars(logger)
@@ -104,7 +104,7 @@ def main():
                 e2e_server_port=ports.e2e_server,
                 e2e_client_port=ports.e2e_client,
             )
-            state.save("adw_plan_iso")
+            state.save("adw_plan")
 
     issue: GitHubIssue = fetch_issue(issue_number, repo_path)
     post(issue_number, adw_id, "ops", "✅ Starting planning phase")
@@ -116,7 +116,7 @@ def main():
         post(issue_number, adw_id, "ops", f"❌ Error classifying issue: {error}")
         sys.exit(1)
     state.update(issue_class=issue_command)
-    state.save("adw_plan_iso")
+    state.save("adw_plan")
     post(issue_number, adw_id, "ops", f"✅ Issue classified as: {issue_command}")
 
     # Branch name
@@ -126,7 +126,7 @@ def main():
         post(issue_number, adw_id, "ops", f"❌ Error generating branch name: {error}")
         sys.exit(1)
     state.update(branch_name=branch_name)
-    state.save("adw_plan_iso")
+    state.save("adw_plan")
 
     # Establish the branch + working directory.
     if in_ci:
@@ -144,7 +144,7 @@ def main():
             post(issue_number, adw_id, "ops", f"❌ Error creating worktree: {error}")
             sys.exit(1)
         state.update(worktree_path=worktree_path)
-        state.save("adw_plan_iso")
+        state.save("adw_plan")
 
         # Reuse the ports already allocated + saved above (don't re-resolve, which
         # could drift under contention).
@@ -156,7 +156,7 @@ def main():
         )
         db_path = setup_worktree_environment(worktree_path, ports, logger)
         state.update(db_path=db_path)
-        state.save("adw_plan_iso")
+        state.save("adw_plan")
 
         install_request = AgentTemplateRequest(
             agent_name="ops",
@@ -203,7 +203,7 @@ def main():
         sys.exit(1)
 
     state.update(plan_file=plan_file_path)
-    state.save("adw_plan_iso")
+    state.save("adw_plan")
     post(issue_number, adw_id, "ops", f"✅ Plan file created: {plan_file_path}")
 
     # Commit the plan
@@ -222,7 +222,7 @@ def main():
     # Push + open/refresh PR
     finalize_git_operations(state, logger, cwd=worktree_path)
 
-    state.save("adw_plan_iso")
+    state.save("adw_plan")
     post(issue_number, adw_id, "ops", "✅ Planning phase completed")
     state.to_stdout()
 

@@ -32,20 +32,20 @@ ModelSet = Literal["base", "heavy"]
 
 # ADW workflow types (all isolated)
 ADWWorkflow = Literal[
-    "adw_plan_iso",  # Planning only
-    "adw_patch_iso",  # Direct patch from issue
-    "adw_build_iso",  # Building only (dependent workflow)
-    "adw_test_iso",  # Testing only (dependent workflow)
-    "adw_review_iso",  # Review only (dependent workflow)
-    "adw_document_iso",  # Documentation only (dependent workflow)
-    "adw_ship_iso",  # Ship workflow (PR-based, Copilot-iterating, auto-merge)
-    "adw_sdlc_zte_iso",  # Zero-Touch Engineering: full SDLC with auto-merge
-    "adw_plan_build_iso",  # Plan + Build
-    "adw_plan_build_test_iso",  # Plan + Build + Test
-    "adw_plan_build_test_review_iso",  # Plan + Build + Test + Review
-    "adw_plan_build_document_iso",  # Plan + Build + Document
-    "adw_plan_build_review_iso",  # Plan + Build + Review
-    "adw_sdlc_iso",  # Complete SDLC: Plan + Build + Test + Review + Document
+    "adw_plan",  # Planning only
+    "adw_patch",  # Direct patch from issue
+    "adw_build",  # Building only (dependent workflow)
+    "adw_test",  # Testing only (dependent workflow)
+    "adw_review",  # Review only (dependent workflow)
+    "adw_document",  # Documentation only (dependent workflow)
+    "adw_ship",  # Ship workflow (PR-based, Copilot-iterating, auto-merge)
+    "adw_sdlc_zte",  # Zero-Touch Engineering: full SDLC with auto-merge
+    "adw_plan_build",  # Plan + Build
+    "adw_plan_build_test",  # Plan + Build + Test
+    "adw_plan_build_test_review",  # Plan + Build + Test + Review
+    "adw_plan_build_document",  # Plan + Build + Document
+    "adw_plan_build_review",  # Plan + Build + Review
+    "adw_sdlc",  # Complete SDLC: Plan + Build + Test + Review + Document
 ]
 
 # All slash commands used in the ADW system.
@@ -281,7 +281,7 @@ class DocumentationResult(BaseModel):
 class ADWExtractionResult(BaseModel):
     """Result from extracting ADW information from text."""
 
-    workflow_command: Optional[str] = None  # e.g. "adw_plan_iso" (without slash)
+    workflow_command: Optional[str] = None  # e.g. "adw_plan" (without slash)
     adw_id: Optional[str] = None  # 8-character ADW ID
     model_set: Optional[ModelSet] = "base"
 

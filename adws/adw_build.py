@@ -6,9 +6,9 @@
 """ADW Build (isolated) — implement the plan in the worktree.
 
 Usage:
-  uv run adws/adw_build_iso.py <issue-number> <adw-id>
+  uv run adws/adw_build.py <issue-number> <adw-id>
 
-Requires adw_plan_iso.py to have run first (state + worktree must exist).
+Requires adw_plan.py to have run first (state + worktree must exist).
 """
 
 import sys
@@ -35,14 +35,14 @@ def main():
     load_dotenv()
 
     if len(sys.argv) < 3:
-        print("Usage: uv run adws/adw_build_iso.py <issue-number> <adw-id>")
+        print("Usage: uv run adws/adw_build.py <issue-number> <adw-id>")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2]
 
-    logger = setup_logger(adw_id, "adw_build_iso")
-    state = load_state_or_exit(adw_id, "adw_build_iso", logger)
+    logger = setup_logger(adw_id, "adw_build")
+    state = load_state_or_exit(adw_id, "adw_build", logger)
     issue_number = state.get("issue_number", issue_number)
     logger.info(f"ADW Build Iso starting - ID: {adw_id}, Issue: {issue_number}")
 
@@ -50,10 +50,10 @@ def main():
     worktree_path = require_worktree_or_ci(adw_id, state, logger, issue_number)
 
     if not state.get("branch_name"):
-        post(issue_number, adw_id, "ops", "❌ No branch in state — run adw_plan_iso.py first")
+        post(issue_number, adw_id, "ops", "❌ No branch in state — run adw_plan.py first")
         sys.exit(1)
     if not state.get("plan_file"):
-        post(issue_number, adw_id, "ops", "❌ No plan file in state — run adw_plan_iso.py first")
+        post(issue_number, adw_id, "ops", "❌ No plan file in state — run adw_plan.py first")
         sys.exit(1)
 
     branch_name = state.get("branch_name")
@@ -89,7 +89,7 @@ def main():
             logger.warning("Defaulting to /feature after classification error")
         else:
             state.update(issue_class=issue_command)
-            state.save("adw_build_iso")
+            state.save("adw_build")
 
     commit_msg, error = create_commit(AGENT_IMPLEMENTOR, issue, issue_command, adw_id, logger, worktree_path)
     if error:
@@ -104,7 +104,7 @@ def main():
     post(issue_number, adw_id, AGENT_IMPLEMENTOR, "✅ Implementation committed")
 
     finalize_git_operations(state, logger, cwd=worktree_path)
-    state.save("adw_build_iso")
+    state.save("adw_build")
     post(issue_number, adw_id, "ops", "✅ Implementation phase completed")
     state.to_stdout()
 

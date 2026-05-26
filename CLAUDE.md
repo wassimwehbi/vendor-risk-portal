@@ -38,7 +38,7 @@ existing one. No PR should be opened without one.
 `adws/` is a Python (`uv`) "AI Developer Workflow" layer that drives the `claude` CLI
 through plan → build → test → review → document → ship for a GitHub issue. See
 `specs/0008-zte-agentic-layer.md`. Trigger it three ways: locally
-(`uv run adws/adw_sdlc_zte_iso.py <issue>`), via the cron poller
+(`uv run adws/adw_sdlc_zte.py <issue>`), via the cron poller
 (`adws/adw_triggers/trigger_cron.py`), or by labeling an issue `adw:zte` (the
 `.github/workflows/adw-zte.yml` Actions "webhook"). Ship is true zero-touch: it waits for
 the required checks, resolves GitHub Copilot's high-importance PR feedback, then

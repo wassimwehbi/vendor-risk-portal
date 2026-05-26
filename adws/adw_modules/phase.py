@@ -64,7 +64,7 @@ def require_worktree_or_ci(
             issue_number,
             adw_id,
             "ops",
-            f"❌ Worktree validation failed: {error}. Run adw_plan_iso.py first.",
+            f"❌ Worktree validation failed: {error}. Run adw_plan.py first.",
         )
         sys.exit(1)
     return state.get("worktree_path")
@@ -77,7 +77,7 @@ def load_state_or_exit(
     state = ADWState.load(adw_id, logger)
     if not state:
         logger.error(f"No state found for ADW ID: {adw_id}")
-        logger.error("Run adw_plan_iso.py first to create the state (and worktree).")
+        logger.error("Run adw_plan.py first to create the state (and worktree).")
         sys.exit(1)
     state.append_adw_id(phase)
     return state

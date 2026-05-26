@@ -7,7 +7,7 @@
 automatic failure resolution, then commit results.
 
 Usage:
-  uv run adws/adw_test_iso.py <issue-number> <adw-id> [--skip-e2e]
+  uv run adws/adw_test.py <issue-number> <adw-id> [--skip-e2e]
 """
 
 import sys
@@ -38,14 +38,14 @@ def main():
         sys.argv.remove("--skip-e2e")
 
     if len(sys.argv) < 3:
-        print("Usage: uv run adws/adw_test_iso.py <issue-number> <adw-id> [--skip-e2e]")
+        print("Usage: uv run adws/adw_test.py <issue-number> <adw-id> [--skip-e2e]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2]
 
-    logger = setup_logger(adw_id, "adw_test_iso")
-    state = load_state_or_exit(adw_id, "adw_test_iso", logger)
+    logger = setup_logger(adw_id, "adw_test")
+    state = load_state_or_exit(adw_id, "adw_test", logger)
     issue_number = state.get("issue_number", issue_number)
     logger.info(f"ADW Test Iso - ID: {adw_id}, Issue: {issue_number}, skip_e2e={skip_e2e}")
 
@@ -80,14 +80,14 @@ def main():
             issue_command = "/feature"
         else:
             state.update(issue_class=issue_command)
-            state.save("adw_test_iso")
+            state.save("adw_test")
 
     commit_msg, error = create_commit(AGENT_TESTER, issue, issue_command, adw_id, logger, worktree_path)
     if not error:
         commit_changes(commit_msg, cwd=worktree_path)
         finalize_git_operations(state, logger, cwd=worktree_path)
 
-    state.save("adw_test_iso")
+    state.save("adw_test")
     if total_failures > 0:
         post(issue_number, adw_id, "ops", f"❌ Test phase completed with {total_failures} failures")
         state.to_stdout()

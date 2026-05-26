@@ -7,7 +7,7 @@
 capture screenshots, and patch blockers.
 
 Usage:
-  uv run adws/adw_review_iso.py <issue-number> <adw-id> [--skip-resolution]
+  uv run adws/adw_review.py <issue-number> <adw-id> [--skip-resolution]
 """
 
 import sys
@@ -54,14 +54,14 @@ def main():
         sys.argv.remove("--skip-resolution")
 
     if len(sys.argv) < 3:
-        print("Usage: uv run adws/adw_review_iso.py <issue-number> <adw-id> [--skip-resolution]")
+        print("Usage: uv run adws/adw_review.py <issue-number> <adw-id> [--skip-resolution]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
     adw_id = sys.argv[2]
 
-    logger = setup_logger(adw_id, "adw_review_iso")
-    state = load_state_or_exit(adw_id, "adw_review_iso", logger)
+    logger = setup_logger(adw_id, "adw_review")
+    state = load_state_or_exit(adw_id, "adw_review", logger)
     issue_number = state.get("issue_number", issue_number)
     check_env_vars(logger)
     worktree_path = require_worktree_or_ci(adw_id, state, logger, issue_number)
@@ -112,7 +112,7 @@ def main():
         commit_changes(commit_msg, cwd=worktree_path)
         finalize_git_operations(state, logger, cwd=worktree_path)
 
-    state.save("adw_review_iso")
+    state.save("adw_review")
     if blockers_remaining and not skip_resolution:
         post(issue_number, adw_id, "ops", f"⚠️ Review completed with {len(blockers_remaining)} unresolved blockers")
     else:
