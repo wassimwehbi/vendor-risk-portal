@@ -1,0 +1,30 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# ///
+"""ADW Stop hook: record session completion (best-effort)."""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def main():
+    try:
+        input_data = json.load(sys.stdin)
+    except Exception:
+        sys.exit(0)
+    try:
+        root = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+        session = input_data.get("session_id", "unknown")
+        log_dir = Path(root) / "agents" / "_hooks" / session
+        log_dir.mkdir(parents=True, exist_ok=True)
+        (log_dir / "stop.json").write_text(json.dumps(input_data, indent=2))
+    except Exception:
+        pass
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
