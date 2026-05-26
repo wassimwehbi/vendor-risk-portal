@@ -58,3 +58,24 @@ test('Class A under the limit now but projected to exceed it is critical', () =>
   assert.ok(a && a.projected > a.limit);
   assert.equal(r.level, 'critical');
 });
+
+test('early-month projection is suppressed so a day-1 burst does not false-alarm', () => {
+  // On day 1 a naive linear projection would multiply usage by ~31x; 100k Class A
+  // ops would project over the 1M limit. Projection-based alerts are suppressed
+  // in the first days of the month, so this stays ok (actual usage is only 10%).
+  const day1 = new Date('2026-05-01T00:00:00Z');
+  const r = mon.evaluateUsage({ storageBytes: 0, classA: 100_000, classB: 0 }, day1);
+  assert.equal(r.level, 'ok');
+});
+
+test('actual usage already over the limit alerts critical even on day 1', () => {
+  const day1 = new Date('2026-05-01T00:00:00Z');
+  const r = mon.evaluateUsage({ storageBytes: 0, classA: 1_500_000, classB: 0 }, day1);
+  assert.equal(r.level, 'critical');
+});
+
+test('a metric exactly at its free limit is warn, not critical (no overage yet)', () => {
+  const r = mon.evaluateUsage({ storageBytes: 10_000_000_000, classA: 0, classB: 0 }, MID_MAY);
+  assert.equal(r.level, 'warn');
+  assert.equal(r.projectedOverageUsd, 0);
+});

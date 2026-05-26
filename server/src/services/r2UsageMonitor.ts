@@ -21,6 +21,12 @@ const GB = 1_000_000_000;
 const FREE = { storageGb: 10, classA: 1_000_000, classB: 10_000_000 } as const;
 const RATE = { storagePerGbMonth: 0.015, classAPerMillion: 4.5, classBPerMillion: 0.36 } as const;
 
+// Linear month-end projection is unreliable in the first days of the month (a
+// single day's usage extrapolates to ~30x), so projection-based alerts are
+// suppressed until at least this many days have elapsed. Actual usage that is
+// already over a limit still alerts immediately.
+const MIN_PROJECTION_DAYS = 3;
+
 // R2 operation classes (https://developers.cloudflare.com/r2/pricing/).
 // Reads are Class B; deletes/aborts are free; writes/lists/multipart are Class A.
 // Unknown/new action types default to Class A so cost is never under-counted.
@@ -86,6 +92,10 @@ function fmtN(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function opMetric(
   name: string,
   used: number,
@@ -118,8 +128,9 @@ export function evaluateUsage(usage: R2Usage, now: Date = new Date(), warnPercen
   const month = now.getUTCMonth();
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const dayOfMonth = now.getUTCDate();
-  const elapsedFraction = Math.max(dayOfMonth / daysInMonth, 1 / daysInMonth);
+  const elapsedFraction = dayOfMonth / daysInMonth; // getUTCDate() is always >= 1, so never zero
   const project = (used: number) => used / elapsedFraction;
+  const projectionReliable = dayOfMonth >= MIN_PROJECTION_DAYS;
 
   const storageGb = usage.storageBytes / GB;
   const storage: MetricReport = {
@@ -141,8 +152,10 @@ export function evaluateUsage(usage: R2Usage, now: Date = new Date(), warnPercen
 
   let level: AlertLevel = 'ok';
   for (const m of metrics) {
-    if (m.used >= m.limit || m.projected >= m.limit) level = bump(level, 'critical');
-    else if (m.percent >= warnPercent || m.projectedPercent >= warnPercent) level = bump(level, 'warn');
+    const over = m.used > m.limit || (projectionReliable && m.projected > m.limit);
+    const near = m.percent >= warnPercent || (projectionReliable && m.projectedPercent >= warnPercent);
+    if (over) level = bump(level, 'critical');
+    else if (near) level = bump(level, 'warn');
   }
 
   const projectedOverageUsd = round2(metrics.reduce((sum, m) => sum + m.overageUsd, 0));
@@ -275,11 +288,11 @@ function writeState(state: AlertState): void {
 
 // ---- Alert dispatch + scheduling -------------------------------------------
 
-async function sendAlert(report: UsageReport): Promise<void> {
+async function sendAlert(report: UsageReport): Promise<boolean> {
   const to = process.env.R2_ALERT_EMAIL || (process.env.ADMIN_EMAILS || '').split(',')[0]?.trim();
   if (!to) {
     console.warn('[r2-monitor] no alert recipient configured (set R2_ALERT_EMAIL or ADMIN_EMAILS)');
-    return;
+    return false;
   }
   const bucket = process.env.R2_MONITOR_BUCKET || 'vrp-litestream';
   const subject = `[R2 ${report.level.toUpperCase()}] Cloudflare R2 usage alert — vendor-risk-portal`;
@@ -291,32 +304,45 @@ async function sendAlert(report: UsageReport): Promise<void> {
     'Cloudflare has no hard spend cap. To reduce usage: prune old Litestream snapshots, lengthen the replication interval, or add R2 lifecycle rules.';
   const text = `${intro}\n\nReplica bucket: ${bucket}\n\n${report.summary}\n\n${advice}\n\nAutomated alert from the vendor-risk-portal backend.`;
   const html =
-    `<p>${intro}</p>` +
-    `<p><strong>Replica bucket:</strong> ${bucket}</p>` +
-    `<pre style="font:13px/1.5 ui-monospace,monospace">${report.summary.replace(/</g, '&lt;')}</pre>` +
-    `<p>${advice}</p>`;
-  await sendMail({ to, subject, text, html });
-  console.log(`[r2-monitor] ${report.level} alert sent to ${to}`);
+    `<p>${escapeHtml(intro)}</p>` +
+    `<p><strong>Replica bucket:</strong> ${escapeHtml(bucket)}</p>` +
+    `<pre style="font:13px/1.5 ui-monospace,monospace">${escapeHtml(report.summary)}</pre>` +
+    `<p>${escapeHtml(advice)}</p>`;
+  const dispatched = await sendMail({ to, subject, text, html });
+  if (dispatched) console.log(`[r2-monitor] ${report.level} alert sent to ${to}`);
+  else console.log(`[r2-monitor] ${report.level} alert pending — SMTP not configured; would notify ${to}`);
+  return dispatched;
 }
 
 /** One check cycle: fetch -> evaluate -> alert if the level escalated this month. Exposed for manual/test runs. */
 export async function runR2UsageCheck(now: Date = new Date()): Promise<UsageReport | null> {
-  const usage = await fetchR2Usage(now);
-  if (!usage) return null;
-  const warnPercent = Number(process.env.R2_ALERT_WARN_PERCENT) || 80;
-  const report = evaluateUsage(usage, now, warnPercent);
-  console.log(`[r2-monitor] ${report.summary.replace(/\n/g, ' | ')}`);
+  try {
+    const usage = await fetchR2Usage(now);
+    if (!usage) return null;
+    const wp = Number(process.env.R2_ALERT_WARN_PERCENT);
+    const warnPercent = Number.isFinite(wp) && wp >= 0 ? wp : 80;
+    const report = evaluateUsage(usage, now, warnPercent);
+    console.log(`[r2-monitor] ${report.summary.replace(/\n/g, ' | ')}`);
 
-  const month = currentMonth(now);
-  const prev = readState();
-  const prevLevel: AlertLevel = prev && prev.month === month ? prev.level : 'ok';
-  // Alert only when escalating beyond the highest level already alerted this
-  // month — avoids re-sending on every interval and across restarts.
-  if (LEVEL_RANK[report.level] > LEVEL_RANK[prevLevel]) {
-    await sendAlert(report);
-    writeState({ month, level: report.level });
+    const month = currentMonth(now);
+    const prev = readState();
+    const prevLevel: AlertLevel = prev && prev.month === month ? prev.level : 'ok';
+    // Alert only when escalating beyond the highest level already alerted this
+    // month (avoids re-sending on every interval and across restarts), and
+    // persist that level only once an email was actually dispatched — so a
+    // missing recipient or unconfigured SMTP can't permanently suppress the
+    // real alert for the rest of the month.
+    if (LEVEL_RANK[report.level] > LEVEL_RANK[prevLevel]) {
+      const sent = await sendAlert(report);
+      if (sent) writeState({ month, level: report.level });
+    }
+    return report;
+  } catch (err) {
+    // Never let a transient failure (SMTP outage, DB lock) crash the long-lived
+    // server via an unhandled rejection from the fire-and-forget timer.
+    console.error(`[r2-monitor] usage check failed: ${(err as Error).message}`);
+    return null;
   }
-  return report;
 }
 
 /**
@@ -334,7 +360,8 @@ export function startR2UsageMonitor(): void {
     console.log('[r2-monitor] not configured — set CLOUDFLARE_API_TOKEN + R2_ACCOUNT_ID to enable');
     return;
   }
-  const intervalHours = Number(process.env.R2_MONITOR_INTERVAL_HOURS) || 12;
+  const ih = Number(process.env.R2_MONITOR_INTERVAL_HOURS);
+  const intervalHours = Number.isFinite(ih) && ih > 0 ? ih : 12;
   console.log(`[r2-monitor] enabled — checking R2 usage every ${intervalHours}h`);
   // First check shortly after boot (don't block startup), then on the interval.
   setTimeout(() => void runR2UsageCheck(), 10_000).unref();

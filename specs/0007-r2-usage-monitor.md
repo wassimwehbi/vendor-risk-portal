@@ -32,7 +32,12 @@ of any remediation.
 - **Evaluation** (`evaluateUsage`, pure/testable): operations are cumulative month-to-date
   and linearly projected to month-end; storage is point-in-time (not projected). Levels:
   `warn` at ≥80% of any limit (configurable), `critical` once any metric is already over
-  or projected to exceed its limit. Also estimates the month-end overage in USD.
+  or projected to exceed its limit. `critical` uses a strict over-limit comparison
+  (`used > limit`), since overage is billed only strictly above the free allotment — a
+  metric sitting exactly at its limit is `warn`, not `critical`. Projection-based alerts
+  are suppressed for the first `MIN_PROJECTION_DAYS` (3) days of the month, where a single
+  day's usage would extrapolate to ~30× and false-alarm; actual usage already over a limit
+  still alerts immediately. Also estimates the month-end overage in USD.
 - **Operation classification** (`classifyAction`): reads → Class B, deletes/aborts → free,
   everything else (writes/lists/multipart, and any unknown/new action) → Class A, so cost
   is never under-counted.
@@ -41,8 +46,14 @@ of any remediation.
   first `ADMIN_EMAILS` entry.
 - **De-duplication:** a new `monitor_state` key/value table stores the highest alert level
   already sent for the current month, so an alert fires only on **escalation** — not on
-  every interval, and not again after a restart. State rides along in the Litestream-
-  replicated DB.
+  every interval, and not again after a restart. The level is persisted only **after** an
+  email is actually dispatched, so a missing recipient or unconfigured SMTP can't
+  permanently suppress the real alert for the rest of the month. State rides along in the
+  Litestream-replicated DB.
+- **Validated env config:** numeric env vars — the warn percent (`R2_ALERT_WARN_PERCENT`)
+  and check interval (`R2_MONITOR_INTERVAL_HOURS`) — are validated (finite and in range)
+  and fall back to their defaults (80% / 12h) otherwise, so a malformed value can't disable
+  the guard or set a nonsensical schedule.
 - **Inert by default:** the whole monitor logs and returns unless `R2_MONITOR_ENABLED` is
   not `false` **and** both `CLOUDFLARE_API_TOKEN` and `R2_ACCOUNT_ID` are set. Local/offline
   dev is unaffected; when SMTP is unconfigured `sendMail` logs instead of sending.
@@ -64,11 +75,13 @@ of any remediation.
 ## 4. Verification
 
 - `npm --prefix server run typecheck` — passes.
-- `npm --prefix server test` — 65/65 pass, including 6 new cases in `r2-monitor.test.ts`
+- `npm --prefix server test` — 68/68 pass, including 9 cases in `r2-monitor.test.ts`
   covering `classifyAction`, `monthRange`, an OK baseline, an 85%-storage `warn`, a
-  Class-A-over-limit `critical` (with a positive USD estimate), and a Class-A
-  under-now-but-projected-over `critical`. Tests exercise the pure helpers only — no
-  network or SMTP is touched.
+  Class-A-over-limit `critical` (with a positive USD estimate), a Class-A
+  under-now-but-projected-over `critical`, early-month projection suppression, an
+  actual-over-limit `critical` on day 1, and a metric exactly at its limit being
+  `warn` (not `critical`). Tests exercise the pure helpers only — no network or SMTP
+  is touched.
 
 ## 5. Known Limitations / Follow-ups
 
@@ -83,3 +96,7 @@ of any remediation.
 - **Overage rates are hard-coded** from R2 pricing at implementation time; if Cloudflare
   changes pricing the USD estimate would need updating (alert levels themselves depend
   only on the free-tier limits).
+- **Per-month alerting is monotonic** — within a calendar month an alert fires only when
+  the level escalates beyond the highest already-sent level. A metric that drops below a
+  threshold and later re-crosses it the same month is not re-alerted (intentional, to avoid
+  alert spam).

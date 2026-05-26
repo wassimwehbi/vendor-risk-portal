@@ -23,15 +23,18 @@ export interface MailMessage {
  * Generic transactional email send, shared by the magic-link / invite flows and
  * the R2 usage monitor. When SMTP is not configured (e.g. local / offline dev)
  * the message is logged to the console instead of sent, so every flow still
- * works without an email provider.
+ * works without an email provider. Returns true if the message was actually
+ * handed to the SMTP transport, false if it was only logged (SMTP not
+ * configured).
  */
-export async function sendMail(msg: MailMessage): Promise<void> {
+export async function sendMail(msg: MailMessage): Promise<boolean> {
   if (!authConfig.smtpConfigured) {
     const to = Array.isArray(msg.to) ? msg.to.join(', ') : msg.to;
     console.log(`[mail] (dev) SMTP not configured — would send "${msg.subject}" to ${to}`);
-    return;
+    return false;
   }
   await transport().sendMail({ from: FROM, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html });
+  return true;
 }
 
 /**
