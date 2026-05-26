@@ -80,9 +80,16 @@ def extract_adw_info(text: str, temp_adw_id: str) -> ADWExtractionResult:
             adw_command = data.get("adw_slash_command", "").replace("/", "")
             adw_id = data.get("adw_id")
             model_set = data.get("model_set", "base")
-            if adw_command and adw_command in AVAILABLE_ADW_WORKFLOWS:
+            # Case-insensitive match → canonical workflow name, so the
+            # uppercase-ZTE safety signal ("adw_sdlc_ZTE_iso") still resolves to
+            # the real lowercase "adw_sdlc_zte_iso" instead of being dropped.
+            canonical = next(
+                (w for w in AVAILABLE_ADW_WORKFLOWS if w.lower() == adw_command.lower()),
+                None,
+            )
+            if canonical:
                 return ADWExtractionResult(
-                    workflow_command=adw_command, adw_id=adw_id, model_set=model_set
+                    workflow_command=canonical, adw_id=adw_id, model_set=model_set
                 )
             return ADWExtractionResult()
         except ValueError as e:

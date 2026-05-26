@@ -31,6 +31,7 @@ from adw_modules.git_ops import (
     get_pr_state,
     merge_pr,
     push_branch,
+    commit_changes,
     finalize_git_operations,
 )
 from adw_modules.github import (
@@ -76,8 +77,17 @@ def abort_to_human(pr_number, issue_number, adw_id, logger, reason: str):
 
 
 def commit_and_push(issue, issue_class, adw_id, logger, working_dir, branch_name):
-    """Commit current changes via /commit and push (best-effort, idempotent)."""
+    """Commit current changes and push (idempotent).
+
+    create_commit drives the /commit agent (which stages + commits); we then call
+    commit_changes as a deterministic fallback so an uncommitted auto-fix still
+    lands a commit. commit_changes is a no-op when the tree is already clean, so a
+    push is never a no-op spin while files remain uncommitted.
+    """
     create_commit(AGENT_SHIPPER, issue, issue_class, adw_id, logger, working_dir)
+    commit_changes(
+        f"{AGENT_SHIPPER}: {issue_class}: address review feedback", cwd=working_dir
+    )
     ok, err = push_branch(branch_name, cwd=working_dir)
     if not ok:
         logger.warning(f"push after resolve returned: {err}")

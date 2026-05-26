@@ -25,11 +25,17 @@ _COPILOT_LOGIN_FRAGMENTS = ("copilot",)
 
 
 def get_github_env() -> Optional[dict]:
-    """Return a minimal env with GH_TOKEN, or None to inherit ambient gh auth."""
+    """Return the environment with GH_TOKEN set, or None to inherit ambient gh auth.
+
+    Inherits the full environment (HOME, XDG_*, SSL cert vars, …) rather than a
+    minimal dict, since `gh`/`git` need those; we only overlay the token.
+    """
     token = os.getenv("GITHUB_PAT") or os.getenv("GH_TOKEN")
     if not token:
         return None
-    return {"GH_TOKEN": token, "PATH": os.environ.get("PATH", "")}
+    env = os.environ.copy()
+    env["GH_TOKEN"] = token
+    return env
 
 
 def get_repo_url() -> str:
