@@ -93,7 +93,8 @@ gh api -X PUT repos/wassimwehbi/vendor-risk-portal/branches/main/protection \
   -H "Accept: application/vnd.github+json" --input - <<'JSON'
 {
   "required_status_checks": { "strict": true, "checks": [
-    { "context": "quality" }, { "context": "e2e" }, { "context": "docker" }
+    { "context": "quality" }, { "context": "e2e" }, { "context": "docker" },
+    { "context": "Analyze (javascript-typescript)" }
   ]},
   "enforce_admins": false,
   "required_pull_request_reviews": null,
@@ -101,8 +102,30 @@ gh api -X PUT repos/wassimwehbi/vendor-risk-portal/branches/main/protection \
 }
 JSON
 ```
-(Status-check contexts equal the job ids: `quality`, `e2e`, `docker`. Add `analyze` if CodeQL
-should also block.)
+(Status-check contexts equal the job ids `quality`, `e2e`, `docker`; CodeQL's context is its job
+**name**, `Analyze (javascript-typescript)` — now included so a CodeQL failure also blocks merge.)
+
+### Automatic Copilot code review (ruleset, applied once — not stored in the repo)
+Copilot code review is a **native GitHub PR reviewer**, not a CI/Actions job, so it lives in a
+repository **ruleset** rather than `ci.yml`. Applied once on the default branch:
+```bash
+gh api -X POST repos/wassimwehbi/vendor-risk-portal/rulesets \
+  -H "Accept: application/vnd.github+json" --input - <<'JSON'
+{
+  "name": "Copilot review for default branch",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "copilot_code_review",
+      "parameters": { "review_on_push": true, "review_draft_pull_requests": false } }
+  ]
+}
+JSON
+```
+`review_on_push: true` ⇒ Copilot re-reviews on every push to an open PR (the "review each commit"
+intent; reviews are per-PR-push, not per-individual-commit). `review_draft_pull_requests: false`
+skips drafts to conserve premium-request quota.
 
 ## 4. Key Decisions & Rationale
 
@@ -140,3 +163,9 @@ still triggers the existing Render + Cloudflare auto-deploys.
 - **Deploy-on-green is indirect** (branch protection), not GitHub-orchestrated. Revisit a
   GitHub-owned deploy (Render hook + Cloudflare Wrangler) only if rollback/deploy-gating control is needed.
 - **Branch protection is applied once manually** (documented above); it is not stored in the repo.
+- **Automatic Copilot code review** is a repository **ruleset** (documented above), also applied once
+  and not stored in the repo. It is **advisory** — Copilot leaves review comments, not an approving
+  review — so it is auto-*requested*, **not** a merge-gating required check. It only runs when the PR
+  author has Copilot code-review access (Pro/Pro+/Business/Enterprise) with premium-request quota
+  remaining. The ruleset's `deletion`/`non_fast_forward` rules overlap the branch protection above —
+  redundant but harmless.
