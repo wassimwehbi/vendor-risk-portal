@@ -7,9 +7,13 @@ import path from 'node:path';
 // proxies /api to the API so the SPA is same-origin (matching local dev). Dedicated
 // ports (not the 4100/5173 dev defaults) + reuseExistingServer:false guarantee the
 // harness starts its own offline server and never reuses a developer's `npm run dev`.
-const SERVER_PORT = 4101;
-const CLIENT_PORT = 5174;
-const E2E_DB = path.join(os.tmpdir(), `vrp-e2e-${Date.now()}.db`);
+//
+// Ports/DB are env-overridable so the ZTE agentic layer can run several E2E suites
+// concurrently in isolated worktrees (each worktree's .ports.env sets these). The
+// defaults are unchanged, so normal local/CI E2E behaves exactly as before.
+const SERVER_PORT = Number(process.env.E2E_SERVER_PORT) || 4101;
+const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT) || 5174;
+const E2E_DB = process.env.VRP_DB_PATH || path.join(os.tmpdir(), `vrp-e2e-${Date.now()}.db`);
 
 export default defineConfig({
   testDir: './e2e',

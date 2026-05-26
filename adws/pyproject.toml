@@ -1,0 +1,14 @@
+[project]
+name = "vrp-adws"
+version = "0.1.0"
+description = "ZTE agentic coding layer (AI Developer Workflows) for the Vendor Risk Portal"
+requires-python = ">=3.12"
+dependencies = [
+    "python-dotenv>=1.0",
+    "pydantic>=2.7",
+    "requests>=2.32",
+]
+
+# This is an orchestration toolkit, not an installable library.
+[tool.uv]
+package = false
