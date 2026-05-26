@@ -142,6 +142,14 @@ export function initDb(): void {
       FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     );
 
+    -- Generic key/value state for background jobs (e.g. the R2 usage monitor's
+    -- last-alert level per month, so alerts aren't re-sent on every check/restart).
+    CREATE TABLE IF NOT EXISTS monitor_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_item ON findings(item_id);
