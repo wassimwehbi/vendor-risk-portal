@@ -16,6 +16,11 @@ on:
       adw_id:
         description: "Existing ADW id (optional)"
         required: false
+      dry_run:
+        description: "Dry run: run the full pipeline but STOP before merging"
+        type: boolean
+        default: false
+        required: false
   repository_dispatch:
     types: [adw-zte]
 
@@ -104,4 +109,4 @@ jobs:
           # Run in place on a branch (no worktree/ports) — the runner is isolated.
           ADW_IN_CI: "true"
         run: |
-          uv run adws/adw_triggers/run_zte.py "${{ steps.ctx.outputs.issue }}" ${{ steps.ctx.outputs.adw_id }}
+          uv run adws/adw_triggers/run_zte.py "${{ steps.ctx.outputs.issue }}" ${{ steps.ctx.outputs.adw_id }} ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
