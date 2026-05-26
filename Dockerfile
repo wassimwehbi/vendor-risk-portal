@@ -20,11 +20,11 @@ COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 
 WORKDIR /app
 
-# Install server deps first for better layer caching. NODE_ENV is intentionally
-# unset here so devDependencies — including `tsx`, which `npm start` runs — are
-# installed. (Litestream/the entrypoint set NODE_ENV=production at runtime.)
+# Install server deps first for better layer caching. `tsx` (which `npm start` runs)
+# is a runtime dependency, so `--omit=dev` keeps it while excluding test-only
+# devDependencies (supertest, c8, typescript, @types/*) from the production image.
 COPY server/package*.json ./server/
-RUN npm --prefix server install
+RUN npm --prefix server install --omit=dev
 
 # App source + Litestream config + entrypoint.
 COPY server/ ./server/

@@ -29,6 +29,10 @@ async function login(opts: { email: string; role?: string; tenant?: string }) {
 }
 
 test('GET /api/health is public and reports the engine status', async () => {
+  // The /health handler reads ANTHROPIC_API_KEY per request, so clear it here: the
+  // top-of-file delete can be undone by dotenv (`import './env'`) loading a dev .env
+  // when the app module is imported.
+  delete process.env.ANTHROPIC_API_KEY;
   const res = await request(app).get('/api/health');
   assert.equal(res.status, 200);
   assert.equal(res.body.success, true);

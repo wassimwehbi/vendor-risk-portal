@@ -3,11 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 // E2E boots the real stack offline: the Express API (dev auth, throwaway SQLite,
-// no ANTHROPIC_API_KEY → deterministic rule engine) plus the Vite dev server,
-// which proxies /api to the API so the SPA is same-origin (matching local dev).
-const SERVER_PORT = 4100;
-const CLIENT_PORT = 5173;
-const E2E_DB = path.join(os.tmpdir(), 'vrp-e2e.db');
+// no ANTHROPIC_API_KEY → deterministic rule engine) plus the Vite dev server, which
+// proxies /api to the API so the SPA is same-origin (matching local dev). Dedicated
+// ports (not the 4100/5173 dev defaults) + reuseExistingServer:false guarantee the
+// harness starts its own offline server and never reuses a developer's `npm run dev`.
+const SERVER_PORT = 4101;
+const CLIENT_PORT = 5174;
+const E2E_DB = path.join(os.tmpdir(), `vrp-e2e-${Date.now()}.db`);
 
 export default defineConfig({
   testDir: './e2e',
@@ -26,7 +28,7 @@ export default defineConfig({
       command: 'npm --prefix server start',
       url: `http://localhost:${SERVER_PORT}/api/health`,
       timeout: 120_000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       env: {
         NODE_ENV: 'development',
         AUTH_MODE: 'dev',
@@ -40,7 +42,11 @@ export default defineConfig({
       command: 'npm --prefix client run dev',
       url: `http://localhost:${CLIENT_PORT}`,
       timeout: 120_000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
+      env: {
+        CLIENT_DEV_PORT: String(CLIENT_PORT),
+        API_PROXY_TARGET: `http://localhost:${SERVER_PORT}`,
+      },
     },
   ],
 });

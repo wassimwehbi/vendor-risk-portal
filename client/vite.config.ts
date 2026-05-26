@@ -2,14 +2,23 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
-// Dev server on 5173; proxy /api to the Express server on 4100.
+// Vite runs this config in Node, so `process` exists at runtime; declare just the
+// slice we read here so the browser tsconfig needn't pull in full @types/node.
+declare const process: { env: Record<string, string | undefined> };
+
+// Dev server port + API proxy target default to local dev (5173 → :4100) but can be
+// overridden via env so the E2E harness (playwright.config.ts) can run on isolated
+// ports without colliding with — or reusing — a running `npm run dev`.
+const DEV_PORT = Number(process.env.CLIENT_DEV_PORT) || 5173;
+const API_TARGET = process.env.API_PROXY_TARGET || 'http://localhost:4100';
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: DEV_PORT,
     proxy: {
       '/api': {
-        target: 'http://localhost:4100',
+        target: API_TARGET,
         changeOrigin: true,
       },
     },
