@@ -15,6 +15,16 @@ playwright-report/
 test-results/
 /playwright/.cache/
 
+# ZTE agentic layer (adws/) run artifacts — see specs/0008
+trees/
+agents/
+app_docs/assets/
+adws/.venv/
+adws/adw_triggers/.cron_state.json
+**/.ports.env
+__pycache__/
+*.pyc
+
 # Claude Code git worktrees — machine-local scratch checkouts that each carry
 # their own biome.json (a nested root config). Ignoring them keeps `git status`
 # clean and stops `biome ci .` from tripping over the nested config (Biome honors
