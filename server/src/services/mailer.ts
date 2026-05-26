@@ -12,18 +12,42 @@ function transport() {
 
 const FROM = process.env.EMAIL_FROM || 'no-reply@vendor-risk-portal.local';
 
+export interface MailMessage {
+  to: string | string[];
+  subject: string;
+  text: string;
+  html?: string;
+}
+
 /**
- * Sends a magic-link sign-in email. When SMTP is not configured (e.g. local /
- * offline dev) the link is logged to the server console instead, so the flow
- * still works without an email provider.
+ * Generic transactional email send, shared by the magic-link / invite flows and
+ * the R2 usage monitor. When SMTP is not configured (e.g. local / offline dev)
+ * the message is logged to the console instead of sent, so every flow still
+ * works without an email provider. Returns true if the message was actually
+ * handed to the SMTP transport, false if it was only logged (SMTP not
+ * configured).
+ */
+export async function sendMail(msg: MailMessage): Promise<boolean> {
+  if (!authConfig.smtpConfigured) {
+    const to = Array.isArray(msg.to) ? msg.to.join(', ') : msg.to;
+    console.log(`[mail] (dev) SMTP not configured — would send "${msg.subject}" to ${to}`);
+    return false;
+  }
+  await transport().sendMail({ from: FROM, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html });
+  return true;
+}
+
+/**
+ * Sends a magic-link sign-in email. When SMTP is not configured the link is
+ * logged to the server console instead, so the flow still works without an
+ * email provider.
  */
 export async function sendMagicLink(email: string, url: string): Promise<void> {
   if (!authConfig.smtpConfigured) {
     console.log(`[auth] (dev) magic sign-in link for ${email}: ${url}`);
     return;
   }
-  await transport().sendMail({
-    from: FROM,
+  await sendMail({
     to: email,
     subject: 'Your Vendor Risk Portal sign-in link',
     text: `Sign in to the Vendor Risk Portal:\n\n${url}\n\nThis link expires in 15 minutes. If you did not request it, ignore this email.`,
@@ -40,8 +64,7 @@ export async function sendInvite(email: string, url: string, tenantName: string)
     console.log(`[admin] (dev) invite link for ${email} -> ${tenantName}: ${url}`);
     return;
   }
-  await transport().sendMail({
-    from: FROM,
+  await sendMail({
     to: email,
     subject: `You've been invited to ${tenantName} on the Vendor Risk Portal`,
     text: `You've been invited to join ${tenantName} on the Vendor Risk Portal.\n\nAccept your invitation:\n${url}\n\nThis link expires in 7 days.`,
