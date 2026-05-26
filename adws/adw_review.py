@@ -114,9 +114,10 @@ def main():
 
     state.save("adw_review")
     if blockers_remaining and not skip_resolution:
-        post(issue_number, adw_id, "ops", f"⚠️ Review completed with {len(blockers_remaining)} unresolved blockers")
-    else:
-        post(issue_number, adw_id, "ops", "✅ Review phase completed")
+        post(issue_number, adw_id, "ops", f"❌ Review completed with {len(blockers_remaining)} unresolved blockers")
+        state.to_stdout()
+        sys.exit(1)
+    post(issue_number, adw_id, "ops", "✅ Review phase completed")
     state.to_stdout()
 
 

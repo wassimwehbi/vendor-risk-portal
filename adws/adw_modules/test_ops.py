@@ -43,7 +43,7 @@ def parse_test_results(
         return results, passed, len(results) - passed
     except Exception as e:
         logger.error(f"Error parsing test results: {e}")
-        return [], 0, 0
+        return [], 0, 1
 
 
 def parse_e2e_test_results(
@@ -55,7 +55,7 @@ def parse_e2e_test_results(
         return results, passed, len(results) - passed
     except Exception as e:
         logger.error(f"Error parsing E2E test results: {e}")
-        return [], 0, 0
+        return [], 0, 1
 
 
 def format_test_results_comment(results: List[TestResult], passed: int, failed: int) -> str:
@@ -123,6 +123,7 @@ def run_tests_with_resolution(
         if not response.success:
             logger.error(f"Error running tests: {response.output}")
             post(issue_number, adw_id, AGENT_TESTER, f"❌ Error running tests: {response.output}")
+            failed = 1
             break
 
         results, passed, failed = parse_test_results(response.output, logger)
@@ -163,6 +164,7 @@ def run_e2e_tests_with_resolution(
         if not response.success:
             logger.error(f"Error running E2E tests: {response.output}")
             post(issue_number, adw_id, AGENT_E2E_TESTER, f"❌ Error running E2E: {response.output}")
+            failed = 1
             break
 
         results, passed, failed = parse_e2e_test_results(response.output, logger)

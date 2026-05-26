@@ -139,12 +139,15 @@ def check_cycle(repo_path: str) -> None:
         if shutdown_requested:
             break
         should, latest_id = qualifies(issue, repo_path, cron_state)
-        if latest_id is not None:
-            # Record the latest comment id we've seen regardless, to avoid
-            # re-evaluating the same state repeatedly.
+        if latest_id is not None and not should:
+            # Record latest comment for non-triggering issues to avoid
+            # re-evaluating the same state on the next cycle.
             cron_state[str(issue.number)] = latest_id
         if should:
-            launch(issue.number)
+            if launch(issue.number) and latest_id is not None:
+                # Only advance state on successful launch; a failed launch
+                # leaves state unchanged so the next cycle can retry.
+                cron_state[str(issue.number)] = latest_id
     save_cron_state(cron_state)
 
 

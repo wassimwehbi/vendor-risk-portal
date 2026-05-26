@@ -198,8 +198,6 @@ def main():
                 res = copilot_ops.resolve_copilot_feedback(
                     adw_id, pr_number, to_resolve, working_dir, logger
                 )
-                for c in new_comments:
-                    processed_comment_ids.add(c.id)
 
                 if res is None:
                     if iteration == max_iters:
@@ -210,14 +208,22 @@ def main():
                 if res.changed_files:
                     commit_and_push(issue, issue_class, adw_id, logger, working_dir, branch_name)
                     request_copilot_review(pr_number)
-                    if res.remaining_high and iteration == max_iters:
-                        abort_to_human(pr_number, issue_number, adw_id, logger,
-                                       f"unresolved high-importance Copilot items: {res.remaining_high}")
-                    continue  # re-run checks + re-review on the new commit
+                    if res.remaining_high:
+                        if iteration == max_iters:
+                            abort_to_human(pr_number, issue_number, adw_id, logger,
+                                           f"unresolved high-importance Copilot items: {res.remaining_high}")
+                        # Don't mark processed yet — remaining items must be
+                        # re-evaluated after Copilot re-reviews the new commit.
+                        continue  # re-run checks + re-review on the new commit
+                    for c in new_comments:
+                        processed_comment_ids.add(c.id)
+                    continue  # re-run checks on the new commit
                 if res.remaining_high:
                     abort_to_human(pr_number, issue_number, adw_id, logger,
                                    f"high-importance Copilot items could not be resolved: {res.remaining_high}")
-                # else: nothing to change, no remaining high → clean.
+                # All resolved, no file changes — mark processed.
+                for c in new_comments:
+                    processed_comment_ids.add(c.id)
 
         # 3) Green + no actionable Copilot feedback → merge (unless dry-run).
         if dry_run:
