@@ -49,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     (async () => {
       await Promise.all([
-        api.getProviders().then(setProviders).catch(() => setProviders(null)),
+        api
+          .getProviders()
+          .then(setProviders)
+          .catch(() => setProviders(null)),
         refresh(),
       ]);
       setLoading(false);
@@ -77,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const activeRole: Role | null = user
       ? user.isAdmin
         ? 'Admin'
-        : memberships.find((m) => m.tenant_id === user.activeTenantId)?.role ?? null
+        : (memberships.find((m) => m.tenant_id === user.activeTenantId)?.role ?? null)
       : null;
     const isAdmin = !!user?.isAdmin;
     const canEdit = activeRole === 'Admin' || activeRole === 'Analyst';

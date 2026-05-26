@@ -44,9 +44,13 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
         </span>
         <span className="break-all text-sm font-medium text-slate-800">{ev.original_name}</span>
         <span className="text-xs text-slate-500">{formatBytes(ev.size)}</span>
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_CLASSES[ev.parse_status]}`}>
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_CLASSES[ev.parse_status]}`}
+        >
           {STATUS_LABEL[ev.parse_status]}
-          {ev.parse_status === 'extracted' && ev.extracted_chars > 0 ? ` · ${ev.extracted_chars.toLocaleString()} chars` : ''}
+          {ev.parse_status === 'extracted' && ev.extracted_chars > 0
+            ? ` · ${ev.extracted_chars.toLocaleString()} chars`
+            : ''}
         </span>
         {hasText && (
           <button
@@ -63,7 +67,10 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
       </div>
       {ev.parse_note && <p className="mt-1 text-xs text-slate-500">{ev.parse_note}</p>}
       {open && hasText && (
-        <pre id={textId} className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700 ring-1 ring-inset ring-slate-200 whitespace-pre-wrap">
+        <pre
+          id={textId}
+          className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-700 ring-1 ring-inset ring-slate-200 whitespace-pre-wrap"
+        >
           {ev.extracted_text}
         </pre>
       )}

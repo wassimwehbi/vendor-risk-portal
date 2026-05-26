@@ -138,7 +138,8 @@ router.post('/magic/request', loginLimiter, async (req, res) => {
 router.get('/magic/verify', async (req, res) => {
   const token = String(req.query.token || '');
   const email = verifyMagicToken(token);
-  if (!email) return res.redirect(`${authConfig.clientOrigin}/login?error=${encodeURIComponent('Invalid or expired link')}`);
+  if (!email)
+    return res.redirect(`${authConfig.clientOrigin}/login?error=${encodeURIComponent('Invalid or expired link')}`);
   try {
     const user = buildSessionUser(upsertUserOnLogin({ email }));
     await loginUser(req, user);

@@ -72,7 +72,12 @@ export function InviteAccept() {
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white">VR</span>
+            <span
+              aria-hidden="true"
+              className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white"
+            >
+              VR
+            </span>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">Vendor Risk Portal</h1>
               <p className="text-sm text-slate-500">AI-assisted vendor security &amp; privacy reviews</p>
@@ -90,7 +95,9 @@ export function InviteAccept() {
                 <div role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   This invitation link is invalid, has expired, or has already been used.
                 </div>
-                <Link to="/login" className="btn-secondary w-full">Go to sign in</Link>
+                <Link to="/login" className="btn-secondary w-full">
+                  Go to sign in
+                </Link>
               </div>
             ) : info ? (
               <div className="space-y-4">

@@ -1,10 +1,4 @@
-import type {
-  Completeness,
-  ControlStrength,
-  DataCategory,
-  EvidenceSufficiency,
-  RiskLevel,
-} from '../types';
+import type { Completeness, ControlStrength, DataCategory, EvidenceSufficiency, RiskLevel } from '../types';
 
 /**
  * Preliminary risk scoring (weighted-factor model, per spec section 5).

@@ -1,5 +1,8 @@
 # AI-Assisted Vendor Risk Questionnaire Analysis Tool
 
+[![CI](https://github.com/wassimwehbi/vendor-risk-portal/actions/workflows/ci.yml/badge.svg)](https://github.com/wassimwehbi/vendor-risk-portal/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/wassimwehbi/vendor-risk-portal/actions/workflows/codeql.yml/badge.svg)](https://github.com/wassimwehbi/vendor-risk-portal/actions/workflows/codeql.yml)
+
 A web portal that automates the **preliminary** analysis of vendor security
 questionnaires (SIG format) and maps vendor responses to **ISO 27001**,
 **ISO 27002**, and **GDPR** (with HIPAA flags where PHI is processed).
@@ -115,13 +118,45 @@ Run the server or client individually with `npm run dev:server` / `npm run dev:c
 ## Testing
 
 ```bash
-npm test        # server unit + scenario regression tests (node:test via tsx)
-npm run typecheck
+npm test            # server (node:test via tsx) + client (Vitest) unit/integration tests
+npm run test:coverage  # the same, with coverage (server: c8, client: Vitest v8)
+npm run test:e2e    # Playwright end-to-end smoke (boots the app offline)
+npm run typecheck   # tsc --noEmit for server + client
+npm run check       # Biome lint + format + import checks (what CI enforces)
 ```
 
-The test suite includes the weighted-factor scoring, the Excel/CSV column
-extraction, and a regression test that runs all five demo scenarios through the
-rule engine and asserts their expected risk bands and signature findings.
+Test layers:
+
+- **Server unit tests** — weighted-factor scoring, Excel/CSV column extraction, and a
+  regression test running all five demo scenarios through the rule engine (expected
+  risk bands + signature findings).
+- **Server integration tests** (`server/test/api.integration.test.ts`) — exercise the
+  real Express app over HTTP with `supertest`: health, 401/CSRF enforcement, the
+  analyze→approve flow, RBAC, and cross-tenant isolation. The app is mounted via
+  `createApp()` (`server/src/app.ts`), so no port is opened.
+- **Client unit tests** — Vitest + React Testing Library over formatters, presentational
+  components, and the API client.
+- **E2E** — Playwright (Chromium) drives the browser through dev sign-in → load a demo
+  scenario → see an analyzed risk band. Runs fully offline (rule engine, no API key).
+
+> First-run note (local): the server's `better-sqlite3` is ABI-pinned to Node 22, so
+> run tests/E2E under Node 22 (`.nvmrc`) — e.g. `nvm use` or `fnm exec --using=22.18.0 -- npm test`.
+> Install Playwright's browser once with `npx playwright install chromium`.
+
+## CI/CD
+
+GitHub Actions gates every PR and push to `main` (see `.github/workflows/`):
+
+- **`ci.yml`** — a `quality` job (Biome → typecheck → tests with coverage → client build),
+  an `e2e` job (Playwright), a `docker` job (builds the server image so a broken
+  `Dockerfile` fails here, not on Render), and an informational `audit` job (`npm audit`).
+- **`codeql.yml`** — CodeQL security analysis on push/PR and weekly.
+- **`dependabot.yml`** — weekly dependency + GitHub-Actions update PRs.
+
+Deployment itself is unchanged: Render (backend) and Cloudflare Pages (frontend) still
+auto-deploy on push to `main`. Branch protection requires the `quality`, `e2e`, and
+`docker` checks to be green before merge, so only green code reaches `main` — and
+therefore only green code deploys. See `specs/0006-ci-cd-pipeline.md`.
 
 ## Authentication & access control
 

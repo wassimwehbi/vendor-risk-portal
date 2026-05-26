@@ -42,7 +42,10 @@ export function createInvite(input: {
 
   const tx = db.transaction(() => {
     // One pending invite per (email, tenant): replace any prior unaccepted one.
-    db.prepare('DELETE FROM invites WHERE email = ? AND tenant_id = ? AND accepted_at IS NULL').run(email, input.tenantId);
+    db.prepare('DELETE FROM invites WHERE email = ? AND tenant_id = ? AND accepted_at IS NULL').run(
+      email,
+      input.tenantId,
+    );
     db.prepare(
       `INSERT INTO invites (email, tenant_id, role, token_hash, invited_by, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -51,7 +54,9 @@ export function createInvite(input: {
   tx();
 
   const row = db
-    .prepare('SELECT i.*, t.name AS tenant_name FROM invites i JOIN tenants t ON t.id = i.tenant_id WHERE i.token_hash = ?')
+    .prepare(
+      'SELECT i.*, t.name AS tenant_name FROM invites i JOIN tenants t ON t.id = i.tenant_id WHERE i.token_hash = ?',
+    )
     .get(tokenHash);
   return { invite: mapInvite(row), token };
 }
@@ -83,7 +88,14 @@ export function findValidInvite(token: string): InviteGrant | null {
   const row = db
     .prepare('SELECT id, email, tenant_id, role, expires_at, accepted_at FROM invites WHERE token_hash = ?')
     .get(hashToken(token)) as
-    | { id: number; email: string; tenant_id: number; role: MembershipRole; expires_at: string; accepted_at: string | null }
+    | {
+        id: number;
+        email: string;
+        tenant_id: number;
+        role: MembershipRole;
+        expires_at: string;
+        accepted_at: string | null;
+      }
     | undefined;
   if (!row || row.accepted_at || row.expires_at <= nowIso()) return null;
   return { id: row.id, email: row.email, tenant_id: row.tenant_id, role: row.role };

@@ -3,7 +3,9 @@ import { STATUS_CLASSES, STATUS_LABELS } from '../lib/format';
 
 export function StatusChip({ status }: { status: AssessmentStatus }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status]}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASSES[status]}`}
+    >
       {STATUS_LABELS[status]}
     </span>
   );

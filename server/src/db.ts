@@ -1,14 +1,7 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import type {
-  Assessment,
-  AuditEntry,
-  EvidenceFile,
-  Finding,
-  QuestionnaireItem,
-  Vendor,
-} from './types';
+import type { Assessment, AuditEntry, EvidenceFile, Finding, QuestionnaireItem, Vendor } from './types';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // DB lives in the server directory (src/..). Overridable via VRP_DB_PATH (used by tests).

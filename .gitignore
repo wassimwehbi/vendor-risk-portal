@@ -10,6 +10,11 @@ logs/
 coverage/
 *.log
 
+# Playwright E2E
+playwright-report/
+test-results/
+/playwright/.cache/
+
 # The repository-root .gitignore has a broad `lib/` rule (for build output) that
 # unintentionally matches this React source directory. Re-include it so the
 # client source is tracked.

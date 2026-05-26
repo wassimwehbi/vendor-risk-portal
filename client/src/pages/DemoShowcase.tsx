@@ -16,7 +16,10 @@ export function DemoShowcase() {
   const needsTenant = isAdmin && activeTenantId == null;
 
   useEffect(() => {
-    api.listScenarios().then(setScenarios).catch((e) => setError(e.message));
+    api
+      .listScenarios()
+      .then(setScenarios)
+      .catch((e) => setError(e.message));
   }, []);
 
   async function runScenario(key: string) {

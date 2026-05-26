@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - name: Install (root + server + client)
+        run: npm run install:ci
+      - name: Lint & format (Biome)
+        run: npm run check
+      - name: Typecheck (server + client)
+        run: npm run typecheck
+      - name: Test with coverage (server + client)
+        run: npm run test:coverage
+      - name: Build client
+        run: npm run build
+      - name: Coverage note
+        if: always()
+        run: echo "Coverage (lcov) is uploaded as the **coverage** artifact; per-file tables are in the test step logs above." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            server/coverage/lcov.info
+            client/coverage/lcov.info
+          if-no-files-found: ignore
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - name: Install (root + server + client)
+        run: npm run install:ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E smoke
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build server image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: false
+          tags: vendor-risk-portal-server:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # Informational only (|| true): surfaces known high/critical advisories in
+      # the logs without blocking merges. See specs/0006 for promoting to blocking.
+      - name: npm audit (root, server, client)
+        run: |
+          echo "::group::root";   npm audit --omit=dev --audit-level=high || true; echo "::endgroup::"
+          echo "::group::server"; npm --prefix server audit --omit=dev --audit-level=high || true; echo "::endgroup::"
+          echo "::group::client"; npm --prefix client audit --omit=dev --audit-level=high || true; echo "::endgroup::"

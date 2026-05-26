@@ -43,7 +43,11 @@ export function NewAssessment() {
     setBusy(true);
     setError('');
     try {
-      const assessment = await api.createAssessment({ vendor_name: vendorName.trim(), questionnaire_type: type, date_submitted: date });
+      const assessment = await api.createAssessment({
+        vendor_name: vendorName.trim(),
+        questionnaire_type: type,
+        date_submitted: date,
+      });
       await api.uploadFiles(assessment.id, questionnaire, evidence);
       navigate(`/assessments/${assessment.id}`);
     } catch (err) {
@@ -68,12 +72,22 @@ export function NewAssessment() {
       <form onSubmit={submit} className="card flex flex-col gap-4 p-4 sm:p-6">
         {error && <ErrorNote message={error} />}
         <div>
-          <label htmlFor="na-vendor" className="label">Vendor name</label>
-          <input id="na-vendor" className="input" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="Acme Corp" />
+          <label htmlFor="na-vendor" className="label">
+            Vendor name
+          </label>
+          <input
+            id="na-vendor"
+            className="input"
+            value={vendorName}
+            onChange={(e) => setVendorName(e.target.value)}
+            placeholder="Acme Corp"
+          />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="na-type" className="label">Questionnaire type</label>
+            <label htmlFor="na-type" className="label">
+              Questionnaire type
+            </label>
             <select id="na-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
               <option>SIG Core</option>
               <option>SIG Lite</option>
@@ -82,12 +96,16 @@ export function NewAssessment() {
             </select>
           </div>
           <div>
-            <label htmlFor="na-date" className="label">Date submitted</label>
+            <label htmlFor="na-date" className="label">
+              Date submitted
+            </label>
             <input id="na-date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
         </div>
         <div>
-          <label htmlFor="na-questionnaire" className="label">SIG questionnaire (.xlsx, .xls, .csv)</label>
+          <label htmlFor="na-questionnaire" className="label">
+            SIG questionnaire (.xlsx, .xls, .csv)
+          </label>
           <input
             id="na-questionnaire"
             type="file"
@@ -105,7 +123,9 @@ export function NewAssessment() {
           </p>
         </div>
         <div>
-          <label htmlFor="na-evidence" className="label">Evidence files (optional — SOC 2, ISO cert, policies, screenshots)</label>
+          <label htmlFor="na-evidence" className="label">
+            Evidence files (optional — SOC 2, ISO cert, policies, screenshots)
+          </label>
           <input
             id="na-evidence"
             type="file"
@@ -118,7 +138,9 @@ export function NewAssessment() {
             Supported: PDF, Word (.doc/.docx), CSV, Excel (.xls/.xlsx), images (PNG/JPG/GIF/WebP/BMP/TIFF). Text is
             extracted from documents on upload (images are stored without OCR). Max 20 files, 25 MB each.
           </p>
-          {evidence.length > 0 && <p className="mt-1 text-xs text-slate-500">{evidence.length} evidence file(s) attached.</p>}
+          {evidence.length > 0 && (
+            <p className="mt-1 text-xs text-slate-500">{evidence.length} evidence file(s) attached.</p>
+          )}
         </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" className="btn-secondary w-full sm:w-auto" onClick={() => navigate('/')}>

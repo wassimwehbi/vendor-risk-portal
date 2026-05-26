@@ -10,14 +10,25 @@
   },
   "scripts": {
     "install-all": "npm --prefix server install && npm --prefix client install",
+    "install:ci": "npm ci && npm ci --prefix server && npm ci --prefix client",
     "dev": "concurrently -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
     "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
-    "test": "npm --prefix server test"
+    "check": "biome ci .",
+    "lint": "biome lint .",
+    "format": "biome format .",
+    "format:fix": "biome check --write .",
+    "test": "npm --prefix server test && npm --prefix client test",
+    "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
+    "test:e2e": "playwright test",
+    "prepare": "lefthook install || true"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "@biomejs/biome": "^2.0.0",
+    "@playwright/test": "^1.49.1",
+    "concurrently": "^9.1.0",
+    "lefthook": "^1.10.0"
   }
 }

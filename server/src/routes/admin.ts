@@ -42,7 +42,14 @@ router.post('/tenants', (req, res) => {
   const parsed = tenantSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? 'Invalid request');
   const tenant = createTenant(parsed.data.name);
-  logAudit({ assessment_id: 0, tenant_id: tenant.id, action: 'tenant_created', actor: getScope(req).actor, role: 'Admin', details: { name: tenant.name } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: tenant.id,
+    action: 'tenant_created',
+    actor: getScope(req).actor,
+    role: 'Admin',
+    details: { name: tenant.name },
+  });
   ok(res, tenant, 201);
 });
 
@@ -54,7 +61,14 @@ router.delete('/tenants/:id', (req, res) => {
   const n = countAssessmentsForTenant(id);
   if (n > 0) return fail(res, 400, `Tenant has ${n} assessment${n === 1 ? '' : 's'}; remove them first.`);
   deleteEmptyTenant(id);
-  logAudit({ assessment_id: 0, tenant_id: null, action: 'tenant_deleted', actor: getScope(req).actor, role: 'Admin', details: { tenant_id: id, name: tenant.name } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: null,
+    action: 'tenant_deleted',
+    actor: getScope(req).actor,
+    role: 'Admin',
+    details: { tenant_id: id, name: tenant.name },
+  });
   ok(res, { deleted: true });
 });
 
@@ -79,7 +93,12 @@ router.post('/invites', async (req, res) => {
   if (!getTenant(parsed.data.tenantId)) return fail(res, 404, 'Tenant not found');
 
   const actor = getScope(req).actor;
-  const { invite, token } = createInvite({ email, tenantId: parsed.data.tenantId, role: parsed.data.role, invitedBy: actor });
+  const { invite, token } = createInvite({
+    email,
+    tenantId: parsed.data.tenantId,
+    role: parsed.data.role,
+    invitedBy: actor,
+  });
   const link = `${authConfig.clientOrigin}/invite?token=${encodeURIComponent(token)}`;
 
   let emailed = false;
@@ -90,7 +109,14 @@ router.post('/invites', async (req, res) => {
     console.error('[admin] invite email failed:', (e as Error).message);
   }
 
-  logAudit({ assessment_id: 0, tenant_id: invite.tenant_id, action: 'invite_created', actor, role: 'Admin', details: { email, role: invite.role } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: invite.tenant_id,
+    action: 'invite_created',
+    actor,
+    role: 'Admin',
+    details: { email, role: invite.role },
+  });
   // The raw link is returned once (only its hash is stored). devLink mirrors it
   // for local dev where no SMTP is configured.
   ok(res, { invite, link, emailed, devLink: authConfig.devMode ? link : undefined }, 201);
@@ -100,7 +126,14 @@ router.delete('/invites/:id', (req, res) => {
   const id = parseId(req.params.id);
   if (id === null) return fail(res, 400, 'Invalid invite id');
   if (!revokeInvite(id)) return fail(res, 404, 'Invite not found');
-  logAudit({ assessment_id: 0, tenant_id: null, action: 'invite_revoked', actor: getScope(req).actor, role: 'Admin', details: { invite_id: id } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: null,
+    action: 'invite_revoked',
+    actor: getScope(req).actor,
+    role: 'Admin',
+    details: { invite_id: id },
+  });
   ok(res, { revoked: true });
 });
 
@@ -140,7 +173,14 @@ router.delete('/users/:id/memberships/:tenantId', (req, res) => {
   if (userId === null || tenantId === null) return fail(res, 400, 'Invalid id');
   const removed = removeMembership(userId, tenantId);
   if (!removed) return fail(res, 404, 'Membership not found');
-  logAudit({ assessment_id: 0, tenant_id: tenantId, action: 'membership_removed', actor: getScope(req).actor, role: 'Admin', details: { user_id: userId } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: tenantId,
+    action: 'membership_removed',
+    actor: getScope(req).actor,
+    role: 'Admin',
+    details: { user_id: userId },
+  });
   ok(res, adminUserView(userId));
 });
 
@@ -160,7 +200,14 @@ router.patch('/users/:id', (req, res) => {
   }
 
   setUserAdmin(userId, parsed.data.is_admin);
-  logAudit({ assessment_id: 0, tenant_id: null, action: 'admin_flag_set', actor: getScope(req).actor, role: 'Admin', details: { user_id: userId, is_admin: parsed.data.is_admin } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: null,
+    action: 'admin_flag_set',
+    actor: getScope(req).actor,
+    role: 'Admin',
+    details: { user_id: userId, is_admin: parsed.data.is_admin },
+  });
   ok(res, adminUserView(userId));
 });
 
@@ -173,7 +220,14 @@ router.delete('/users/:id', (req, res) => {
   if (id === scope.userId) return fail(res, 400, 'You cannot delete your own account.');
   if (target.is_admin && countAdmins() <= 1) return fail(res, 400, 'Cannot delete the last administrator.');
   deleteUser(id);
-  logAudit({ assessment_id: 0, tenant_id: null, action: 'user_deleted', actor: scope.actor, role: 'Admin', details: { user_id: id, email: target.email } });
+  logAudit({
+    assessment_id: 0,
+    tenant_id: null,
+    action: 'user_deleted',
+    actor: scope.actor,
+    role: 'Admin',
+    details: { user_id: id, email: target.email },
+  });
   ok(res, { deleted: true });
 });
 

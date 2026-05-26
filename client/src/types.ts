@@ -132,7 +132,10 @@ export interface Finding {
   source: AiEngine;
   analyst_status: AnalystStatus;
   analyst_values: Partial<
-    Pick<Finding, 'control_domain' | 'framework_mappings' | 'risk_level' | 'evidence_sufficiency' | 'follow_up_questions'>
+    Pick<
+      Finding,
+      'control_domain' | 'framework_mappings' | 'risk_level' | 'evidence_sufficiency' | 'follow_up_questions'
+    >
   > | null;
   updated_at: string;
 }

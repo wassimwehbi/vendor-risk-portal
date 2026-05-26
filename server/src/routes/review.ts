@@ -11,9 +11,7 @@ const evidenceEnum = z.enum(['Sufficient', 'Insufficient', 'None', 'Expired', 'M
 
 const findingSchema = z.object({
   control_domain: z.string().min(1).optional(),
-  framework_mappings: z
-    .array(z.object({ framework: z.string(), references: z.array(z.string()) }))
-    .optional(),
+  framework_mappings: z.array(z.object({ framework: z.string(), references: z.array(z.string()) })).optional(),
   risk_level: riskEnum.optional(),
   evidence_sufficiency: evidenceEnum.optional(),
   follow_up_questions: z.array(z.string()).optional(),

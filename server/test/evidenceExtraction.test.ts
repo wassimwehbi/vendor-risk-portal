@@ -4,11 +4,7 @@ import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as XLSX from 'xlsx';
-import {
-  classifyEvidence,
-  isAllowedEvidence,
-  extractEvidence,
-} from '../src/services/evidenceExtraction';
+import { classifyEvidence, isAllowedEvidence, extractEvidence } from '../src/services/evidenceExtraction';
 
 const dir = mkdtempSync(join(tmpdir(), 'vrp-ev-'));
 
@@ -54,7 +50,11 @@ test('extracts text from an Excel evidence file', async () => {
   XLSX.utils.book_append_sheet(wb, ws, 'Controls');
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   const p = tmp('matrix.xlsx', buf);
-  const r = await extractEvidence(p, 'matrix.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  const r = await extractEvidence(
+    p,
+    'matrix.xlsx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
   assert.equal(r.kind, 'excel');
   assert.equal(r.status, 'extracted');
   assert.ok(r.text.includes('AES-256 enabled'));

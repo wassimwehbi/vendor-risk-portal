@@ -15,7 +15,14 @@ import { aggregateRisk, scoreItem } from './riskScoring';
 import { getMappingVersion } from './frameworkMapping';
 import { logAudit } from './audit';
 
-const GDPR_TRIGGERS: DataCategory[] = ['personal', 'sensitive_personal', 'children', 'employee', 'cross_border', 'subprocessors'];
+const GDPR_TRIGGERS: DataCategory[] = [
+  'personal',
+  'sensitive_personal',
+  'children',
+  'employee',
+  'cross_border',
+  'subprocessors',
+];
 
 function deriveFrameworks(categories: DataCategory[]): string[] {
   const frameworks = ['ISO 27001', 'ISO 27002'];
@@ -34,21 +41,22 @@ function deriveFrameworks(categories: DataCategory[]): string[] {
  * Re-running analysis resets any prior human validation back to "pending":
  * a previous approval no longer reflects the freshly computed findings.
  */
-export async function analyzeAssessment(
-  assessmentId: number,
-  scope: AccessScope,
-): Promise<AnalyzeResult> {
+export async function analyzeAssessment(assessmentId: number, scope: AccessScope): Promise<AnalyzeResult> {
   // An admin in all-tenants mode can analyze any assessment; the tenant is
   // derived from the assessment itself. Tenant-scoped users (and non-admins)
   // keep a tenant-filtered fetch, so cross-tenant analyze is still "not found".
   const adminAllTenants = scope.isAdmin && scope.activeTenantId == null;
   const assessmentRow = adminAllTenants
     ? (db.prepare('SELECT * FROM assessments WHERE id = ?').get(assessmentId) as any)
-    : (db.prepare('SELECT * FROM assessments WHERE id = ? AND tenant_id = ?').get(assessmentId, scope.activeTenantId) as any);
+    : (db
+        .prepare('SELECT * FROM assessments WHERE id = ? AND tenant_id = ?')
+        .get(assessmentId, scope.activeTenantId) as any);
   if (!assessmentRow) throw new Error(`Assessment ${assessmentId} not found`);
   const tenantId = assessmentRow.tenant_id as number;
 
-  const itemRows = db.prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id').all(assessmentId);
+  const itemRows = db
+    .prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id')
+    .all(assessmentId);
   const items: QuestionnaireItem[] = itemRows.map(mapItem);
   if (items.length === 0) throw new Error('No questionnaire items to analyze. Upload a questionnaire first.');
 

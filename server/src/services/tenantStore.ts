@@ -39,9 +39,9 @@ export function createTenant(name: string): Tenant {
 
 /** Find a tenant by (case-insensitive) name or create it. Used by dev-login. */
 export function ensureTenant(name: string): Tenant {
-  const existing = db
-    .prepare('SELECT * FROM tenants WHERE name = ? COLLATE NOCASE')
-    .get(name.trim()) as Tenant | undefined;
+  const existing = db.prepare('SELECT * FROM tenants WHERE name = ? COLLATE NOCASE').get(name.trim()) as
+    | Tenant
+    | undefined;
   return existing ?? createTenant(name);
 }
 
@@ -103,7 +103,9 @@ export function deleteUser(userId: number): void {
   tx();
 }
 
-export function getAdminUser(userId: number): { id: number; email: string; name: string | null; is_admin: boolean } | undefined {
+export function getAdminUser(
+  userId: number,
+): { id: number; email: string; name: string | null; is_admin: boolean } | undefined {
   const row = db.prepare('SELECT id, email, name, is_admin FROM users WHERE id = ?').get(userId) as
     | { id: number; email: string; name: string | null; is_admin: number }
     | undefined;

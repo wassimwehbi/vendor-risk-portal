@@ -89,11 +89,18 @@ export function ReviewWorkspace() {
     return (
       <EmptyState title="Assessment unavailable">
         It may not exist, or you don’t have access to it.{' '}
-        <Link to="/" className="font-medium text-brand-700 hover:underline">Back to dashboard</Link>
+        <Link to="/" className="font-medium text-brand-700 hover:underline">
+          Back to dashboard
+        </Link>
       </EmptyState>
     );
   }
-  if (!detail) return <div className="card px-6 py-12"><Spinner /></div>;
+  if (!detail)
+    return (
+      <div className="card px-6 py-12">
+        <Spinner />
+      </div>
+    );
 
   const { assessment, items, findings, evidence } = detail;
   const findingsByItem = new Map(findings.map((f) => [f.item_id, f]));
@@ -106,8 +113,16 @@ export function ReviewWorkspace() {
         subtitle={`${assessment.questionnaire_type} · submitted ${formatDay(assessment.date_submitted)}`}
         actions={
           <>
-            {!isSubmitterScope && <Link to={`/assessments/${assessmentId}/audit`} className="btn-ghost">Audit trail</Link>}
-            {analyzed && <Link to={`/assessments/${assessmentId}/report`} className="btn-secondary">View report</Link>}
+            {!isSubmitterScope && (
+              <Link to={`/assessments/${assessmentId}/audit`} className="btn-ghost">
+                Audit trail
+              </Link>
+            )}
+            {analyzed && (
+              <Link to={`/assessments/${assessmentId}/report`} className="btn-secondary">
+                View report
+              </Link>
+            )}
             {canEdit && (
               <button className="btn-primary" onClick={analyze} disabled={analyzing || items.length === 0}>
                 {analyzing ? 'Analyzing…' : analyzed ? 'Re-run AI analysis' : 'Run AI analysis'}
@@ -122,7 +137,9 @@ export function ReviewWorkspace() {
       {/* Summary header */}
       <div className="card grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
         <div>
-          <p id="overall-risk-label" className="text-xs uppercase tracking-wide text-slate-500">Preliminary overall risk</p>
+          <p id="overall-risk-label" className="text-xs uppercase tracking-wide text-slate-500">
+            Preliminary overall risk
+          </p>
           <div className="mt-1 flex items-center gap-2">
             <RiskBadge level={assessment.overall_risk} size="lg" />
             {canEdit && analyzed && (
@@ -133,7 +150,9 @@ export function ReviewWorkspace() {
                 value={assessment.overall_risk ?? ''}
                 onChange={(e) => setOverallRisk(e.target.value as RiskLevel)}
               >
-                {RISK_OPTIONS.map((r) => <option key={r}>{r}</option>)}
+                {RISK_OPTIONS.map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
               </select>
             )}
           </div>
@@ -154,7 +173,11 @@ export function ReviewWorkspace() {
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">Applicable frameworks</p>
           <div className="mt-1">
-            <FrameworkChips frameworks={assessment.applicable_frameworks.length ? assessment.applicable_frameworks : ['ISO 27001', 'ISO 27002']} />
+            <FrameworkChips
+              frameworks={
+                assessment.applicable_frameworks.length ? assessment.applicable_frameworks : ['ISO 27001', 'ISO 27002']
+              }
+            />
           </div>
         </div>
       </div>
@@ -167,7 +190,9 @@ export function ReviewWorkspace() {
       {!analyzed ? (
         <div className="card px-4 py-8 text-center sm:px-6 sm:py-10">
           <p className="text-slate-600">{items.length} questionnaire items extracted.</p>
-          <p className="mt-1 text-sm text-slate-500">Run AI analysis to classify controls, map frameworks, score risk and generate follow-ups.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Run AI analysis to classify controls, map frameworks, score risk and generate follow-ups.
+          </p>
         </div>
       ) : (
         <div className="card overflow-x-auto">
@@ -175,21 +200,39 @@ export function ReviewWorkspace() {
             <caption className="sr-only">Control-by-control AI analysis with analyst review actions</caption>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th scope="col" className="px-3 py-3 font-medium">Control area</th>
-                <th scope="col" className="px-3 py-3 font-medium">Vendor response</th>
-                <th scope="col" className="px-3 py-3 font-medium">Framework mapping</th>
-                <th scope="col" className="px-3 py-3 font-medium">AI finding</th>
-                <th scope="col" className="px-3 py-3 font-medium">Evidence</th>
-                <th scope="col" className="px-3 py-3 font-medium">Risk</th>
-                <th scope="col" className="px-3 py-3 font-medium">Analyst</th>
-                <th scope="col" className="px-3 py-3"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Control area
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Vendor response
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Framework mapping
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  AI finding
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Evidence
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Risk
+                </th>
+                <th scope="col" className="px-3 py-3 font-medium">
+                  Analyst
+                </th>
+                <th scope="col" className="px-3 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {items.map((item) => {
                 const f = findingsByItem.get(item.id);
                 if (!f) return null;
-                return <FindingRow key={item.id} item={item} finding={f} canEdit={canEdit} onChange={onFindingChange} />;
+                return (
+                  <FindingRow key={item.id} item={item} finding={f} canEdit={canEdit} onChange={onFindingChange} />
+                );
               })}
             </tbody>
           </table>
@@ -200,7 +243,9 @@ export function ReviewWorkspace() {
       {analyzed && canEdit && (
         <div className="card space-y-3 p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-slate-800">Analyst decision</h3>
-          <label htmlFor="analyst-notes" className="label">Analyst notes</label>
+          <label htmlFor="analyst-notes" className="label">
+            Analyst notes
+          </label>
           <textarea
             id="analyst-notes"
             className="input h-24"

@@ -60,9 +60,14 @@ function UserRow({
           <div className="flex flex-wrap gap-2">
             {u.memberships.length === 0 && <span className="text-xs text-slate-500">No tenant memberships.</span>}
             {u.memberships.map((m) => (
-              <span key={m.tenant_id} className="inline-flex items-center gap-2 rounded-md bg-slate-100 px-2 py-1 text-xs">
+              <span
+                key={m.tenant_id}
+                className="inline-flex items-center gap-2 rounded-md bg-slate-100 px-2 py-1 text-xs"
+              >
                 <span className="font-medium text-slate-700">{m.tenant_name}</span>
-                <label className="sr-only" htmlFor={`role-${u.id}-${m.tenant_id}`}>Role for {m.tenant_name}</label>
+                <label className="sr-only" htmlFor={`role-${u.id}-${m.tenant_id}`}>
+                  Role for {m.tenant_name}
+                </label>
                 <select
                   id={`role-${u.id}-${m.tenant_id}`}
                   value={m.role}
@@ -87,7 +92,9 @@ function UserRow({
 
           {available.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <label className="sr-only" htmlFor={`add-tenant-${u.id}`}>Add {u.email} to tenant</label>
+              <label className="sr-only" htmlFor={`add-tenant-${u.id}`}>
+                Add {u.email} to tenant
+              </label>
               <select
                 id={`add-tenant-${u.id}`}
                 value={tenantId}
@@ -101,7 +108,9 @@ function UserRow({
                   </option>
                 ))}
               </select>
-              <label className="sr-only" htmlFor={`add-role-${u.id}`}>Role</label>
+              <label className="sr-only" htmlFor={`add-role-${u.id}`}>
+                Role
+              </label>
               <select
                 id={`add-role-${u.id}`}
                 value={role}
@@ -150,9 +159,21 @@ export function Admin() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const loadTenants = () => api.listTenants().then(setTenants).catch((e) => setError(e.message));
-  const loadUsers = () => api.listAdminUsers().then(setUsers).catch((e) => setError(e.message));
-  const loadInvites = () => api.listInvites().then(setInvites).catch((e) => setError(e.message));
+  const loadTenants = () =>
+    api
+      .listTenants()
+      .then(setTenants)
+      .catch((e) => setError(e.message));
+  const loadUsers = () =>
+    api
+      .listAdminUsers()
+      .then(setUsers)
+      .catch((e) => setError(e.message));
+  const loadInvites = () =>
+    api
+      .listInvites()
+      .then(setInvites)
+      .catch((e) => setError(e.message));
 
   useEffect(() => {
     loadTenants();
@@ -210,7 +231,8 @@ export function Admin() {
   }
 
   async function removeUser(u: AdminUser) {
-    if (!window.confirm(`Delete user ${u.email}? Their tenant access is removed; authored assessments are kept.`)) return;
+    if (!window.confirm(`Delete user ${u.email}? Their tenant access is removed; authored assessments are kept.`))
+      return;
     setError('');
     try {
       await api.deleteUser(u.id);
@@ -276,7 +298,9 @@ export function Admin() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">Tenants</h2>
         <form onSubmit={createTenant} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="sr-only" htmlFor="new-tenant">New tenant name</label>
+          <label className="sr-only" htmlFor="new-tenant">
+            New tenant name
+          </label>
           <input
             id="new-tenant"
             className="input sm:max-w-xs"
@@ -289,7 +313,9 @@ export function Admin() {
           </button>
         </form>
         {!tenants ? (
-          <div className="card px-6 py-8"><Spinner /></div>
+          <div className="card px-6 py-8">
+            <Spinner />
+          </div>
         ) : tenants.length === 0 ? (
           <EmptyState title="No tenants yet">Create one above to start assigning users.</EmptyState>
         ) : (
@@ -298,10 +324,18 @@ export function Admin() {
               <caption className="sr-only">Tenants</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th scope="col" className="px-4 py-2 font-medium">Name</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Slug</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Members</th>
-                  <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Name
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Slug
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Members
+                  </th>
+                  <th scope="col" className="px-4 py-2">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -311,7 +345,11 @@ export function Admin() {
                     <td className="px-4 py-2 text-slate-500">{t.slug}</td>
                     <td className="px-4 py-2 text-slate-600">{t.member_count ?? 0}</td>
                     <td className="px-4 py-2 text-right">
-                      <button type="button" className="text-xs font-medium text-red-600 hover:underline" onClick={() => deleteTenant(t)}>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-red-600 hover:underline"
+                        onClick={() => deleteTenant(t)}
+                      >
                         Delete
                       </button>
                     </td>
@@ -326,12 +364,14 @@ export function Admin() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">Invitations</h2>
         <p className="text-sm text-slate-500">
-          Generate a link that signs the recipient in and adds them to a tenant with the chosen role. Share it with
-          them directly (it’s also emailed when SMTP is configured).
+          Generate a link that signs the recipient in and adds them to a tenant with the chosen role. Share it with them
+          directly (it’s also emailed when SMTP is configured).
         </p>
         <form onSubmit={sendInvite} className="card flex flex-wrap items-end gap-2 p-4">
           <div className="w-full flex-1 sm:min-w-[14rem]">
-            <label htmlFor="inv-email" className="label">Email</label>
+            <label htmlFor="inv-email" className="label">
+              Email
+            </label>
             <input
               id="inv-email"
               type="email"
@@ -342,7 +382,9 @@ export function Admin() {
             />
           </div>
           <div className="flex-1 sm:flex-none">
-            <label htmlFor="inv-tenant" className="label">Tenant</label>
+            <label htmlFor="inv-tenant" className="label">
+              Tenant
+            </label>
             <select
               id="inv-tenant"
               className="input"
@@ -351,30 +393,55 @@ export function Admin() {
             >
               <option value="">Select…</option>
               {(tenants ?? []).map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
           </div>
           <div className="flex-1 sm:flex-none">
-            <label htmlFor="inv-role" className="label">Role</label>
-            <select id="inv-role" className="input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as MembershipRole)}>
+            <label htmlFor="inv-role" className="label">
+              Role
+            </label>
+            <select
+              id="inv-role"
+              className="input"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as MembershipRole)}
+            >
               {MEMBERSHIP_ROLES.map((r) => (
                 <option key={r}>{r}</option>
               ))}
             </select>
           </div>
-          <button type="submit" className="btn-primary w-full sm:w-auto" disabled={inviteBusy || !inviteEmail.trim() || inviteTenant === ''}>
+          <button
+            type="submit"
+            className="btn-primary w-full sm:w-auto"
+            disabled={inviteBusy || !inviteEmail.trim() || inviteTenant === ''}
+          >
             {inviteBusy ? 'Generating…' : 'Generate invite link'}
           </button>
         </form>
 
         {inviteLink && (
           <div className="card space-y-2 p-4">
-            <p className="text-sm font-medium text-slate-700">Invite link — copy and share it now (it won’t be shown again):</p>
+            <p className="text-sm font-medium text-slate-700">
+              Invite link — copy and share it now (it won’t be shown again):
+            </p>
             <div className="flex items-center gap-2">
-              <label className="sr-only" htmlFor="inv-link">Invite link</label>
-              <input id="inv-link" readOnly className="input font-mono text-xs" value={inviteLink} onFocus={(e) => e.currentTarget.select()} />
-              <button type="button" className="btn-secondary whitespace-nowrap" onClick={copyLink}>{copied ? 'Copied' : 'Copy'}</button>
+              <label className="sr-only" htmlFor="inv-link">
+                Invite link
+              </label>
+              <input
+                id="inv-link"
+                readOnly
+                className="input font-mono text-xs"
+                value={inviteLink}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button type="button" className="btn-secondary whitespace-nowrap" onClick={copyLink}>
+                {copied ? 'Copied' : 'Copy'}
+              </button>
             </div>
             <p className="text-xs text-slate-500">Expires in 7 days · single use.</p>
           </div>
@@ -386,11 +453,21 @@ export function Admin() {
               <caption className="sr-only">Pending invitations</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th scope="col" className="px-4 py-2 font-medium">Email</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Tenant</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Role</th>
-                  <th scope="col" className="px-4 py-2 font-medium">Expires</th>
-                  <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Email
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Tenant
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Role
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-medium">
+                    Expires
+                  </th>
+                  <th scope="col" className="px-4 py-2">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -401,7 +478,11 @@ export function Admin() {
                     <td className="px-4 py-2 text-slate-600">{inv.role}</td>
                     <td className="px-4 py-2 text-slate-500">{formatDate(inv.expires_at)}</td>
                     <td className="px-4 py-2 text-right">
-                      <button type="button" className="text-xs font-medium text-red-600 hover:underline" onClick={() => revokeInvite(inv.id)}>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-red-600 hover:underline"
+                        onClick={() => revokeInvite(inv.id)}
+                      >
                         Revoke
                       </button>
                     </td>
@@ -417,7 +498,9 @@ export function Admin() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">Users &amp; access</h2>
         {!users ? (
-          <div className="card px-6 py-8"><Spinner /></div>
+          <div className="card px-6 py-8">
+            <Spinner />
+          </div>
         ) : users.length === 0 ? (
           <EmptyState title="No users yet">Users appear here after they sign in for the first time.</EmptyState>
         ) : (

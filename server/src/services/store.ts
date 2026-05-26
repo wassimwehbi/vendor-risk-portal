@@ -1,13 +1,4 @@
-import {
-  db,
-  mapAssessment,
-  mapAudit,
-  mapEvidence,
-  mapFinding,
-  mapItem,
-  mapVendor,
-  nowIso,
-} from '../db';
+import { db, mapAssessment, mapAudit, mapEvidence, mapFinding, mapItem, mapVendor, nowIso } from '../db';
 import type {
   Assessment,
   AssessmentDetail,
@@ -60,9 +51,9 @@ export function listVendors(scope: AccessScope): Vendor[] {
 }
 
 function findOrCreateVendor(name: string, tenantId: number): number {
-  const existing = db
-    .prepare('SELECT id FROM vendors WHERE name = ? AND tenant_id = ?')
-    .get(name, tenantId) as { id: number } | undefined;
+  const existing = db.prepare('SELECT id FROM vendors WHERE name = ? AND tenant_id = ?').get(name, tenantId) as
+    | { id: number }
+    | undefined;
   if (existing) return existing.id;
   const info = db
     .prepare('INSERT INTO vendors (name, tenant_id, created_at) VALUES (?, ?, ?)')
@@ -97,9 +88,7 @@ export function listAssessments(scope: AccessScope): Assessment[] {
 export function getAssessment(id: number, scope: AccessScope): Assessment | undefined {
   const t = tenantClause(scope);
   const o = ownClause(scope);
-  const row = db
-    .prepare(`${ASSESSMENT_SELECT} WHERE a.id = ?${t.sql}${o.sql}`)
-    .get(id, ...t.params, ...o.params);
+  const row = db.prepare(`${ASSESSMENT_SELECT} WHERE a.id = ?${t.sql}${o.sql}`).get(id, ...t.params, ...o.params);
   return row ? mapAssessment(row) : undefined;
 }
 
@@ -115,7 +104,7 @@ export function createAssessment(input: CreateAssessmentInput, scope: AccessScop
   const info = db
     .prepare(
       `INSERT INTO assessments (vendor_id, tenant_id, created_by, questionnaire_type, date_submitted, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'uploaded', ?)`
+       VALUES (?, ?, ?, ?, ?, 'uploaded', ?)`,
     )
     .run(vendorId, tenantId, scope.actor, input.questionnaire_type, input.date_submitted, nowIso());
   const id = Number(info.lastInsertRowid);
@@ -133,9 +122,15 @@ export function createAssessment(input: CreateAssessmentInput, scope: AccessScop
 export function getAssessmentDetail(id: number, scope: AccessScope): AssessmentDetail | undefined {
   const assessment = getAssessment(id, scope);
   if (!assessment) return undefined;
-  const items = db.prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id').all(id).map(mapItem);
+  const items = db
+    .prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id')
+    .all(id)
+    .map(mapItem);
   const findings = db.prepare('SELECT * FROM findings WHERE assessment_id = ? ORDER BY id').all(id).map(mapFinding);
-  const evidence = db.prepare('SELECT * FROM evidence_files WHERE assessment_id = ? ORDER BY id').all(id).map(mapEvidence);
+  const evidence = db
+    .prepare('SELECT * FROM evidence_files WHERE assessment_id = ? ORDER BY id')
+    .all(id)
+    .map(mapEvidence);
   return { assessment, items, findings, evidence };
 }
 
@@ -170,7 +165,7 @@ export function replaceItems(
       `UPDATE assessments
        SET status = 'extracted', overall_risk = NULL, ai_engine_used = NULL,
            validation_status = 'pending', validated_by = NULL, validated_at = NULL
-       WHERE id = ?`
+       WHERE id = ?`,
     ).run(assessmentId);
   });
   tx();
@@ -182,7 +177,10 @@ export function replaceItems(
     role: scope.effectiveRole,
     details: { count: items.length },
   });
-  return db.prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id').all(assessmentId).map(mapItem);
+  return db
+    .prepare('SELECT * FROM questionnaire_items WHERE assessment_id = ? ORDER BY id')
+    .all(assessmentId)
+    .map(mapItem);
 }
 
 export interface NewEvidence {
@@ -197,11 +195,7 @@ export interface NewEvidence {
   parse_note: string | null;
 }
 
-export function addEvidenceFiles(
-  assessmentId: number,
-  files: NewEvidence[],
-  scope: AccessScope,
-): EvidenceFile[] {
+export function addEvidenceFiles(assessmentId: number, files: NewEvidence[], scope: AccessScope): EvidenceFile[] {
   // Authorize against (and derive the tenant from) the existing assessment, so
   // an admin in all-tenants mode can write without first pinning a tenant.
   const assessment = getAssessment(assessmentId, scope);
@@ -241,7 +235,10 @@ export function addEvidenceFiles(
       },
     });
   }
-  return db.prepare('SELECT * FROM evidence_files WHERE assessment_id = ? ORDER BY id').all(assessmentId).map(mapEvidence);
+  return db
+    .prepare('SELECT * FROM evidence_files WHERE assessment_id = ? ORDER BY id')
+    .all(assessmentId)
+    .map(mapEvidence);
 }
 
 // ---- Human-in-the-loop updates --------------------------------------------
@@ -262,14 +259,22 @@ export function patchFinding(id: number, patch: FindingPatch, scope: AccessScope
   // project the assessment's tenant so the audit is stamped with it (this lets
   // an admin in all-tenants mode write without first pinning a tenant).
   const row = db
-    .prepare(`SELECT f.*, a.tenant_id AS _tenant_id FROM findings f JOIN assessments a ON a.id = f.assessment_id WHERE f.id = ?${t.sql}${o.sql}`)
+    .prepare(
+      `SELECT f.*, a.tenant_id AS _tenant_id FROM findings f JOIN assessments a ON a.id = f.assessment_id WHERE f.id = ?${t.sql}${o.sql}`,
+    )
     .get(id, ...t.params, ...o.params) as (Record<string, unknown> & { _tenant_id: number }) | undefined;
   if (!row) return undefined;
   const tenantId = row._tenant_id;
   const finding = mapFinding(row);
 
   let analystValues = { ...(finding.analyst_values ?? {}) } as NonNullable<Finding['analyst_values']>;
-  const overrideKeys: (keyof FindingPatch)[] = ['control_domain', 'framework_mappings', 'risk_level', 'evidence_sufficiency', 'follow_up_questions'];
+  const overrideKeys: (keyof FindingPatch)[] = [
+    'control_domain',
+    'framework_mappings',
+    'risk_level',
+    'evidence_sufficiency',
+    'follow_up_questions',
+  ];
   for (const key of overrideKeys) {
     if (patch[key] !== undefined) (analystValues as any)[key] = patch[key];
   }
@@ -378,7 +383,14 @@ export function buildReport(id: number, scope: AccessScope): ReportData | undefi
     const item = itemsById.get(f.item_id);
     if (item) controls.push({ item, finding: f });
     const eff = effectiveFinding(f);
-    if (eff.risk_level === 'High' || eff.risk_level === 'Critical' || f.control_strength === 'None' || f.control_strength === 'Weak' || f.completeness === 'Missing' || f.completeness === 'Vague') {
+    if (
+      eff.risk_level === 'High' ||
+      eff.risk_level === 'Critical' ||
+      f.control_strength === 'None' ||
+      f.control_strength === 'Weak' ||
+      f.completeness === 'Missing' ||
+      f.completeness === 'Vague'
+    ) {
       weak_or_missing.push(f);
     }
     if (['None', 'Expired', 'Insufficient', 'Misaligned'].includes(eff.evidence_sufficiency)) {

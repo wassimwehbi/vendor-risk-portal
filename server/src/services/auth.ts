@@ -119,7 +119,7 @@ export function isUserAdmin(userId: number): boolean {
 export function buildSessionUser(base: SessionUser, preferredActiveTenantId?: number | null): SessionUser {
   const isAdmin = isUserAdmin(base.id);
   const memberships = getMembershipsForUser(base.id);
-  const preferred = preferredActiveTenantId === undefined ? base.activeTenantId ?? null : preferredActiveTenantId;
+  const preferred = preferredActiveTenantId === undefined ? (base.activeTenantId ?? null) : preferredActiveTenantId;
   let activeTenantId: number | null;
   if (isAdmin) {
     activeTenantId = preferred; // admin may stay in all-tenants mode (null) or pin a tenant
