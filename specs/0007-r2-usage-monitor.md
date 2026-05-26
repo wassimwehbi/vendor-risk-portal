@@ -36,8 +36,10 @@ of any remediation.
   (`used > limit`), since overage is billed only strictly above the free allotment — a
   metric sitting exactly at its limit is `warn`, not `critical`. Projection-based alerts
   are suppressed for the first `MIN_PROJECTION_DAYS` (3) days of the month, where a single
-  day's usage would extrapolate to ~30× and false-alarm; actual usage already over a limit
-  still alerts immediately. Also estimates the month-end overage in USD.
+  day's usage would extrapolate to ~30× and false-alarm — projection is trusted only once
+  that many *full* days have elapsed (day 4+, via `elapsedDays = dayOfMonth - 1`); actual
+  usage already over a limit still alerts immediately. Also estimates the month-end overage
+  in USD.
 - **Operation classification** (`classifyAction`): reads → Class B, deletes/aborts → free,
   everything else (writes/lists/multipart, and any unknown/new action) → Class A, so cost
   is never under-counted.
@@ -50,10 +52,10 @@ of any remediation.
   email is actually dispatched, so a missing recipient or unconfigured SMTP can't
   permanently suppress the real alert for the rest of the month. State rides along in the
   Litestream-replicated DB.
-- **Validated env config:** numeric env vars — the warn percent (`R2_ALERT_WARN_PERCENT`)
-  and check interval (`R2_MONITOR_INTERVAL_HOURS`) — are validated (finite and in range)
-  and fall back to their defaults (80% / 12h) otherwise, so a malformed value can't disable
-  the guard or set a nonsensical schedule.
+- **Validated env config:** numeric env vars — the warn percent (`R2_ALERT_WARN_PERCENT`,
+  required to be 0–100) and check interval (`R2_MONITOR_INTERVAL_HOURS`, required > 0) — are
+  validated (finite and in range) and fall back to their defaults (80% / 12h) otherwise, so a
+  malformed or out-of-range value can't disable the guard or set a nonsensical schedule.
 - **Inert by default:** the whole monitor logs and returns unless `R2_MONITOR_ENABLED` is
   not `false` **and** both `CLOUDFLARE_API_TOKEN` and `R2_ACCOUNT_ID` are set. Local/offline
   dev is unaffected; when SMTP is unconfigured `sendMail` logs instead of sending.
@@ -75,13 +77,13 @@ of any remediation.
 ## 4. Verification
 
 - `npm --prefix server run typecheck` — passes.
-- `npm --prefix server test` — 68/68 pass, including 9 cases in `r2-monitor.test.ts`
+- `npm --prefix server test` — 69/69 pass, including 10 cases in `r2-monitor.test.ts`
   covering `classifyAction`, `monthRange`, an OK baseline, an 85%-storage `warn`, a
   Class-A-over-limit `critical` (with a positive USD estimate), a Class-A
   under-now-but-projected-over `critical`, early-month projection suppression, an
-  actual-over-limit `critical` on day 1, and a metric exactly at its limit being
-  `warn` (not `critical`). Tests exercise the pure helpers only — no network or SMTP
-  is touched.
+  actual-over-limit `critical` on day 1, a metric exactly at its limit being `warn`
+  (not `critical`), and the day-3/day-4 `MIN_PROJECTION_DAYS` boundary. Tests exercise
+  the pure helpers only — no network or SMTP is touched.
 
 ## 5. Known Limitations / Follow-ups
 

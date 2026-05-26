@@ -130,7 +130,11 @@ export function evaluateUsage(usage: R2Usage, now: Date = new Date(), warnPercen
   const dayOfMonth = now.getUTCDate();
   const elapsedFraction = dayOfMonth / daysInMonth; // getUTCDate() is always >= 1, so never zero
   const project = (used: number) => used / elapsedFraction;
-  const projectionReliable = dayOfMonth >= MIN_PROJECTION_DAYS;
+  // Days fully elapsed before today: 0 on day 1. Projection is trusted only once
+  // at least MIN_PROJECTION_DAYS full days have passed (i.e. day 4+ when it's 3),
+  // so the first MIN_PROJECTION_DAYS days are suppressed, not MIN_PROJECTION_DAYS-1.
+  const elapsedDays = dayOfMonth - 1;
+  const projectionReliable = elapsedDays >= MIN_PROJECTION_DAYS;
 
   const storageGb = usage.storageBytes / GB;
   const storage: MetricReport = {
@@ -320,7 +324,7 @@ export async function runR2UsageCheck(now: Date = new Date()): Promise<UsageRepo
     const usage = await fetchR2Usage(now);
     if (!usage) return null;
     const wp = Number(process.env.R2_ALERT_WARN_PERCENT);
-    const warnPercent = Number.isFinite(wp) && wp >= 0 ? wp : 80;
+    const warnPercent = Number.isFinite(wp) && wp >= 0 && wp <= 100 ? wp : 80;
     const report = evaluateUsage(usage, now, warnPercent);
     console.log(`[r2-monitor] ${report.summary.replace(/\n/g, ' | ')}`);
 

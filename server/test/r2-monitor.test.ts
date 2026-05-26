@@ -79,3 +79,12 @@ test('a metric exactly at its free limit is warn, not critical (no overage yet)'
   assert.equal(r.level, 'warn');
   assert.equal(r.projectedOverageUsd, 0);
 });
+
+test('projection stays suppressed through day 3 and engages on day 4 (MIN_PROJECTION_DAYS boundary)', () => {
+  // 150k Class A ops (15% of the 1M limit) project over the limit on both days,
+  // but the first MIN_PROJECTION_DAYS (3) days are suppressed — so day 3 is still
+  // ok and day 4 (3 full days elapsed) is the first to fire on the projection.
+  const usage = { storageBytes: 0, classA: 150_000, classB: 0 };
+  assert.equal(mon.evaluateUsage(usage, new Date('2026-05-03T00:00:00Z')).level, 'ok');
+  assert.equal(mon.evaluateUsage(usage, new Date('2026-05-04T00:00:00Z')).level, 'critical');
+});
