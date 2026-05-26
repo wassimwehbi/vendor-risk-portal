@@ -2,7 +2,7 @@
 
 - **Status:** Implemented (2026-05-26)
 - **Branch:** `claude/r2-usage-monitor-patch-XyOnA`
-- **Location:** `vendor-risk-portal/` — `server/src/services/r2UsageMonitor.ts` (new), `server/test/r2-monitor.test.ts` (new), `server/src/services/mailer.ts` (extracted generic `sendMail`), `server/src/db.ts` (new `monitor_state` table), `server/src/index.ts` (start the monitor after `listen`), `.env.example` (documented config).
+- **Location:** `vendor-risk-portal/` — `server/src/services/r2UsageMonitor.ts` (new), `server/test/r2-monitor.test.ts` (new), `server/src/services/mailer.ts` (extracted generic `sendMail`), `server/src/db.ts` (new `monitor_state` table), `server/src/index.ts` (start the monitor after `listen`), `server/scripts/r2-usage-report.ts` (new live-check CLI), `server/test/r2-monitor.live.ts` (new opt-in live integration test), `.env.example` (documented config).
 - **Related docs:** `specs/0004-free-demo-deployment.md` (Litestream ⇄ R2 backup), `specs/0002-enterprise-readiness.md` (WS-5 Deployment & Ops), `README.md` (Deployment section).
 - **Builds on:** Spec 0004 — the demo tier replicates SQLite to Cloudflare R2 via Litestream. R2 has overages enabled and **no hard spend cap**, so we need a budget guard.
 
@@ -84,6 +84,17 @@ of any remediation.
   actual-over-limit `critical` on day 1, a metric exactly at its limit being `warn`
   (not `critical`), and the day-3/day-4 `MIN_PROJECTION_DAYS` boundary. Tests exercise
   the pure helpers only — no network or SMTP is touched.
+- **Live validation (opt-in, against real assets).** Two tools exercise the integration
+  path the unit suite cannot, both reading credentials from the project-root `.env`:
+  - `npm --prefix server run test:live` — an integration test (`test/r2-monitor.live.ts`,
+    excluded from the default `test/*.test.ts` glob so CI stays offline) that hits the real
+    Cloudflare R2 Analytics API and asserts the response parses into a well-formed report.
+    It **self-skips** with a clear message unless `CLOUDFLARE_API_TOKEN` + `R2_ACCOUNT_ID`
+    are set.
+  - `npm --prefix server run r2:check` — a CLI (`scripts/r2-usage-report.ts`) that prints
+    the live month-to-date usage, the computed level, and the projected overage. Add
+    `-- --send-test-alert` to also send the alert email, validating the SMTP path end to
+    end. Read-only against Cloudflare; only emails when the flag is passed.
 
 ## 5. Known Limitations / Follow-ups
 

@@ -12,7 +12,9 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-force-exit test/*.test.ts",
-    "test:coverage": "c8 tsx --test --test-force-exit test/*.test.ts"
+    "test:coverage": "c8 tsx --test --test-force-exit test/*.test.ts",
+    "test:live": "tsx --test test/*.live.ts",
+    "r2:check": "tsx scripts/r2-usage-report.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

@@ -292,7 +292,10 @@ function writeState(state: AlertState): void {
 
 // ---- Alert dispatch + scheduling -------------------------------------------
 
-async function sendAlert(report: UsageReport): Promise<boolean> {
+// Compose and send an escalation alert email. Returns whether an email was
+// actually dispatched (false when there's no recipient or SMTP is unconfigured).
+// Exported for the manual live-validation script (scripts/r2-usage-report.ts).
+export async function sendAlert(report: UsageReport): Promise<boolean> {
   const to = process.env.R2_ALERT_EMAIL || (process.env.ADMIN_EMAILS || '').split(',')[0]?.trim();
   if (!to) {
     console.warn('[r2-monitor] no alert recipient configured (set R2_ALERT_EMAIL or ADMIN_EMAILS)');
