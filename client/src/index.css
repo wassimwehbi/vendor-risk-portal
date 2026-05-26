@@ -48,6 +48,17 @@
   }
 }
 
+/* Normalise WebKit date input: left-align the displayed value and pin the
+   calendar icon to the right so it never displaces or overflows the text. */
+input[type="date"].input::-webkit-date-and-time-value {
+  text-align: left;
+}
+input[type="date"].input::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 /* Print styles for the analyst report */
 @media print {
   .no-print {
