@@ -190,9 +190,29 @@ def generate_branch_name(
     response = execute_template(request)
     if not response.success:
         return None, response.output
-    branch_name = response.output.strip()
+    branch_name = sanitize_branch_name(response.output)
+    if not branch_name:
+        return None, f"Could not parse a branch name from: {response.output[:200]}"
     logger.info(f"Generated branch name: {branch_name}")
     return branch_name, None
+
+
+def sanitize_branch_name(raw: str) -> Optional[str]:
+    """Extract a safe git branch name from the agent's output.
+
+    The branch-name agent may wrap its answer in backticks/quotes or add prose,
+    which previously produced branch names containing literal backticks. Prefer
+    the canonical `<class>-issue-<n>-adw-<id>-<slug>` token; otherwise fall back
+    to stripping wrappers and removing any characters not valid in a branch name.
+    """
+    text = (raw or "").strip().strip("`\"' \n")
+    m = re.search(r"((?:chore|bug|feature|patch)-issue-\d+-adw-[A-Za-z0-9]+-[A-Za-z0-9-]+)", text)
+    if m:
+        return m.group(1)
+    # Fallback: first whitespace-free token, stripped of invalid branch chars.
+    token = text.split()[0].strip("`\"'") if text.split() else ""
+    cleaned = re.sub(r"[^A-Za-z0-9._/-]", "", token)
+    return cleaned or None
 
 
 def create_commit(
