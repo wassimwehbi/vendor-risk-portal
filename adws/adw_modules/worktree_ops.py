@@ -106,7 +106,12 @@ def create_worktree(
     if fetch.returncode != 0:
         logger.warning(f"Failed to fetch from origin: {fetch.stderr}")
 
-    cmd = ["git", "worktree", "add", "-b", branch_name, worktree_path, "origin/main"]
+    # Base ref for the worktree. Defaults to origin/main; override with
+    # ADW_WORKTREE_BASE (e.g. to a feature branch) so a local run can include
+    # the ZTE layer before it is merged to main.
+    base_ref = os.environ.get("ADW_WORKTREE_BASE", "origin/main")
+    logger.info(f"Creating worktree from base ref: {base_ref}")
+    cmd = ["git", "worktree", "add", "-b", branch_name, worktree_path, base_ref]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=project_root)
     if result.returncode != 0:
         if "already exists" in result.stderr:
