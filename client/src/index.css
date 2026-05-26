@@ -46,6 +46,15 @@
   }
 }
 
+@media (pointer: coarse) {
+  input[type='date'].input {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* Comfortable touch targets on phones — buttons are denser (py-1.5 ≈ 32px) on
    desktop; bump to ~40px below the sm breakpoint without affecting larger screens.
    Targets the variant classes that JSX actually uses (Tailwind inlines `@apply btn`
