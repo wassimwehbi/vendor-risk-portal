@@ -416,13 +416,17 @@ def create_and_implement_patch(
             output=f"Failed to create patch plan: {response.output}", success=False
         )
 
-    patch_file_path = response.output.strip()
+    # Sanitize the returned path (the agent may wrap it in backticks/quotes or
+    # add prose), then validate it points at a patch/adw plan-spec.
+    raw = response.output.strip()
+    m = re.search(r"((?:specs/patch|specs/adw)/[^\s`\"']+\.md)", raw)
+    patch_file_path = m.group(1) if m else raw.strip("`\"' \n")
     if not patch_file_path.endswith(".md") or (
         "specs/patch/" not in patch_file_path and f"{ADW_SPEC_DIR}/" not in patch_file_path
     ):
-        logger.error(f"Invalid patch plan path returned: {patch_file_path}")
+        logger.error(f"Invalid patch plan path returned: {response.output[:200]}")
         return None, AgentPromptResponse(
-            output=f"Invalid patch plan path: {patch_file_path}", success=False
+            output=f"Invalid patch plan path: {response.output[:200]}", success=False
         )
 
     logger.info(f"Created patch plan: {patch_file_path}")

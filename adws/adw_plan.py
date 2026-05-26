@@ -18,7 +18,9 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import glob
 import json
+import re
 from dotenv import load_dotenv
 
 from adw_modules.state import ADWState
@@ -49,6 +51,36 @@ from adw_modules.worktree_ops import (
     PortSet,
 )
 from adw_modules.phase import is_in_ci, project_root, post
+
+
+def resolve_plan_file(raw_output: str, worktree_path: str) -> str | None:
+    """Resolve the plan-spec the planner created, robust to model output quirks.
+
+    The planning agent is asked to return only the path, but in practice it may
+    wrap it in backticks/quotes, add prose, or mis-order the filename. So we
+    sanitize the returned string, and if that path doesn't exist, fall back to
+    discovering the most recently written specs/adw/*-plan.md in the worktree.
+    Returns a worktree-relative path, or None if nothing is found.
+    """
+    text = (raw_output or "").strip()
+    # Prefer an explicit specs/adw/...-plan.md path mentioned in the output.
+    m = re.search(r"(specs/adw/[^\s`\"']+\.md)", text)
+    candidate = m.group(1) if m else text.strip("`\"' \n")
+
+    if candidate:
+        abs_candidate = (
+            candidate if os.path.isabs(candidate)
+            else os.path.join(worktree_path, candidate)
+        )
+        if os.path.exists(abs_candidate):
+            return os.path.relpath(abs_candidate, worktree_path)
+
+    # Fallback: the planner created the file but reported a bad path — find it.
+    matches = glob.glob(os.path.join(worktree_path, "specs/adw/*-plan.md"))
+    if matches:
+        matches.sort(key=os.path.getmtime, reverse=True)
+        return os.path.relpath(matches[0], worktree_path)
+    return None
 
 
 def main():
@@ -187,19 +219,10 @@ def main():
         post(issue_number, adw_id, AGENT_PLANNER, f"❌ Error building plan: {plan_response.output}")
         sys.exit(1)
 
-    plan_file_path = plan_response.output.strip()
+    plan_file_path = resolve_plan_file(plan_response.output, worktree_path)
     if not plan_file_path:
-        post(issue_number, adw_id, "ops", "❌ No plan file path returned from planner")
-        sys.exit(1)
-
-    abs_plan = (
-        plan_file_path
-        if os.path.isabs(plan_file_path)
-        else os.path.join(worktree_path, plan_file_path)
-    )
-    if not os.path.exists(abs_plan):
-        logger.error(f"Plan file does not exist: {plan_file_path}")
-        post(issue_number, adw_id, "ops", f"❌ Plan file does not exist: {plan_file_path}")
+        logger.error(f"Could not locate plan-spec. Planner output: {plan_response.output[:300]}")
+        post(issue_number, adw_id, "ops", "❌ Could not locate the plan-spec under specs/adw/")
         sys.exit(1)
 
     state.update(plan_file=plan_file_path)
