@@ -1,6 +1,6 @@
 # Spec — Patch: Fix date input overflow on iOS Safari (mobile)
 
-- **Status:** Draft
+- **Status:** Implemented
 - **Branch:** bug-issue-23-adw-ed24338c-fix-date-input-overflow
 - **Location:** `client/src/index.css`
 - **Related docs:** `specs/adw/issue-18-adw-865a8199-fix-date-input-alignment-plan.md`
