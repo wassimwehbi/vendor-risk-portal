@@ -18,7 +18,7 @@ export interface AuditInput {
 export function logAudit(entry: AuditInput): void {
   db.prepare(
     `INSERT INTO audit_log (assessment_id, tenant_id, action, actor, role, details, created_at)
-     VALUES (@assessment_id, @tenant_id, @action, @actor, @role, @details, @created_at)`
+     VALUES (@assessment_id, @tenant_id, @action, @actor, @role, @details, @created_at)`,
   ).run({
     assessment_id: entry.assessment_id,
     tenant_id: entry.tenant_id,

@@ -65,7 +65,17 @@ const MEDIUM_SIGNALS = [
   'planned',
 ];
 
-const WEAK_SIGNALS = ['optional', 'available upon request', 'encouraged', 'recommended', 'where possible', 'not yet', 'no formal', 'ad hoc', 'ad-hoc'];
+const WEAK_SIGNALS = [
+  'optional',
+  'available upon request',
+  'encouraged',
+  'recommended',
+  'where possible',
+  'not yet',
+  'no formal',
+  'ad hoc',
+  'ad-hoc',
+];
 
 interface CategorySignal {
   category: DataCategory;
@@ -73,14 +83,78 @@ interface CategorySignal {
 }
 
 const CATEGORY_SIGNALS: CategorySignal[] = [
-  { category: 'phi', terms: ['phi', 'protected health information', 'ephi', 'health information', 'health data', 'health record', 'medical', 'patient', 'hipaa', 'covered entit'] },
-  { category: 'sensitive_personal', terms: ['sensitive personal', 'sensitive data', 'biometric', 'genetic', 'racial', 'religious', 'sexual orientation', 'special category'] },
-  { category: 'children', terms: ["children", "child ", "minor", 'under 13', 'coppa', "children's"] },
-  { category: 'financial', terms: ['financial', 'payment', 'credit card', 'cardholder', 'pci', 'bank account', 'card data'] },
+  {
+    category: 'phi',
+    terms: [
+      'phi',
+      'protected health information',
+      'ephi',
+      'health information',
+      'health data',
+      'health record',
+      'medical',
+      'patient',
+      'hipaa',
+      'covered entit',
+    ],
+  },
+  {
+    category: 'sensitive_personal',
+    terms: [
+      'sensitive personal',
+      'sensitive data',
+      'biometric',
+      'genetic',
+      'racial',
+      'religious',
+      'sexual orientation',
+      'special category',
+    ],
+  },
+  { category: 'children', terms: ['children', 'child ', 'minor', 'under 13', 'coppa', "children's"] },
+  {
+    category: 'financial',
+    terms: ['financial', 'payment', 'credit card', 'cardholder', 'pci', 'bank account', 'card data'],
+  },
   { category: 'employee', terms: ['employee', 'payroll', 'hr data', 'staff records'] },
-  { category: 'cross_border', terms: ['cross-border', 'cross border', 'international transfer', 'third country', 'outside the eu', 'standard contractual clauses', 'scc', 'data transfer'] },
-  { category: 'subprocessors', terms: ['subprocessor', 'sub-processor', 'subcontractor', 'fourth party', 'third-party provider', 'third party provider'] },
-  { category: 'personal', terms: ['personal data', 'pii', 'customer data', 'data subject', 'gdpr', 'eu residents', 'eu customers', 'eu-based', 'personally identifiable'] },
+  {
+    category: 'cross_border',
+    terms: [
+      'cross-border',
+      'cross border',
+      'international transfer',
+      'third country',
+      'outside the eu',
+      'standard contractual clauses',
+      'scc',
+      'data transfer',
+    ],
+  },
+  {
+    category: 'subprocessors',
+    terms: [
+      'subprocessor',
+      'sub-processor',
+      'subcontractor',
+      'fourth party',
+      'third-party provider',
+      'third party provider',
+    ],
+  },
+  {
+    category: 'personal',
+    terms: [
+      'personal data',
+      'pii',
+      'customer data',
+      'data subject',
+      'gdpr',
+      'eu residents',
+      'eu customers',
+      'eu-based',
+      'personally identifiable',
+    ],
+  },
 ];
 
 function includesAny(haystack: string, needles: string[]): boolean {
@@ -137,11 +211,17 @@ function assessCompleteness(item: QuestionnaireItem, text: string): Completeness
 }
 
 function assessEvidence(item: QuestionnaireItem, text: string, strength: ControlStrength): EvidenceSufficiency {
-  const hasEvidence = Boolean((item.evidence_text && item.evidence_text.trim()) || (item.evidence_location && item.evidence_location.trim()));
+  const hasEvidence = Boolean(
+    (item.evidence_text && item.evidence_text.trim()) || (item.evidence_location && item.evidence_location.trim()),
+  );
   if (isExpired(item.expiration_date)) return 'Expired';
   if (!hasEvidence) return 'None';
   const evidenceText = `${item.evidence_text ?? ''} ${item.evidence_location ?? ''}`.toLowerCase();
-  const genericOnly = /\b(policy|policies)\b/.test(evidenceText) && !/\b(screenshot|configuration|config|report|certificate|architecture|test result|audit|register|diagram|log)\b/.test(evidenceText);
+  const genericOnly =
+    /\b(policy|policies)\b/.test(evidenceText) &&
+    !/\b(screenshot|configuration|config|report|certificate|architecture|test result|audit|register|diagram|log)\b/.test(
+      evidenceText,
+    );
   if (includesAny(text, VAGUE_PHRASES) || strength === 'Weak') return 'Insufficient';
   if (genericOnly) return 'Insufficient';
   return 'Sufficient';
@@ -184,16 +264,12 @@ const FOLLOW_UPS: Record<string, string[]> = {
     'Please specify retention periods by data category and the secure deletion method used.',
     'How is deletion verified and evidenced upon contract termination?',
   ],
-  'Data Subject Rights': [
-    'Describe your process and SLA for handling data subject access/erasure requests.',
-  ],
+  'Data Subject Rights': ['Describe your process and SLA for handling data subject access/erasure requests.'],
   'Vulnerability Management': [
     'What is your vulnerability scanning cadence and remediation SLA by severity?',
     'Please provide the most recent penetration test summary and date.',
   ],
-  'Logging & Monitoring': [
-    'What events are logged, how long are logs retained, and is a SIEM used?',
-  ],
+  'Logging & Monitoring': ['What events are logged, how long are logs retained, and is a SIEM used?'],
   'GDPR Processor Obligations': [
     'Is a Data Processing Agreement (Art. 28) in place, and are cross-border transfers covered by SCCs?',
   ],
@@ -213,7 +289,8 @@ function buildFollowUps(
   evidence: EvidenceSufficiency,
 ): string[] {
   const out: string[] = [];
-  const needsClarity = completeness === 'Vague' || completeness === 'Partial' || strength === 'Weak' || strength === 'None';
+  const needsClarity =
+    completeness === 'Vague' || completeness === 'Partial' || strength === 'Weak' || strength === 'None';
   if (needsClarity) {
     out.push(...(FOLLOW_UPS[domain] ?? GENERIC_FOLLOW_UPS).slice(0, 2));
   }
@@ -222,7 +299,9 @@ function buildFollowUps(
   } else if (evidence === 'Expired') {
     out.push('The supporting certification/report appears expired — please provide a current, in-date version.');
   } else if (evidence === 'Insufficient') {
-    out.push('The evidence provided is generic or does not demonstrate implementation — please provide concrete proof.');
+    out.push(
+      'The evidence provided is generic or does not demonstrate implementation — please provide concrete proof.',
+    );
   } else if (evidence === 'Misaligned') {
     out.push('The evidence does not appear to align with the response — please clarify or provide matching evidence.');
   }

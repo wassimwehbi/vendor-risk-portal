@@ -51,7 +51,7 @@ test('global admin flag + last-admin count', () => {
   assert.equal(ts.countAdmins(), before);
 });
 
-test('listUsersWithMemberships projects each user\'s memberships', () => {
+test("listUsersWithMemberships projects each user's memberships", () => {
   const t = ts.createTenant('Gamma');
   const u = auth.upsertUserOnLogin({ email: 'gamma-user@x.com' });
   ts.setMembership(u.id, t.id, 'Analyst');

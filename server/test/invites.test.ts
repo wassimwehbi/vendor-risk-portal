@@ -11,7 +11,12 @@ const { createTenant } = await import('../src/services/tenantStore');
 const t = createTenant('Acme');
 
 test('create + find + accept is single-use', () => {
-  const { invite, token } = inv.createInvite({ email: 'a@x.com', tenantId: t.id, role: 'Analyst', invitedBy: 'admin@x.com' });
+  const { invite, token } = inv.createInvite({
+    email: 'a@x.com',
+    tenantId: t.id,
+    role: 'Analyst',
+    invitedBy: 'admin@x.com',
+  });
   assert.equal(invite.email, 'a@x.com');
   assert.equal(invite.role, 'Analyst');
   assert.equal(invite.tenant_name, 'Acme');

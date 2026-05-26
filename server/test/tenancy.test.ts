@@ -21,7 +21,10 @@ const sub2 = scopeFor({ actor: 's2@a.com', tenantId: tA.id, role: 'Submitter' })
 const admin = scopeFor({ actor: 'admin@x.com', tenantId: null, role: 'Admin' });
 
 function mkAssessment(scope: ReturnType<typeof scopeFor>, vendor = `V${Math.random()}`) {
-  const a = store.createAssessment({ vendor_name: vendor, questionnaire_type: 'SIG', date_submitted: '2026-05-24' }, scope);
+  const a = store.createAssessment(
+    { vendor_name: vendor, questionnaire_type: 'SIG', date_submitted: '2026-05-24' },
+    scope,
+  );
   store.replaceItems(a.id, getScenario('securehealth')!.items, scope);
   return a.id;
 }
@@ -48,7 +51,12 @@ test('submitters only see their own submissions', () => {
 
   // A different submitter in the same tenant cannot see it.
   assert.equal(store.getAssessment(ownId, sub2), undefined);
-  assert.ok(!store.listAssessments(sub2).map((x) => x.id).includes(ownId));
+  assert.ok(
+    !store
+      .listAssessments(sub2)
+      .map((x) => x.id)
+      .includes(ownId),
+  );
 
   // The owner sees it; an analyst in the same tenant sees it.
   assert.ok(store.getAssessment(ownId, sub1));
@@ -104,5 +112,8 @@ test('admin in all-tenants mode can write to an existing assessment', async () =
   // The audit trail stays stamped with the original tenant, not null.
   const audit = store.listAudit(aId);
   assert.ok(audit.length > 0);
-  assert.ok(audit.every((e) => e.tenant_id === tA.id), 'audit entries keep the original tenant');
+  assert.ok(
+    audit.every((e) => e.tenant_id === tA.id),
+    'audit entries keep the original tenant',
+  );
 });

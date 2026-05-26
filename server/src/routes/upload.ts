@@ -5,11 +5,7 @@ import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, extname, join } from 'node:path';
 import { parseQuestionnaire } from '../services/extraction';
-import {
-  ALLOWED_EVIDENCE_LABEL,
-  classifyEvidence,
-  extractEvidence,
-} from '../services/evidenceExtraction';
+import { ALLOWED_EVIDENCE_LABEL, classifyEvidence, extractEvidence } from '../services/evidenceExtraction';
 import { addEvidenceFiles, getAssessment, replaceItems } from '../services/store';
 import type { NewEvidence } from '../services/store';
 import { analyzeAssessment } from '../services/aiEngine';
@@ -43,7 +39,8 @@ function handleUpload(req: Request, res: Response, next: NextFunction): void {
     if (err) {
       if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') return fail(res, 413, 'A file exceeds the 25 MB limit.');
-        if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') return fail(res, 400, 'Too many files (max 20 evidence files).');
+        if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE')
+          return fail(res, 400, 'Too many files (max 20 evidence files).');
         return fail(res, 400, `Upload error: ${err.message}`);
       }
       return fail(res, 400, (err as Error).message || 'Upload failed');
@@ -103,7 +100,11 @@ router.post('/assessments/:id/upload', requireTenantRole('Analyst', 'Submitter')
     const parsed = parseQuestionnaire(questionnaire.path, questionnaire.originalname);
     if (parsed.length === 0) {
       cleanup();
-      return fail(res, 422, 'No questionnaire rows could be extracted. Check the file columns (Question, Response, ...).');
+      return fail(
+        res,
+        422,
+        'No questionnaire rows could be extracted. Check the file columns (Question, Response, ...).',
+      );
     }
     items = replaceItems(id, parsed, scope);
   } catch (err) {

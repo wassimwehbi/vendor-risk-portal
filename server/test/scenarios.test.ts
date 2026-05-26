@@ -5,7 +5,14 @@ import { ruleEngine } from '../src/services/ruleEngine';
 import { aggregateRisk, scoreItem } from '../src/services/riskScoring';
 import type { DataCategory, ItemAnalysis, QuestionnaireItem, RiskLevel } from '../src/types';
 
-const GDPR_TRIGGERS: DataCategory[] = ['personal', 'sensitive_personal', 'children', 'employee', 'cross_border', 'subprocessors'];
+const GDPR_TRIGGERS: DataCategory[] = [
+  'personal',
+  'sensitive_personal',
+  'children',
+  'employee',
+  'cross_border',
+  'subprocessors',
+];
 
 function deriveFrameworks(categories: DataCategory[]): string[] {
   const f = ['ISO 27001', 'ISO 27002'];

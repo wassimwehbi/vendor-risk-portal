@@ -46,8 +46,7 @@ export function configurePassport(): void {
         },
         (_accessToken, _refreshToken, profile, done) => {
           try {
-            const email =
-              profile.emails?.[0]?.value || profile._json?.mail || profile._json?.userPrincipalName || '';
+            const email = profile.emails?.[0]?.value || profile._json?.mail || profile._json?.userPrincipalName || '';
             const user = upsertUserOnLogin({ email, name: profile.displayName ?? profile._json?.displayName });
             done(null, user as SessionUser);
           } catch (err) {

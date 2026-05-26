@@ -25,9 +25,7 @@ test('maps standard SIG-style columns', () => {
 });
 
 test('matches header aliases case-insensitively', () => {
-  const rows = [
-    { ID: '7', 'question text': 'Encryption at rest?', Answer: 'No', Notes: 'planned' },
-  ];
+  const rows = [{ ID: '7', 'question text': 'Encryption at rest?', Answer: 'No', Notes: 'planned' }];
   const items = parseRows(rows);
   assert.equal(items[0].question_id, '7');
   assert.equal(items[0].question_text, 'Encryption at rest?');

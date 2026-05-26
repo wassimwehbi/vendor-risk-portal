@@ -7,16 +7,24 @@ import { ErrorNote } from '../components/ui';
 // The developer sign-in is only ever offered when the app is actually running on
 // a local machine — in addition to the server only enabling it in dev mode.
 const IS_LOCAL =
-  typeof window !== 'undefined' &&
-  /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(window.location.hostname);
+  typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)$/.test(window.location.hostname);
 
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.34A9 9 0 0 0 9 18z" />
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.34A9 9 0 0 0 9 18z"
+      />
       <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.01-2.34z" />
-      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.94l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z" />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.94l3.01 2.34C4.68 5.16 6.66 3.58 9 3.58z"
+      />
     </svg>
   );
 }
@@ -89,7 +97,12 @@ export function Login() {
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <span aria-hidden="true" className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white">VR</span>
+            <span
+              aria-hidden="true"
+              className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white"
+            >
+              VR
+            </span>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">Vendor Risk Portal</h1>
               <p className="text-sm text-slate-500">AI-assisted vendor security &amp; privacy reviews</p>
@@ -117,12 +130,18 @@ export function Login() {
               {hasSso && (
                 <div className="space-y-2.5">
                   {providers?.microsoft && (
-                    <a href={authUrl('microsoft')} className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                    <a
+                      href={authUrl('microsoft')}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
                       <MicrosoftIcon /> Continue with Microsoft
                     </a>
                   )}
                   {providers?.google && (
-                    <a href={authUrl('google')} className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                    <a
+                      href={authUrl('google')}
+                      className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
                       <GoogleIcon /> Continue with Google
                     </a>
                   )}
@@ -140,7 +159,9 @@ export function Login() {
                     </div>
                   )}
                   <form onSubmit={magicLink} className="space-y-2">
-                    <label className="label" htmlFor="login-email">Work email</label>
+                    <label className="label" htmlFor="login-email">
+                      Work email
+                    </label>
                     <input
                       id="login-email"
                       type="email"
@@ -179,12 +200,20 @@ export function Login() {
               ) : (
                 <div className="card p-4 text-left">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">Developer sign-in · local only</span>
-                    <button type="button" className="text-xs text-slate-500 hover:text-slate-700" onClick={() => setShowDev(false)}>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                      Developer sign-in · local only
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-slate-500 hover:text-slate-700"
+                      onClick={() => setShowDev(false)}
+                    >
                       Hide
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Bypasses SSO for local development. Not available in production.</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Bypasses SSO for local development. Not available in production.
+                  </p>
                   <form onSubmit={devLogin} className="mt-3 space-y-2">
                     <input
                       type="email"
@@ -228,8 +257,8 @@ export function Login() {
           )}
 
           <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
-            This is a restricted system for authorized users only. All activity is monitored and
-            recorded in the audit trail. Unauthorized access is prohibited.
+            This is a restricted system for authorized users only. All activity is monitored and recorded in the audit
+            trail. Unauthorized access is prohibited.
           </p>
         </div>
       </main>

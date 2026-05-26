@@ -16,17 +16,14 @@ import { authConfig } from './auth';
  */
 export function bootstrapMultiTenancy(): void {
   const now = nowIso();
-  const existing = db.prepare("SELECT id FROM tenants WHERE slug = 'default'").get() as
-    | { id: number }
-    | undefined;
+  const existing = db.prepare("SELECT id FROM tenants WHERE slug = 'default'").get() as { id: number } | undefined;
   const firstMigration = !existing;
 
   const tenantId = existing
     ? existing.id
     : Number(
-        db
-          .prepare("INSERT INTO tenants (name, slug, created_at) VALUES ('Default', 'default', ?)")
-          .run(now).lastInsertRowid,
+        db.prepare("INSERT INTO tenants (name, slug, created_at) VALUES ('Default', 'default', ?)").run(now)
+          .lastInsertRowid,
       );
 
   const adminEmails = new Set(authConfig.adminEmails);

@@ -3,7 +3,10 @@ import type { ReactNode } from 'react';
 export function Spinner({ label }: { label?: string }) {
   return (
     <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-slate-500">
-      <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
+      <span
+        aria-hidden="true"
+        className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600"
+      />
       {label ?? 'Loading…'}
     </div>
   );
@@ -11,7 +14,9 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorNote({ message }: { message: string }) {
   return (
-    <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{message}</div>
+    <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+      {message}
+    </div>
   );
 }
 
@@ -41,7 +46,10 @@ export function DataCategoryChips({ categories, labels }: { categories: string[]
   return (
     <div className="flex flex-wrap gap-1.5">
       {categories.map((c) => (
-        <span key={c} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+        <span
+          key={c}
+          className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+        >
           {labels[c] ?? c}
         </span>
       ))}
@@ -54,7 +62,10 @@ export function FrameworkChips({ frameworks }: { frameworks: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {frameworks.map((f) => (
-        <span key={f} className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
+        <span
+          key={f}
+          className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100"
+        >
           {f}
         </span>
       ))}

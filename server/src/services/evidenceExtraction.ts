@@ -30,18 +30,12 @@ const TYPES: TypeSpec[] = [
   {
     kind: 'word',
     exts: ['.doc', '.docx'],
-    mimes: [
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ],
+    mimes: ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   },
   {
     kind: 'excel',
     exts: ['.xls', '.xlsx', '.xlsm'],
-    mimes: [
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ],
+    mimes: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
   },
   { kind: 'csv', exts: ['.csv'], mimes: ['text/csv', 'application/csv'] },
   {
@@ -52,7 +46,8 @@ const TYPES: TypeSpec[] = [
 ];
 
 /** Human-readable list of accepted evidence types (for error messages / UI). */
-export const ALLOWED_EVIDENCE_LABEL = 'PDF, Word (.doc/.docx), CSV, Excel (.xls/.xlsx), or image (PNG/JPG/GIF/WebP/BMP/TIFF)';
+export const ALLOWED_EVIDENCE_LABEL =
+  'PDF, Word (.doc/.docx), CSV, Excel (.xls/.xlsx), or image (PNG/JPG/GIF/WebP/BMP/TIFF)';
 
 /** Accept attribute string for the file input on the client (mirrored there). */
 export const ALLOWED_EVIDENCE_ACCEPT = TYPES.flatMap((t) => t.exts).join(',');
@@ -105,7 +100,13 @@ async function extractPdf(buf: Buffer): Promise<EvidenceExtractionResult> {
   const { text, chars, truncated } = clip(data.text || '');
   const pages = data.numpages ?? 0;
   if (!text) {
-    return { kind: 'pdf', status: 'no_text', text: '', chars: 0, note: `PDF with ${pages} page(s); no extractable text (may be scanned — OCR not performed).` };
+    return {
+      kind: 'pdf',
+      status: 'no_text',
+      text: '',
+      chars: 0,
+      note: `PDF with ${pages} page(s); no extractable text (may be scanned — OCR not performed).`,
+    };
   }
   return {
     kind: 'pdf',
@@ -119,12 +120,25 @@ async function extractPdf(buf: Buffer): Promise<EvidenceExtractionResult> {
 async function extractWord(buf: Buffer, ext: string): Promise<EvidenceExtractionResult> {
   if (ext === '.doc') {
     // Legacy binary .doc is not supported by mammoth (which handles OOXML .docx).
-    return { kind: 'word', status: 'unsupported', text: '', chars: 0, note: 'Legacy .doc format — stored but not text-extracted. Please provide .docx or PDF for parsing.' };
+    return {
+      kind: 'word',
+      status: 'unsupported',
+      text: '',
+      chars: 0,
+      note: 'Legacy .doc format — stored but not text-extracted. Please provide .docx or PDF for parsing.',
+    };
   }
   const result = await mammoth.extractRawText({ buffer: buf });
   const { text, chars, truncated } = clip(result.value || '');
-  if (!text) return { kind: 'word', status: 'empty', text: '', chars: 0, note: 'Document contained no extractable text.' };
-  return { kind: 'word', status: 'extracted', text, chars, note: truncated ? `Text truncated to ${MAX_TEXT} chars.` : null };
+  if (!text)
+    return { kind: 'word', status: 'empty', text: '', chars: 0, note: 'Document contained no extractable text.' };
+  return {
+    kind: 'word',
+    status: 'extracted',
+    text,
+    chars,
+    note: truncated ? `Text truncated to ${MAX_TEXT} chars.` : null,
+  };
 }
 
 function extractSpreadsheet(buf: Buffer, kind: 'excel' | 'csv'): EvidenceExtractionResult {
@@ -137,14 +151,21 @@ function extractSpreadsheet(buf: Buffer, kind: 'excel' | 'csv'): EvidenceExtract
   const { text, chars, truncated } = clip(parts.join('\n\n'));
   if (!text) return { kind, status: 'empty', text: '', chars: 0, note: 'No rows found.' };
   const sheetNote = kind === 'excel' ? `${wb.SheetNames.length} sheet(s)` : 'CSV';
-  return { kind, status: 'extracted', text, chars, note: `${sheetNote}${truncated ? `; text truncated to ${MAX_TEXT} chars` : ''}.` };
+  return {
+    kind,
+    status: 'extracted',
+    text,
+    chars,
+    note: `${sheetNote}${truncated ? `; text truncated to ${MAX_TEXT} chars` : ''}.`,
+  };
 }
 
 function describeImage(buf: Buffer): EvidenceExtractionResult {
   let note = 'Image stored; text/OCR extraction is not performed in this version.';
   try {
     const dim = imageSize(buf);
-    if (dim?.width && dim?.height) note = `Image ${dim.width}×${dim.height} (${dim.type ?? 'image'}); text/OCR not performed.`;
+    if (dim?.width && dim?.height)
+      note = `Image ${dim.width}×${dim.height} (${dim.type ?? 'image'}); text/OCR not performed.`;
   } catch {
     /* dimensions are best-effort */
   }
@@ -162,7 +183,13 @@ export async function extractEvidence(
 ): Promise<EvidenceExtractionResult> {
   const kind = classifyEvidence(originalName, mimeType);
   if (!kind) {
-    return { kind: 'unknown', status: 'unsupported', text: '', chars: 0, note: `Unsupported evidence type. Allowed: ${ALLOWED_EVIDENCE_LABEL}.` };
+    return {
+      kind: 'unknown',
+      status: 'unsupported',
+      text: '',
+      chars: 0,
+      note: `Unsupported evidence type. Allowed: ${ALLOWED_EVIDENCE_LABEL}.`,
+    };
   }
   const ext = extname(originalName || '').toLowerCase();
   try {

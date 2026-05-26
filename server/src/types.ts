@@ -4,12 +4,7 @@
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Critical';
 export type ResponseType = 'Yes' | 'No' | 'Partial' | 'N/A' | 'FreeText';
 export type ControlStrength = 'Strong' | 'Medium' | 'Weak' | 'None';
-export type EvidenceSufficiency =
-  | 'Sufficient'
-  | 'Insufficient'
-  | 'None'
-  | 'Expired'
-  | 'Misaligned';
+export type EvidenceSufficiency = 'Sufficient' | 'Insufficient' | 'None' | 'Expired' | 'Misaligned';
 export type Completeness = 'Complete' | 'Partial' | 'Vague' | 'Missing';
 export type AnalystStatus = 'pending' | 'accepted' | 'overridden';
 export type AssessmentStatus = 'uploaded' | 'extracted' | 'analyzed' | 'approved';
@@ -159,11 +154,7 @@ export interface Finding {
   analyst_values: Partial<
     Pick<
       Finding,
-      | 'control_domain'
-      | 'framework_mappings'
-      | 'risk_level'
-      | 'evidence_sufficiency'
-      | 'follow_up_questions'
+      'control_domain' | 'framework_mappings' | 'risk_level' | 'evidence_sufficiency' | 'follow_up_questions'
     >
   > | null;
   updated_at: string;

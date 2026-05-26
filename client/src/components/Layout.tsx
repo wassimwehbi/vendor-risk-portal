@@ -20,7 +20,16 @@ const ROLE_CLASSES: Record<string, string> = {
 
 function MenuIcon({ open }: { open: boolean }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
       {open ? (
         <>
           <path d="M6 6l12 12" />
@@ -71,7 +80,11 @@ function TenantSwitcher({ variant = 'bar' }: { variant?: 'bar' | 'panel' }) {
   const isPanel = variant === 'panel';
 
   useEffect(() => {
-    if (isAdmin) api.listTenants().then(setAdminTenants).catch(() => undefined);
+    if (isAdmin)
+      api
+        .listTenants()
+        .then(setAdminTenants)
+        .catch(() => undefined);
   }, [isAdmin]);
 
   if (!user) return null;
@@ -138,7 +151,9 @@ function UserMenu({ variant = 'bar' }: { variant?: 'bar' | 'panel' }) {
 
   const roleLabel = activeRole ?? 'No access';
   const roleBadge = (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_CLASSES[roleLabel] ?? 'bg-slate-100 text-slate-600'}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_CLASSES[roleLabel] ?? 'bg-slate-100 text-slate-600'}`}
+    >
       {roleLabel}
     </span>
   );
@@ -187,8 +202,8 @@ function NoTenantAccess() {
     <div className="card flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <p className="text-base font-medium text-slate-700">No tenant access yet</p>
       <p className="max-w-md text-sm text-slate-500">
-        Your account isn’t associated with any tenant. An administrator needs to assign you to one before you
-        can submit or view assessments.
+        Your account isn’t associated with any tenant. An administrator needs to assign you to one before you can submit
+        or view assessments.
       </p>
     </div>
   );
@@ -222,7 +237,12 @@ export function Layout() {
           <div className="flex items-center justify-between gap-4 py-2.5">
             <div className="flex min-w-0 items-center gap-6">
               <NavLink to="/" className="flex items-center gap-2.5">
-                <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded bg-slate-800 text-[11px] font-bold tracking-tight text-white">VR</span>
+                <span
+                  aria-hidden="true"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded bg-slate-800 text-[11px] font-bold tracking-tight text-white"
+                >
+                  VR
+                </span>
                 <span className="truncate text-sm font-semibold tracking-tight text-slate-800">Vendor Risk Portal</span>
               </NavLink>
               <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
@@ -262,7 +282,8 @@ export function Layout() {
         {hasNoTenants ? <NoTenantAccess /> : <Outlet />}
       </main>
       <footer className="no-print mx-auto max-w-7xl px-4 py-6 text-center text-xs text-slate-400">
-        AI-assisted preliminary analysis · ISO 27001 · ISO 27002 · GDPR · NIST · Human analyst retains final decision authority
+        AI-assisted preliminary analysis · ISO 27001 · ISO 27002 · GDPR · NIST · Human analyst retains final decision
+        authority
       </footer>
     </div>
   );

@@ -48,7 +48,10 @@ function coerce<T extends string>(value: unknown, allowed: readonly T[], fallbac
 function parseModelJson(text: string): any {
   let t = text.trim();
   if (t.startsWith('```')) {
-    t = t.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    t = t
+      .replace(/^```(?:json)?/i, '')
+      .replace(/```$/, '')
+      .trim();
   }
   const start = t.indexOf('{');
   const end = t.lastIndexOf('}');
@@ -88,14 +91,31 @@ Expiration date: ${item.expiration_date ?? '(none)'}`;
       typeof parsed.control_domain === 'string' && parsed.control_domain.trim()
         ? parsed.control_domain.trim()
         : 'Uncategorized';
-    const control_strength = coerce<ControlStrength>(parsed.control_strength, ['Strong', 'Medium', 'Weak', 'None'], 'Medium');
-    const completeness = coerce<Completeness>(parsed.completeness, ['Complete', 'Partial', 'Vague', 'Missing'], 'Partial');
+    const control_strength = coerce<ControlStrength>(
+      parsed.control_strength,
+      ['Strong', 'Medium', 'Weak', 'None'],
+      'Medium',
+    );
+    const completeness = coerce<Completeness>(
+      parsed.completeness,
+      ['Complete', 'Partial', 'Vague', 'Missing'],
+      'Partial',
+    );
     const evidence_sufficiency = coerce<EvidenceSufficiency>(
       parsed.evidence_sufficiency,
       ['Sufficient', 'Insufficient', 'None', 'Expired', 'Misaligned'],
       'None',
     );
-    const allowedCats: DataCategory[] = ['personal', 'sensitive_personal', 'phi', 'children', 'employee', 'financial', 'cross_border', 'subprocessors'];
+    const allowedCats: DataCategory[] = [
+      'personal',
+      'sensitive_personal',
+      'phi',
+      'children',
+      'employee',
+      'financial',
+      'cross_border',
+      'subprocessors',
+    ];
     const data_categories: DataCategory[] = Array.isArray(parsed.data_categories)
       ? parsed.data_categories.filter((c: unknown): c is DataCategory => allowedCats.includes(c as DataCategory))
       : [];
@@ -105,7 +125,13 @@ Expiration date: ${item.expiration_date ?? '(none)'}`;
 
     // Framework mapping + risk score stay deterministic for auditability.
     const framework_mappings = getMapping(control_domain);
-    const risk_level = scoreItem({ control_strength, evidence_sufficiency, completeness, data_categories, control_domain });
+    const risk_level = scoreItem({
+      control_strength,
+      evidence_sufficiency,
+      completeness,
+      data_categories,
+      control_domain,
+    });
 
     return {
       control_domain,
