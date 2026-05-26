@@ -209,7 +209,9 @@ class E2ETestResult(BaseModel):
 
     test_name: str
     status: Literal["passed", "failed"]
-    test_path: str  # Path to the test file for re-execution
+    # Path to the test file for re-execution. Optional: some E2E reports (e.g. a
+    # Playwright run summary) don't map to a single source file.
+    test_path: Optional[str] = None
     screenshots: List[str] = []
     error: Optional[str] = None
 
