@@ -12,12 +12,12 @@
 
 ## Approach & Changes
 ### Files to Modify
-- `client/src/index.css` — add one `@media (pointer: coarse)` rule block after the existing date-input rules (lines 33–43)
+- `client/src/index.css` — add one `@media (pointer: coarse)` rule block after the closing `}` of the `@layer components` block (at the top level, after line 47)
 
 ### Implementation Steps
 
 ### Step 1: Add `@media (pointer: coarse)` block in `client/src/index.css`
-- Insert the following CSS immediately after the existing `input[type='date'].input::-webkit-calendar-picker-indicator` block (after line 43, before `.label`):
+- Insert the following CSS immediately after the closing `}` of the `@layer components` block (after the `.label` rule, at the top level outside `@layer components`):
   ```css
   @media (pointer: coarse) {
     input[type='date'].input {
