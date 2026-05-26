@@ -30,6 +30,17 @@
   .input {
     @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25;
   }
+  /* Normalize native date input to match .input sibling controls */
+  input[type='date'].input {
+    text-align: left;
+  }
+  input[type='date'].input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+  input[type='date'].input::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+  }
   .label {
     @apply mb-1 block text-sm font-medium text-slate-700;
   }
