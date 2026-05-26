@@ -95,6 +95,14 @@ of any remediation.
     the live month-to-date usage, the computed level, and the projected overage. Add
     `-- --send-test-alert` to also send the alert email, validating the SMTP path end to
     end. Read-only against Cloudflare; only emails when the flag is passed.
+- **Live-validated 2026-05-26 (with a fix).** Running `test:live` against the real account
+  surfaced a GraphQL bug the network-free unit tests could not: the storage sub-query used
+  `orderBy: [datetime_DESC]` without selecting `datetime` as a dimension, which Cloudflare
+  rejects (`cannot order by datetime: it is neither aggregated, nor a dimension`). Fixed by
+  adding `dimensions { datetime }` to the `r2StorageAdaptiveGroups` selection in `QUERY`; the
+  live test then returned a well-formed `OK` report (storage 0 GB, Class A/B ops far under
+  the free tier). See `specs/0009-test-credential-management.md` for how the credentials are
+  supplied.
 
 ## 5. Known Limitations / Follow-ups
 

@@ -15,6 +15,13 @@ playwright-report/
 test-results/
 /playwright/.cache/
 
+# Claude Code git worktrees — machine-local scratch checkouts that each carry
+# their own biome.json (a nested root config). Ignoring them keeps `git status`
+# clean and stops `biome ci .` from tripping over the nested config (Biome honors
+# .gitignore via vcs.useIgnoreFile). Tracked files elsewhere under .claude/ (e.g.
+# skills) are unaffected.
+.claude/worktrees/
+
 # The repository-root .gitignore has a broad `lib/` rule (for build output) that
 # unintentionally matches this React source directory. Re-include it so the
 # client source is tracked.

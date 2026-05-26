@@ -161,6 +161,9 @@ without credentials (so CI stays offline), and `r2:check` is read-only against C
 it only sends mail when you pass `--send-test-alert` (which also needs `SMTP_*` and
 `R2_ALERT_EMAIL`/`ADMIN_EMAILS`). See `specs/0007-r2-usage-monitor.md`.
 
+CI also runs `test:live` on a schedule — see the `r2-live` workflow below — so the
+integration path is exercised without anyone re-running it by hand.
+
 ## CI/CD
 
 GitHub Actions gates every PR and push to `main` (see `.github/workflows/`):
@@ -169,6 +172,10 @@ GitHub Actions gates every PR and push to `main` (see `.github/workflows/`):
   an `e2e` job (Playwright), a `docker` job (builds the server image so a broken
   `Dockerfile` fails here, not on Render), and an informational `audit` job (`npm audit`).
 - **`codeql.yml`** — CodeQL security analysis on push/PR and weekly.
+- **`r2-live.yml`** — runs the opt-in R2 live test (`test:live`) nightly and on manual
+  dispatch. Its Cloudflare credentials live in the `r2-live` GitHub *Environment* secrets;
+  it has no PR trigger, so the token is never exposed to forks. See
+  `specs/0009-test-credential-management.md`.
 - **`dependabot.yml`** — weekly dependency + GitHub-Actions update PRs.
 
 Deployment itself is unchanged: Render (backend) and Cloudflare Pages (frontend) still

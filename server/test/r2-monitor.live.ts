@@ -1,3 +1,8 @@
+// Load the project-root .env first (like scripts/r2-usage-report.ts) so a filled
+// .env supplies CLOUDFLARE_API_TOKEN + R2_ACCOUNT_ID for the skip check below.
+// dotenv no-ops when .env is absent and never overrides already-set vars, so CI's
+// job-level env still wins and the test stays a clean skip when no creds exist.
+import '../src/env';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';

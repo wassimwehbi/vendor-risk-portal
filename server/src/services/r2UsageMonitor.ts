@@ -188,6 +188,7 @@ const QUERY = `query R2Usage($tag: String!, $start: Time!, $end: Time!) {
   viewer {
     accounts(filter: { accountTag: $tag }) {
       storage: r2StorageAdaptiveGroups(limit: 1, filter: { datetime_geq: $start, datetime_lt: $end }, orderBy: [datetime_DESC]) {
+        dimensions { datetime }
         max { payloadSize metadataSize objectCount }
       }
       ops: r2OperationsAdaptiveGroups(limit: 200, filter: { datetime_geq: $start, datetime_lt: $end }) {
