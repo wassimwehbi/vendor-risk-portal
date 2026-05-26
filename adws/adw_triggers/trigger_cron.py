@@ -71,7 +71,8 @@ def save_cron_state(state: Dict[str, str]) -> None:
 def has_open_adw_pr(repo_path: str, issue_number: int) -> bool:
     """True if an open PR already exists for this issue's ADW branch pattern."""
     result = subprocess.run(
-        ["gh", "pr", "list", "--repo", repo_path, "--state", "open", "--json", "headRefName"],
+        ["gh", "pr", "list", "--repo", repo_path, "--state", "open",
+         "--limit", "200", "--json", "headRefName"],
         capture_output=True,
         text=True,
         env=get_safe_subprocess_env(),
@@ -82,7 +83,9 @@ def has_open_adw_pr(repo_path: str, issue_number: int) -> bool:
         prs = json.loads(result.stdout)
     except json.JSONDecodeError:
         return False
-    return any(f"-issue-{issue_number}-" in pr.get("headRefName", "") for pr in prs)
+    # Match the ADW branch convention (<class>-issue-<n>-adw-...), not any branch
+    # that merely mentions the issue number, to avoid false positives on human PRs.
+    return any(f"-issue-{issue_number}-adw-" in pr.get("headRefName", "") for pr in prs)
 
 
 def qualifies(issue, repo_path: str, cron_state: Dict[str, str]) -> Tuple[bool, Optional[str]]:

@@ -45,7 +45,9 @@ def evaluate_checks(runs, required: List[str]) -> Tuple[str, List[str]]:
             continue
         conclusion = (r.conclusion or "").upper()
         status = (r.status or "").upper()
-        if conclusion in ("FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"):
+        if conclusion in (
+            "FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED", "ERROR", "STALE"
+        ):
             failing.append(name)
         elif conclusion == "CANCELLED":
             pending = True

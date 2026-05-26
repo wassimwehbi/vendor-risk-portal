@@ -1,9 +1,7 @@
 """Data types for GitHub API responses and the Claude Code agent.
 
-Ported from tac-8 (tac8_app5__nlq_to_sql_aea) and adapted for the Vendor Risk
-Portal: the ZTE workflow names are lower-cased, the ADW state carries dedicated
-E2E ports and a per-worktree DB path, and Copilot-review models are added for the
-zero-touch ship loop.
+The ADW state carries dedicated E2E ports and a per-worktree DB path, and the
+Copilot-review models support the zero-touch ship loop.
 """
 
 from datetime import datetime
@@ -227,7 +225,7 @@ class ADWStateData(BaseModel):
     Stored in agents/{adw_id}/adw_state.json. Contains only the essential
     identifiers needed to connect workflow steps.
 
-    Vendor Risk Portal additions vs tac-8:
+    Notable fields:
     - ``e2e_server_port`` / ``e2e_client_port``: Playwright runs a *separate*
       server+client pair (``reuseExistingServer: false``), so concurrent E2E runs
       need their own ports distinct from the dev pair.

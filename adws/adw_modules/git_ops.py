@@ -1,8 +1,7 @@
 """Git operations for the ADW composable architecture.
 
-Builds on github.py. Ported from tac-8 with an extended merge helper for the
-zero-touch ship loop (squash + delete-branch, optional admin bypass) and a PR
-state reader.
+Builds on github.py. Includes an extended merge helper for the zero-touch ship
+loop (squash + delete-branch, optional admin bypass) and a PR state reader.
 """
 
 import subprocess

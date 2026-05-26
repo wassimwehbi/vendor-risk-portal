@@ -1,7 +1,7 @@
 """Shared AI Developer Workflow (ADW) operations.
 
-Ported from tac-8 and adapted so generated plan-specs live under specs/adw/
-(disjoint from the hand-authored specs/NNNN-*.md design docs).
+Generated plan-specs live under specs/adw/ (disjoint from the hand-authored
+specs/NNNN-*.md design docs).
 """
 
 import glob

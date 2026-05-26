@@ -1,7 +1,7 @@
 """GitHub operations for the ADW system.
 
-Ported from tac-8 and extended with PR-status and GitHub Copilot review helpers
-used by the zero-touch ship loop (adw_ship.py).
+Includes PR-status and GitHub Copilot review helpers used by the zero-touch ship
+loop (adw_ship.py).
 """
 
 import subprocess

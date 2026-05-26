@@ -6,7 +6,7 @@
   `.github/workflows/adw-zte.yml` (new), `specs/adw/` (new dir), `playwright.config.ts`
   (env-aware ports), `.gitignore`, `CLAUDE.md`
 - **Related docs:** `README.md`, `specs/0006-ci-cd-pipeline.md`,
-  `specs/0007-r2-usage-monitor.md`, the TAC reference repos `/Users/wassim/git/tac-8`
+  `specs/0007-r2-usage-monitor.md`
 
 ## 1. Problem / Objective
 
@@ -16,12 +16,10 @@ that drives the `claude` CLI through the full SDLC (plan → build → test → 
 document → ship) for an issue, in isolation, and merges autonomously once the repo's
 required checks pass and GitHub Copilot has no high-importance feedback left.
 
-It is a faithful port of the **Tactical Agentic Coding (TAC)** reference
-(`tac-8/tac8_app5__nlq_to_sql_aea`) — the "AI Developer Workflow" (ADW) system —
-adapted from its Python/FastAPI+Vue origin to this repo's Node/TypeScript stack, CI,
-branch protection, and Copilot setup. The product's own Claude integration
-(`server/src/services/claudeProvider.ts`, for questionnaire analysis) is unrelated and
-untouched; the two only share the `ANTHROPIC_*` env-var namespace.
+It is implemented as an **AI Developer Workflow (ADW)** system tailored to this repo's
+Node/TypeScript stack, CI, branch protection, and Copilot setup. The product's own Claude
+integration (`server/src/services/claudeProvider.ts`, for questionnaire analysis) is
+unrelated and untouched; the two only share the `ANTHROPIC_*` env-var namespace.
 
 ## 2. Approach & Changes
 
@@ -30,7 +28,7 @@ step, driven by **Python orchestration** (`adws/`, run with `uv`). Per-run state
 `agents/<adw_id>/adw_state.json`; work happens in an isolated git worktree under
 `trees/<adw_id>/` (or in place on a branch when running inside CI).
 
-**Python core (`adws/adw_modules/`)** — ported ~verbatim from tac-8, product-agnostic:
+**Python core (`adws/adw_modules/`)** — product-agnostic orchestration modules:
 `agent.py` (claude CLI runner; `--output-format stream-json`, retry, model map),
 `state.py`, `data_types.py`, `utils.py`, `git_ops.py`, `github.py`, `workflow_ops.py`,
 `worktree_ops.py`. New helpers: `phase.py` (worktree-vs-CI context + resilient issue
@@ -59,8 +57,8 @@ commands write to `specs/adw/issue-<n>-adw-<id>-<slug>-plan.md`; plus the new
   `workflow_dispatch`/`repository_dispatch` and runs the pipeline in CI (the
   network-friendly substitute for an inbound webhook).
 
-**The ZTE ship loop (`adw_ship.py`)** replaces tac-8's local merge with a PR-based,
-Copilot-iterating, auto-merge loop: open/find PR → wait for the 4 required checks green on
+**The ZTE ship loop (`adw_ship.py`)** is a PR-based, Copilot-iterating, auto-merge loop:
+open/find PR → wait for the 4 required checks green on
 the head SHA (auto-fixing quality/e2e failures) → fetch Copilot review → classify
 high-importance (keyword pre-filter ∪ LLM via `/resolve_copilot_feedback`) → patch, push,
 re-request review → loop until green + no high-importance feedback → `gh pr merge --squash
@@ -132,8 +130,8 @@ observed green, the Copilot loop running, and that it **stops before merge** (dr
 - **Operational setup (not code):** add repo secrets `CLAUDE_CODE_OAUTH_TOKEN`
   (`claude setup-token`) and `ADW_GH_TOKEN`; the OAuth token is long-lived but may need
   periodic rotation. Subscription rate limits are shared with interactive Claude Code use.
-- No real-time observability dashboard (tac-8 app3) in v1 — hooks log to
-  `agents/<adw_id>/` only; a seam is left to add it.
+- No real-time observability dashboard in v1 — hooks log to `agents/<adw_id>/` only; a
+  seam is left to add it.
 - Copilot severity is heuristic + LLM-judged (the API exposes no severity); the keyword
   guard can only *raise* importance for security/bug language, never downgrade it.
 - CI-failure auto-fix covers `quality`/`e2e`; `docker`/CodeQL failures abort to a human.

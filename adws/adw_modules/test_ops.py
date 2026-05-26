@@ -1,9 +1,8 @@
 """Test execution + automatic resolution loops for ADW.
 
-Ported from tac-8's adw_test.py, factored into a module so both the test
-phase and the ship loop can reuse it. The /test command returns a JSON array of
-TestResult; failures are handed to /resolve_failed_test and re-run, bounded by a
-retry cap.
+Factored into a module so both the test phase and the ship loop can reuse it. The
+/test command returns a JSON array of TestResult; failures are handed to
+/resolve_failed_test and re-run, bounded by a retry cap.
 """
 
 import logging

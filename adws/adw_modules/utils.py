@@ -132,8 +132,7 @@ def has_claude_credential() -> bool:
 def check_env_vars(logger: Optional[logging.Logger] = None) -> None:
     """Verify the environment can drive the Claude Code CLI and GitHub.
 
-    Unlike tac-8 (which hard-required ``ANTHROPIC_API_KEY``), the Vendor Risk
-    Portal layer authenticates the ``claude`` CLI via the user's *subscription*.
+    The layer authenticates the ``claude`` CLI via the user's *subscription*.
     Locally the CLI uses the existing interactive login automatically; in CI a
     long-lived ``CLAUDE_CODE_OAUTH_TOKEN`` is provided. So we only *warn* when no
     credential env var is set (the CLI may still be logged in), and never block.
@@ -185,8 +184,13 @@ def get_safe_subprocess_env() -> Dict[str, str]:
         # GitHub configuration (optional; falls back to ambient gh auth).
         "GITHUB_PAT": os.getenv("GITHUB_PAT"),
         "GH_TOKEN": os.getenv("GH_TOKEN"),
-        # ADW execution context
+        # ADW execution context + operator controls, so cron/CI-launched runs
+        # inherit them.
         "ADW_IN_CI": os.getenv("ADW_IN_CI"),
+        "ADW_WORKTREE_BASE": os.getenv("ADW_WORKTREE_BASE"),
+        "ADW_REQUIRED_CHECKS": os.getenv("ADW_REQUIRED_CHECKS"),
+        "ADW_MERGE_ADMIN": os.getenv("ADW_MERGE_ADMIN"),
+        "ADW_DISABLED": os.getenv("ADW_DISABLED"),
         # Vendor Risk Portal app runtime knobs (offline-friendly defaults).
         "AUTH_MODE": os.getenv("AUTH_MODE"),
         "NODE_ENV": os.getenv("NODE_ENV"),

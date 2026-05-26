@@ -1,7 +1,6 @@
 """Claude Code agent module for executing prompts programmatically.
 
-Ported from tac-8 (tac8_app5__nlq_to_sql_aea/adws/adw_modules/agent.py). The
-agent runner shells out to the `claude` CLI; authentication is via the user's
+The agent runner shells out to the `claude` CLI; authentication is via the user's
 subscription (interactive login locally, CLAUDE_CODE_OAUTH_TOKEN in CI) or an
 ANTHROPIC_API_KEY fallback — handled by the inherited subprocess environment.
 """

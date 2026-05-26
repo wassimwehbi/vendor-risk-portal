@@ -5,8 +5,8 @@
 # ///
 """ADW Ship (isolated) — zero-touch shipping via PR, with Copilot iteration.
 
-Unlike tac-8's local-merge shipper, this ships through a PR so branch protection
-(quality, e2e, docker, CodeQL) actually runs, then:
+Ships through a PR so branch protection (quality, e2e, docker, CodeQL) actually
+runs, then:
   1. ensures the branch is pushed and a PR is open,
   2. waits for the required checks to go green (auto-fixing quality/e2e failures),
   3. reads GitHub Copilot's review feedback and resolves high-importance items,
