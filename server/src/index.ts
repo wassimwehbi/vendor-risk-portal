@@ -2,6 +2,7 @@ import './env';
 import { createApp } from './app';
 import { authConfig } from './services/auth';
 import { bootstrapMultiTenancy } from './services/bootstrap';
+import { startR2UsageMonitor } from './services/r2UsageMonitor';
 
 // One-time, idempotent data backfill for the multi-tenancy migration.
 bootstrapMultiTenancy();
@@ -21,4 +22,6 @@ app.listen(PORT, () => {
     `[vendor-risk-portal] AI engine: ${process.env.ANTHROPIC_API_KEY ? 'Claude (key detected)' : 'rule-based fallback'}`,
   );
   console.log(`[vendor-risk-portal] auth providers: ${p.length ? p.join(', ') : 'none configured'}`);
+  // Background R2 usage / overage monitor (inert unless configured).
+  startR2UsageMonitor();
 });

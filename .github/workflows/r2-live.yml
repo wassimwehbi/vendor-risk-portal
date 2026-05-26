@@ -1,0 +1,44 @@
+name: R2 live check
+
+# Opt-in live integration test for the Cloudflare R2 usage monitor
+# (server/test/r2-monitor.live.ts). It hits the real Cloudflare Analytics API, so
+# it needs CLOUDFLARE_API_TOKEN (scope: Account Analytics: Read) + R2_ACCOUNT_ID.
+#
+# These live in the `r2-live` GitHub *Environment* secrets — NOT in plaintext and
+# NOT reachable from PRs. This workflow deliberately has no `push`/`pull_request`
+# trigger: it runs only on a nightly schedule and on manual dispatch, both of which
+# execute in the trusted context on the default branch, so fork PRs can never read
+# the token. Everything runs on a GitHub-hosted runner (free for public repos).
+on:
+  workflow_dispatch:
+  schedule:
+    # 04:37 UTC nightly (off-peak; cron has no timezone — always UTC).
+    - cron: '37 4 * * *'
+
+# Don't overlap a manual run with the scheduled one.
+concurrency:
+  group: r2-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  r2-live:
+    runs-on: ubuntu-latest
+    # Environment-scoped secrets; can carry protection rules / a main-only branch policy.
+    environment: r2-live
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install (server)
+        run: npm --prefix server ci
+      - name: Live R2 usage check
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: npm --prefix server run test:live
