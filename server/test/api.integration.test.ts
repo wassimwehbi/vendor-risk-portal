@@ -10,7 +10,11 @@ import request from 'supertest';
 process.env.VRP_DB_PATH = join(tmpdir(), `vrp-api-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
 process.env.AUTH_MODE = 'dev';
 process.env.AUTH_SECRET = 'test-secret-not-for-prod';
-delete process.env.ANTHROPIC_API_KEY; // force the deterministic rule engine
+// Force the deterministic rule engine. Set to '' (not delete): dotenv never overrides
+// an already-set var, so even if something loads a dev .env, the key stays empty and
+// Boolean(process.env.ANTHROPIC_API_KEY) is false. (`createApp()` no longer imports
+// `./env`, so nothing reintroduces it here anyway.)
+process.env.ANTHROPIC_API_KEY = '';
 
 const { createApp } = await import('../src/app');
 const { bootstrapMultiTenancy } = await import('../src/services/bootstrap');
@@ -29,10 +33,6 @@ async function login(opts: { email: string; role?: string; tenant?: string }) {
 }
 
 test('GET /api/health is public and reports the engine status', async () => {
-  // The /health handler reads ANTHROPIC_API_KEY per request, so clear it here: the
-  // top-of-file delete can be undone by dotenv (`import './env'`) loading a dev .env
-  // when the app module is imported.
-  delete process.env.ANTHROPIC_API_KEY;
   const res = await request(app).get('/api/health');
   assert.equal(res.status, 200);
   assert.equal(res.body.success, true);

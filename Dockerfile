@@ -20,11 +20,12 @@ COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 
 WORKDIR /app
 
-# Install server deps first for better layer caching. `tsx` (which `npm start` runs)
-# is a runtime dependency, so `--omit=dev` keeps it while excluding test-only
-# devDependencies (supertest, c8, typescript, @types/*) from the production image.
+# Install server deps first for better layer caching. `npm ci` installs strictly from
+# the copied lockfile (reproducible + faster than `install`, never mutates the lock).
+# `tsx` (which `npm start` runs) is a runtime dependency, so `--omit=dev` keeps it while
+# excluding test-only devDependencies (supertest, c8, typescript, @types/*).
 COPY server/package*.json ./server/
-RUN npm --prefix server install --omit=dev
+RUN npm --prefix server ci --omit=dev
 
 # App source + Litestream config + entrypoint.
 COPY server/ ./server/

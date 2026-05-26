@@ -52,7 +52,8 @@ GitHub Actions, Node pinned via `.nvmrc` (22.18.0), `npm ci` across the three lo
   - **`e2e`** — `npx playwright install --with-deps chromium`, then `npm run test:e2e`. Uploads
     the Playwright HTML report.
   - **`docker`** — buildx build of the server image (`push: false`, GHA layer cache) so a broken
-    `Dockerfile`/native `better-sqlite3` build fails here, not on Render.
+    `Dockerfile`/native `better-sqlite3` build fails here, not on Render. The image installs prod
+    deps with `npm ci --omit=dev` (reproducible from the copied lockfile).
   - **`audit`** — `npm audit --omit=dev --audit-level=high` for root/server/client, **informational**
     (`|| true`): surfaces advisories in the logs without blocking.
 - **`codeql.yml`** — CodeQL `javascript-typescript` on push/PR + weekly schedule.
@@ -69,13 +70,17 @@ GitHub Actions, Node pinned via `.nvmrc` (22.18.0), `npm ci` across the three lo
 `server/src/index.ts` built the Express `app` and called `app.listen()` in one file. App
 construction moved into **`server/src/app.ts`** exporting `createApp()`; `index.ts` is now the
 entrypoint (loads env, runs `bootstrapMultiTenancy()`, `createApp()`, `listen`). Behavior-preserving;
-lets `supertest` mount the app with no open port.
+lets `supertest` mount the app with no open port. `app.ts` does **not** `import './env'` — env loading
+is the caller's job (entrypoint/test harness), keeping `createApp()` free of dotenv side effects so
+test runs don't depend on a developer's local `.env`.
 
 ### Tests
 - **Server integration** (`server/test/api.integration.test.ts`, `supertest`): health is public;
   unauthenticated → 401; missing CSRF → 403; analyst flow (load demo scenario → analyze → approve);
   Viewer cannot create (403); cross-tenant read → 404. Sets `VRP_DB_PATH`/`AUTH_MODE=dev`/`AUTH_SECRET`
-  before importing `createApp` (mirrors the existing unit tests). Server scripts run with
+  before importing `createApp` (mirrors the existing unit tests), and sets `ANTHROPIC_API_KEY=''`
+  to pin the deterministic offline rule engine (empty, not deleted, so dotenv can't reintroduce it).
+  Server scripts run with
   `--test-force-exit` because the session store's cleanup `setInterval` would otherwise keep the
   process alive after tests pass.
 - **Server coverage** via `c8` (`server/.c8rc.json`, text + lcov).

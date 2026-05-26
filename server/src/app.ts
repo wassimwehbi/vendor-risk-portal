@@ -1,4 +1,3 @@
-import './env';
 import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -30,6 +29,11 @@ const isProd = (process.env.NODE_ENV || 'development') === 'production';
  * integration tests mount the returned app directly with supertest, so no port is
  * opened and there is nothing to tear down. Keeping construction here (rather than
  * coupled to `app.listen`) is the only change required to make the API testable.
+ *
+ * This module deliberately does NOT `import './env'` — env loading is the caller's
+ * job (the entrypoint `index.ts` imports `./env` first; tests set the env they need).
+ * That keeps `createApp()` free of dotenv side effects so test runs stay deterministic
+ * regardless of a developer's local `.env`.
  */
 export function createApp(): Express {
   if (isProd && !process.env.AUTH_SECRET) {
