@@ -143,6 +143,24 @@ Test layers:
 > run tests/E2E under Node 22 (`.nvmrc`) — e.g. `nvm use` or `fnm exec --using=22.18.0 -- npm test`.
 > Install Playwright's browser once with `npx playwright install chromium`.
 
+### Validating the R2 usage monitor (live)
+
+The unit suite covers the monitor's pure logic only. To validate the integration path —
+the real Cloudflare R2 Analytics query and the alert email — against your actual account,
+put `CLOUDFLARE_API_TOKEN` (needs the **Account Analytics: Read** permission) and
+`R2_ACCOUNT_ID` in the project-root `.env` (see `.env.example`), then:
+
+```bash
+npm --prefix server run test:live              # integration test: queries live R2, asserts a well-formed report
+npm --prefix server run r2:check               # CLI: prints live usage, alert level, projected overage (read-only)
+npm --prefix server run r2:check -- --send-test-alert   # also sends the alert email (validates the SMTP path)
+```
+
+Both are opt-in: `test:live` sits outside the default `test/*.test.ts` glob and **self-skips**
+without credentials (so CI stays offline), and `r2:check` is read-only against Cloudflare —
+it only sends mail when you pass `--send-test-alert` (which also needs `SMTP_*` and
+`R2_ALERT_EMAIL`/`ADMIN_EMAILS`). See `specs/0007-r2-usage-monitor.md`.
+
 ## CI/CD
 
 GitHub Actions gates every PR and push to `main` (see `.github/workflows/`):
