@@ -37,7 +37,12 @@ Each workstream below lists current state, target, concrete changes, primary fil
 and acceptance criteria. Effort is rough (S/M/L). Workstreams are ordered roughly by
 value-to-effort.
 
-### WS-1 — Quality Gates & CI/CD  *(Effort: M)*
+### WS-1 — Quality Gates & CI/CD  *(Effort: M)* — ✅ Implemented in `specs/0006-ci-cd-pipeline.md`
+
+> Delivered by Spec 0006 with two deltas from the sketch below: **Biome** replaces
+> ESLint+Prettier, and **lefthook** replaces husky+lint-staged. It also adds a Playwright
+> E2E smoke job and a Docker-build job. CI gates PRs/`main`; branch protection makes deploys
+> green. The original plan is kept below for context.
 
 **Current:** No CI; nothing runs on push. No ESLint/Prettier/editorconfig. Tests are
 server-only (`server/test/*.test.ts`, node:test) — no client tests, no API/HTTP-level
