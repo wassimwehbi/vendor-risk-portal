@@ -47,12 +47,24 @@ def is_force_push_to_protected(command: str) -> bool:
 
 
 def is_env_file_access(tool_name: str, tool_input: dict) -> bool:
+    allowed = (".env.sample", ".env.example")
+
+    def is_secret_env(path: str) -> bool:
+        base = os.path.basename(path.strip().strip("'\""))
+        if base in allowed:
+            return False
+        # A real secret env file is exactly `.env` or `.env.<name>` (e.g.
+        # .env.local). Files that merely END in ".env" (like `.ports.env`, which
+        # this layer writes per worktree) are NOT secrets and must be allowed.
+        return base == ".env" or base.startswith(".env.")
+
     if tool_name in ("Read", "Edit", "MultiEdit", "Write"):
-        fp = tool_input.get("file_path", "")
-        return ".env" in fp and not fp.endswith(".env.sample") and not fp.endswith(".env.example")
+        return is_secret_env(tool_input.get("file_path", ""))
     if tool_name == "Bash":
         cmd = tool_input.get("command", "")
-        return bool(re.search(r"\b\.env\b(?!\.(sample|example))", cmd))
+        # Standalone .env / .env.<name> token; the leading boundary forbids a
+        # preceding word char or dot, so `.ports.env` is not matched.
+        return bool(re.search(r"(?<![\w.])\.env(?!\.(?:sample|example))(?![\w])", cmd))
     return False
 
 
