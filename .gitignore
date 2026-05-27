@@ -14,6 +14,8 @@ coverage/
 playwright-report/
 test-results/
 /playwright/.cache/
+# Per-role sessions minted by the UX harness setup project (auth.setup.ts)
+/playwright/.auth/
 
 # ZTE agentic layer (adws/) run artifacts — see specs/0008
 trees/

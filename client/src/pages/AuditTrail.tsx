@@ -55,7 +55,8 @@ export function AuditTrail() {
       )}
       {entries && (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: WAI scrollable-region pattern — this read-only overflow table has no focusable cells, so the scroll container must be keyboard-focusable (axe scrollable-region-focusable). */}
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <caption className="sr-only">Audit trail entries</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

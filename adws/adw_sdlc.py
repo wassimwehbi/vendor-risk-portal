@@ -3,9 +3,9 @@
 # requires-python = ">=3.12"
 # dependencies = ["python-dotenv>=1.0", "pydantic>=2.7", "requests>=2.32"]
 # ///
-"""ADW SDLC (isolated) — plan → build → test → review → document (no ship).
+"""ADW SDLC (isolated) — plan → build → test → review → ux → document (no ship).
 
-Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e]
+Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e] [--skip-ux]
 """
 
 import sys
@@ -19,11 +19,13 @@ from adw_modules.orchestrate import run_pipeline
 
 def main():
     skip_e2e = "--skip-e2e" in sys.argv
-    if skip_e2e:
-        sys.argv.remove("--skip-e2e")
+    skip_ux = "--skip-ux" in sys.argv
+    for f in ("--skip-e2e", "--skip-ux"):
+        if f in sys.argv:
+            sys.argv.remove(f)
 
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e]")
+        print("Usage: uv run adws/adw_sdlc.py <issue-number> [adw-id] [--skip-e2e] [--skip-ux]")
         sys.exit(1)
 
     issue_number = sys.argv[1]
@@ -36,8 +38,10 @@ def main():
         ("adw_build.py", [], True),
         ("adw_test.py", test_args, False),
         ("adw_review.py", [], False),
-        ("adw_document.py", [], False),
     ]
+    if not skip_ux:
+        phases.append(("adw_ux_validation.py", [], False))
+    phases.append(("adw_document.py", [], False))
     rc = run_pipeline(issue_number, adw_id, phases)
     if rc == 0:
         print(f"\n=== SDLC COMPLETE === ADW ID: {adw_id}")

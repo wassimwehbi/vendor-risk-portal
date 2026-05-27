@@ -29,6 +29,7 @@ issue_json: $3
   - Add E2E test validation to your Validation Commands section
   - IMPORTANT: When you fill out the `Plan Format: Relevant Files` section, add an instruction to read `.claude/commands/test_e2e.md`, and `.claude/commands/e2e/test_basic_assessment.md` to understand how to create an E2E test file. List your new E2E test file to the `Plan Format: New Files` section.
   - To be clear, we're not creating a new E2E test file, we're creating a task to create a new E2E test file in the `Plan Format` below
+- IMPORTANT: If the change is UX-facing (touches `client/src/**`, styling, layout, responsive behavior, or accessibility), the plan MUST include the `UX Scenarios, Acceptance & Evidence Checklist` section in the `Plan Format` below. The ADW UX validation phase (`/ux_validate`) audits the rendered result against these acceptance criteria, and the deterministic `ux` regression check (`npm run test:ux`, scenario manifest `e2e/ux/scenarios.ts`) gates merge. See `specs/0012-ux-tasks-harness.md`. Add a task to extend `e2e/ux/scenarios.ts` for any new route/flow.
 - Respect requested files in the `Relevant Files` section.
 - Start your research by reading the `README.md` file.
 
@@ -84,6 +85,9 @@ Execute every command to validate the feature works correctly with zero regressi
 
 ### Acceptance Criteria
 <list specific, measurable criteria that must be met for the feature to be considered complete.>
+
+### UX Scenarios, Acceptance & Evidence Checklist
+<ONLY if the change is UX-facing; omit otherwise. Provide: (1) UX scenarios to cover — route/flow + viewports (mobile 375 / tablet 768 / desktop 1280); (2) measurable UX acceptance criteria (e.g. "no horizontal overflow at 375px", "date input left-aligned", "axe: no new serious/critical violations", "focus ring visible"); (3) the before/after screenshots `/ux_validate` must capture to prove each criterion; (4) a task to add/extend `e2e/ux/scenarios.ts` (and run `npm run test:ux`).>
 
 ### Validation Commands
 <list commands you'll use to validate with 100% confidence the feature is implemented correctly with zero regressions. Every command must execute without errors.>

@@ -71,13 +71,13 @@ export function DemoShowcase() {
                   <p className="text-xs text-slate-500">{s.sector}</p>
                 </div>
                 <div className="text-right">
-                  <span className="block text-[10px] uppercase tracking-wide text-slate-400">Expected</span>
+                  <span className="block text-[10px] uppercase tracking-wide text-slate-500">Expected</span>
                   <RiskBadge level={s.expected_risk} />
                 </div>
               </div>
               <p className="text-sm text-slate-600">{s.summary}</p>
               <div>
-                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">Data processed</span>
+                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Data processed</span>
                 <DataCategoryChips categories={s.data_categories} labels={DATA_CATEGORY_LABELS} />
               </div>
               <button

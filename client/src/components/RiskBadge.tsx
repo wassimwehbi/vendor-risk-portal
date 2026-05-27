@@ -4,7 +4,7 @@ import { RISK_CLASSES } from '../lib/format';
 export function RiskBadge({ level, size = 'sm' }: { level: RiskLevel | null; size?: 'sm' | 'lg' }) {
   if (!level) {
     return (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
         Not analyzed
       </span>
     );
