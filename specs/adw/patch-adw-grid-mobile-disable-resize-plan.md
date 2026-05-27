@@ -41,7 +41,7 @@ The line that spreads `widths` into the `<col>` elements should switch to `DEFAU
 const activeWidths = isCoarsePointer ? DEFAULT_COL_WIDTHS : widths;
 ```
 
-Replace all seven `widths.<key>` references in the `<colgroup>` with `activeWidths.<key>`.
+Replace all eight `widths.<key>` references in the `<colgroup>` with `activeWidths.<key>`.
 
 ### Step 3: Conditionally render each resize handle button
 
@@ -51,7 +51,7 @@ Remove the now-redundant `[@media(pointer:coarse)]:opacity-40` Tailwind modifier
 
 ## Key Decisions & Rationale
 
-**Lines of code to change:** ~25 (1 new state line, 1 `activeWidths` alias, 7× conditional render + class cleanup, 7× colgroup reference updates)
+**Lines of code to change:** ~25 (1 new state line, 1 `activeWidths` alias, 7× conditional render + class cleanup, 8× colgroup reference updates)
 
 **Risk level:** low — purely additive gate; desktop code path is untouched
 

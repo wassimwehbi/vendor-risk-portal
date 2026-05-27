@@ -45,7 +45,7 @@ Replace all eight `widths.<key>` references in the `<colgroup>` with `activeWidt
 
 ### Step 3: Conditionally render each resize handle button
 
-For all eight resize handle `<button>` elements in `<thead>` (Control area, Vendor response, Framework mapping, AI finding, Evidence, Risk, Analyst columns): wrap each with `{!isCoarsePointer && <button ... />}`.
+For all seven resize handle `<button>` elements in `<thead>` (Control area, Vendor response, Framework mapping, AI finding, Evidence, Risk, Analyst columns): wrap each with `{!isCoarsePointer && <button ... />}`.
 
 Remove the now-redundant `[@media(pointer:coarse)]:opacity-40` Tailwind modifier from every button's `className` since the element will no longer render on coarse-pointer devices.
 
