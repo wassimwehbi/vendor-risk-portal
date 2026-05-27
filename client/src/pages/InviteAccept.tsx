@@ -115,7 +115,7 @@ export function InviteAccept() {
                 <button type="button" className="btn-primary w-full" onClick={accept} disabled={busy}>
                   {busy ? 'Accepting…' : 'Accept invitation'}
                 </button>
-                <p className="text-center text-xs text-slate-400">
+                <p className="text-center text-xs text-slate-500">
                   Not you?{' '}
                   <Link to="/login" className="font-medium text-slate-500 underline hover:text-slate-700">
                     Go to sign in

@@ -151,6 +151,21 @@ def main():
     state.save("adw_plan")
     post(issue_number, adw_id, "ops", f"✅ Issue classified as: {issue_command}")
 
+    # Plan-time UX detection (text-only — heuristic, before any code exists). Biases the
+    # plan toward UX scenarios; refined authoritatively from the diff later (spec 0012).
+    try:
+        from adw_modules import ux_detection
+
+        ux_signal = ux_detection.detect_from_issue(issue)
+        ux_detection.record_to_state(state, ux_signal)
+        if ux_signal.is_ux_work:
+            post(
+                issue_number, adw_id, "ops",
+                f"🎨 UX work likely ({ux_signal.summary()}) — the plan should include UX scenarios + acceptance criteria.",
+            )
+    except Exception as e:  # noqa: BLE001 - detection is advisory; never block planning
+        logger.warning(f"UX detection skipped: {e}")
+
     # Branch name
     branch_name, error = generate_branch_name(issue, issue_command, adw_id, logger)
     if error:

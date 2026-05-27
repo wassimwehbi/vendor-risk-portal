@@ -267,7 +267,9 @@ export function ReviewWorkspace() {
           </p>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        // contain:paint isolates this wide table's horizontal scroll to the container so
+        // it never phantom-scrolls the whole page on narrow viewports (Chromium).
+        <div className="card overflow-x-auto [contain:paint]">
           <table
             className="min-w-full divide-y divide-slate-200"
             style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}

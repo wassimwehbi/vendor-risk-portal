@@ -49,6 +49,10 @@ SLASH_COMMAND_MODEL_MAP: Final[Dict[SlashCommand, Dict[ModelSet, str]]] = {
     "/resolve_copilot_feedback": {"base": "sonnet", "heavy": "opus"},
     "/install_worktree": {"base": "sonnet", "heavy": "sonnet"},
     "/track_agentic_kpis": {"base": "sonnet", "heavy": "sonnet"},
+    # UX validation: deterministic runner stays sonnet; visual judgment + fixes lean heavy→opus.
+    "/test_ux": {"base": "sonnet", "heavy": "sonnet"},
+    "/resolve_failed_ux_test": {"base": "sonnet", "heavy": "opus"},
+    "/ux_validate": {"base": "sonnet", "heavy": "opus"},
 }
 
 

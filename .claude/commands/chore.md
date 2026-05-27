@@ -21,6 +21,7 @@ issue_json: $3
 - IMPORTANT: Replace every <placeholder> in the `Plan Format` with the requested value. Add as much detail as needed to accomplish the chore.
 - Use your reasoning model: THINK HARD about the plan and the steps to accomplish the chore.
 - Keep it simple. Respect TypeScript strict mode and Biome formatting (the repo uses `npm run check`).
+- IMPORTANT: If the chore is UX-facing (touches `client/src/**`, styling, layout, responsive behavior, or accessibility), the plan MUST include a `UX Scenarios, Acceptance & Evidence Checklist` section (UX scenarios + viewports, measurable acceptance criteria, before/after screenshots). The ADW UX validation phase (`/ux_validate`) audits the rendered result and the deterministic `ux` check (`npm run test:ux`, manifest `e2e/ux/scenarios.ts`) gates merge — see `specs/0012-ux-tasks-harness.md`.
 - Respect requested files in the `Relevant Files` section.
 - Start your research by reading the `README.md` file.
 - `adws/**` contain the AI Developer Workflow scripts; consult `adws/README.md` if the chore touches them.

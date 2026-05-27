@@ -154,7 +154,7 @@ export function Login() {
                   {hasSso && (
                     <div className="flex items-center gap-3">
                       <span className="h-px flex-1 bg-slate-200" />
-                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400">or</span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-500">or</span>
                       <span className="h-px flex-1 bg-slate-200" />
                     </div>
                   )}
@@ -248,7 +248,7 @@ export function Login() {
                       Sign in
                     </button>
                   </form>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-slate-500">
                     Admin is global (no tenant). Other roles join the named tenant (default “Dev Tenant”).
                   </p>
                 </div>
@@ -256,7 +256,7 @@ export function Login() {
             </div>
           )}
 
-          <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
+          <p className="mt-6 text-center text-xs leading-relaxed text-slate-500">
             This is a restricted system for authorized users only. All activity is monitored and recorded in the audit
             trail. Unauthorized access is prohibited.
           </p>

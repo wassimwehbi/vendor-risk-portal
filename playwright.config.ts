@@ -18,6 +18,9 @@ const E2E_DB = path.join(os.tmpdir(), `vrp-e2e-${process.pid}-${Date.now()}.db`)
 
 export default defineConfig({
   testDir: './e2e',
+  // The scenario-driven UX suite lives under e2e/ux and runs via playwright.ux.config.ts.
+  // Keep the smoke suite (npm run test:e2e) from picking it up.
+  testIgnore: ['**/ux/**'],
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,

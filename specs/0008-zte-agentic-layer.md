@@ -38,9 +38,16 @@ resolve).
 
 **Phase scripts (`adws/adw_*.py`)** — `adw_plan` (entry: classify → branch →
 worktree → plan-spec → PR), `adw_build`, `adw_test`, `adw_review`,
-`adw_document`, `adw_patch`, `adw_ship` (the ZTE shipper), orchestrators
+`adw_ux_validation` (UX-gated; see below), `adw_document`, `adw_patch`,
+`adw_ship` (the ZTE shipper), orchestrators
 `adw_plan_build`, `adw_plan_build_test`, `adw_plan_build_test_review`,
 `adw_sdlc`, and `adw_sdlc_zte` (the full pipeline + ship).
+
+> **UX tasks harness (spec 0012).** A later increment added UX-work detection
+> (`adw_modules/ux_detection.py`, fail-open, all work types), a UX validation phase
+> (`adw_ux_validation.py`) that runs after review and self-skips for non-UX changes, and a
+> deterministic `ux` GitHub check that ship gates on when UX work is detected. See
+> `specs/0012-ux-tasks-harness.md` for the full design.
 
 **Commands (`.claude/commands/`)** — 18 templates retargeted to this repo:
 `test.md` runs `npm run check → typecheck → test → build` (returning a `TestResult`

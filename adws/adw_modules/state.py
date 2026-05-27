@@ -27,6 +27,8 @@ CORE_FIELDS = {
     "db_path",
     "model_set",
     "all_adws",
+    "is_ux_work",
+    "ux_signal",
 }
 
 
@@ -95,6 +97,8 @@ class ADWState:
             db_path=self.data.get("db_path"),
             model_set=self.data.get("model_set", "base"),
             all_adws=self.data.get("all_adws", []),
+            is_ux_work=self.data.get("is_ux_work"),
+            ux_signal=self.data.get("ux_signal"),
         )
 
         with open(state_path, "w") as f:
