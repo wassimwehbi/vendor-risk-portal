@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=./schema.json
+#
+# Sample experiment. Status is `draft`, so it assigns NO variants — everyone sees
+# the control. Flip `status: running` (via a PR from the portal) to start the test.
+key: dashboard-cta
+name: Dashboard primary CTA
+hypothesis: A more prominent "New assessment" call-to-action on the dashboard lifts the assessment-creation rate.
+owner: '@wassimwehbi'
+surface: dashboard
+status: draft
+created: 2026-05-27
+start: 2026-05-28
+end: 2026-06-28
+variants:
+  # The first variant is the control / default.
+  - { key: control, weight: 50 }
+  - { key: treatment, weight: 50 }
+targeting:
+  roles: [Analyst, Submitter]
+metrics:
+  primary: assessment_created
+  secondary: [analyze_clicked]

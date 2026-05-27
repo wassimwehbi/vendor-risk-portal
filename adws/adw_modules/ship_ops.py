@@ -1,8 +1,9 @@
 """CI status-check polling for the zero-touch ship loop.
 
-Branch protection on main requires the checks quality, e2e, docker, and
-"Analyze (javascript-typescript)" (CodeQL). We poll the PR's statusCheckRollup
-on its current head commit until those go green, fail, or time out.
+The ship loop waits on these checks before merging — quality, e2e, docker,
+"Analyze (javascript-typescript)" (CodeQL), and experiments — independently of whether
+GitHub branch protection is configured to require each one. We poll the PR's
+statusCheckRollup on its current head commit until they go green, fail, or time out.
 """
 
 import os
@@ -17,6 +18,9 @@ DEFAULT_REQUIRED_CHECKS = [
     "e2e",
     "docker",
     "Analyze (javascript-typescript)",
+    # Config-as-code gate for the A/B platform (spec 0015, validate-experiments.yml).
+    # Always runs to a conclusion on every PR, so it is safe to wait on unconditionally.
+    "experiments",
 ]
 
 # The deterministic UX regression check (spec 0012, .github/workflows/ux-regression.yml).

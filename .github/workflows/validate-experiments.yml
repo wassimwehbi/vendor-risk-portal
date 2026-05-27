@@ -1,0 +1,37 @@
+name: Experiments
+
+# Config-as-code gate for the A/B testing platform (see specs/0015-experimentation-platform.md).
+# Validates every experiments/*.yml against schema.json + cross-file invariants (unique keys,
+# weights sum to 100, key == filename, start <= end, no overlapping running experiments).
+#
+# The job ALWAYS runs to a conclusion on every PR (no paths: filter) so it can be a required
+# check without deadlocking PRs — a *skipped* required check blocks merge under branch
+# protection (the same lesson as the `ux` check in spec 0012/0013). Validation is cheap.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: experiments-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  experiments:
+    name: experiments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install validator deps (root only)
+        run: npm ci
+      - name: Validate experiment definitions
+        run: node scripts/experiments.mjs validate

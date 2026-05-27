@@ -55,4 +55,25 @@ describe('api client', () => {
       api.createAssessment({ vendor_name: '', questionnaire_type: 'SIG', date_submitted: '2026-05-25' }),
     ).rejects.toThrow('bad input');
   });
+
+  it('experiment endpoints hit the right routes (flags, expose, events)', async () => {
+    const fetchMock = mockFetch(200, { success: true, data: { 'dashboard-cta': 'treatment' } });
+    vi.stubGlobal('fetch', fetchMock);
+    setCsrfToken('tok-abc');
+
+    await api.getFlags();
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/flags', expect.objectContaining({ credentials: 'include' }));
+
+    await api.exposeExperiment('dashboard-cta');
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/experiments/dashboard-cta/expose',
+      expect.objectContaining({ method: 'POST' }),
+    );
+
+    await api.trackEvent('assessment_created');
+    const calls = fetchMock.mock.calls;
+    const [url, init] = calls[calls.length - 1];
+    expect(url).toBe('/api/events');
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ metric: 'assessment_created' });
+  });
 });
