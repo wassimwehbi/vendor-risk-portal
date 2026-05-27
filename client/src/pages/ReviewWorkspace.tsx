@@ -99,6 +99,9 @@ export function ReviewWorkspace() {
   const [approving, setApproving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { widths, startResize, resetColumn, updateWidth } = useResizableColumns();
+  const [isCoarsePointer] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  );
 
   const load = useCallback(() => {
     api
@@ -189,6 +192,7 @@ export function ReviewWorkspace() {
       </div>
     );
 
+  const activeWidths = isCoarsePointer ? DEFAULT_COL_WIDTHS : widths;
   const { assessment, items, findings, evidence } = detail;
   const findingsByItem = new Map(findings.map((f) => [f.item_id, f]));
   const analyzed = findings.length > 0;
@@ -312,114 +316,128 @@ export function ReviewWorkspace() {
           >
             <caption className="sr-only">Control-by-control AI analysis with analyst review actions</caption>
             <colgroup>
-              <col style={{ width: widths.control }} />
-              <col style={{ width: widths.response }} />
-              <col style={{ width: widths.framework }} />
-              <col style={{ width: widths.finding }} />
-              <col style={{ width: widths.evidence }} />
-              <col style={{ width: widths.risk }} />
-              <col style={{ width: widths.analyst }} />
-              <col style={{ width: widths.actions }} />
+              <col style={{ width: activeWidths.control }} />
+              <col style={{ width: activeWidths.response }} />
+              <col style={{ width: activeWidths.framework }} />
+              <col style={{ width: activeWidths.finding }} />
+              <col style={{ width: activeWidths.evidence }} />
+              <col style={{ width: activeWidths.risk }} />
+              <col style={{ width: activeWidths.analyst }} />
+              <col style={{ width: activeWidths.actions }} />
             </colgroup>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Control area
-                  <button
-                    type="button"
-                    aria-label="Resize Control area column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('control', e)}
-                    onDoubleClick={() => resetColumn('control')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('control', -10);
-                      if (e.key === 'ArrowRight') updateWidth('control', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Control area column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('control', e)}
+                      onDoubleClick={() => resetColumn('control')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('control', -10);
+                        if (e.key === 'ArrowRight') updateWidth('control', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Vendor response
-                  <button
-                    type="button"
-                    aria-label="Resize Vendor response column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('response', e)}
-                    onDoubleClick={() => resetColumn('response')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('response', -10);
-                      if (e.key === 'ArrowRight') updateWidth('response', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Vendor response column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('response', e)}
+                      onDoubleClick={() => resetColumn('response')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('response', -10);
+                        if (e.key === 'ArrowRight') updateWidth('response', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Framework mapping
-                  <button
-                    type="button"
-                    aria-label="Resize Framework mapping column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('framework', e)}
-                    onDoubleClick={() => resetColumn('framework')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('framework', -10);
-                      if (e.key === 'ArrowRight') updateWidth('framework', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Framework mapping column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('framework', e)}
+                      onDoubleClick={() => resetColumn('framework')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('framework', -10);
+                        if (e.key === 'ArrowRight') updateWidth('framework', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   AI finding
-                  <button
-                    type="button"
-                    aria-label="Resize AI finding column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('finding', e)}
-                    onDoubleClick={() => resetColumn('finding')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('finding', -10);
-                      if (e.key === 'ArrowRight') updateWidth('finding', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize AI finding column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('finding', e)}
+                      onDoubleClick={() => resetColumn('finding')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('finding', -10);
+                        if (e.key === 'ArrowRight') updateWidth('finding', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Evidence
-                  <button
-                    type="button"
-                    aria-label="Resize Evidence column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('evidence', e)}
-                    onDoubleClick={() => resetColumn('evidence')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('evidence', -10);
-                      if (e.key === 'ArrowRight') updateWidth('evidence', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Evidence column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('evidence', e)}
+                      onDoubleClick={() => resetColumn('evidence')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('evidence', -10);
+                        if (e.key === 'ArrowRight') updateWidth('evidence', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Risk
-                  <button
-                    type="button"
-                    aria-label="Resize Risk column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('risk', e)}
-                    onDoubleClick={() => resetColumn('risk')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('risk', -10);
-                      if (e.key === 'ArrowRight') updateWidth('risk', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Risk column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('risk', e)}
+                      onDoubleClick={() => resetColumn('risk')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('risk', -10);
+                        if (e.key === 'ArrowRight') updateWidth('risk', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="relative px-3 py-3 font-medium">
                   Analyst
-                  <button
-                    type="button"
-                    aria-label="Resize Analyst column"
-                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
-                    onPointerDown={(e) => startResize('analyst', e)}
-                    onDoubleClick={() => resetColumn('analyst')}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowLeft') updateWidth('analyst', -10);
-                      if (e.key === 'ArrowRight') updateWidth('analyst', +10);
-                    }}
-                  />
+                  {!isCoarsePointer && (
+                    <button
+                      type="button"
+                      aria-label="Resize Analyst column"
+                      className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100"
+                      onPointerDown={(e) => startResize('analyst', e)}
+                      onDoubleClick={() => resetColumn('analyst')}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowLeft') updateWidth('analyst', -10);
+                        if (e.key === 'ArrowRight') updateWidth('analyst', +10);
+                      }}
+                    />
+                  )}
                 </th>
                 <th scope="col" className="px-3 py-3">
                   <span className="sr-only">Actions</span>
