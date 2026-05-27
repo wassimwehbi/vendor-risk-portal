@@ -3,6 +3,7 @@ import type {
   Completeness,
   ControlStrength,
   DataCategory,
+  EvidenceContext,
   EvidenceSufficiency,
   ItemAnalysis,
   QuestionnaireItem,
@@ -161,7 +162,7 @@ function includesAny(haystack: string, needles: string[]): boolean {
   return needles.some((n) => haystack.includes(n));
 }
 
-function detectDataCategories(text: string): DataCategory[] {
+export function detectDataCategories(text: string): DataCategory[] {
   const found = new Set<DataCategory>();
   for (const sig of CATEGORY_SIGNALS) {
     if (includesAny(text, sig.terms)) found.add(sig.category);
@@ -210,11 +211,49 @@ function assessCompleteness(item: QuestionnaireItem, text: string): Completeness
   return 'Complete';
 }
 
-function assessEvidence(item: QuestionnaireItem, text: string, strength: ControlStrength): EvidenceSufficiency {
+const DOC_CONCRETE_SIGNALS = [
+  'soc 2 type ii',
+  'iso 27001',
+  'certificate number',
+  'aes-256',
+  'tls 1.',
+  'penetration test',
+  'audit report',
+];
+
+export function assessEvidence(
+  item: QuestionnaireItem,
+  text: string,
+  strength: ControlStrength,
+  evidence?: EvidenceContext[],
+): EvidenceSufficiency {
+  // Expiration always takes precedence over document content.
+  if (isExpired(item.expiration_date)) return 'Expired';
+
   const hasEvidence = Boolean(
     (item.evidence_text && item.evidence_text.trim()) || (item.evidence_location && item.evidence_location.trim()),
   );
-  if (isExpired(item.expiration_date)) return 'Expired';
+
+  const docText =
+    evidence
+      ?.map((e) => e.text)
+      .join('\n')
+      .toLowerCase() ?? '';
+  const docHasConcrete = docText.length > 0 && includesAny(docText, DOC_CONCRETE_SIGNALS);
+  const docGenericOnly =
+    docText.length > 0 &&
+    /\b(policy|policies)\b/.test(docText) &&
+    !/\b(screenshot|configuration|config|report|certificate|architecture|test result|audit|register|diagram|log)\b/.test(
+      docText,
+    );
+
+  // Document with concrete signals corroborates the item's evidence claim.
+  if (docHasConcrete && hasEvidence) return 'Sufficient';
+
+  // Document present but carries only generic policy text.
+  if (docGenericOnly) return 'Insufficient';
+
+  // No useful document text — fall back to existing item-level logic.
   if (!hasEvidence) return 'None';
   const evidenceText = `${item.evidence_text ?? ''} ${item.evidence_location ?? ''}`.toLowerCase();
   const genericOnly =
@@ -337,13 +376,14 @@ function buildFinding(
   return { finding, rationale };
 }
 
-async function analyzeItem(item: QuestionnaireItem): Promise<ItemAnalysis> {
-  const combined = `${item.question_text} ${item.response} ${item.vendor_comments ?? ''}`.toLowerCase();
+async function analyzeItem(item: QuestionnaireItem, evidence?: EvidenceContext[]): Promise<ItemAnalysis> {
+  const docText = evidence?.map((e) => e.text).join('\n') ?? '';
+  const combined = `${item.question_text} ${item.response} ${item.vendor_comments ?? ''} ${docText}`.toLowerCase();
   const control_domain = classifyByKeywords(`${item.question_text} ${item.response}`);
   const data_categories = detectDataCategories(combined);
   const control_strength = assessStrength(item, combined);
   const completeness = assessCompleteness(item, combined);
-  const evidence_sufficiency = assessEvidence(item, combined, control_strength);
+  const evidence_sufficiency = assessEvidence(item, combined, control_strength, evidence);
   const framework_mappings = getMapping(control_domain);
   const risk_level = scoreItem({
     control_strength,

@@ -4,6 +4,7 @@ import type {
   Completeness,
   ControlStrength,
   DataCategory,
+  EvidenceContext,
   EvidenceSufficiency,
   ItemAnalysis,
   QuestionnaireItem,
@@ -26,7 +27,7 @@ ${DOMAIN_NAMES}.
 Assess these qualitative dimensions:
 - control_strength: "Strong" (clearly implemented, broad scope, specifics/standards given), "Medium" (partial scope or unqualified yes), "Weak" (vague/optional), or "None" (absent/no).
 - completeness: "Complete", "Partial", "Vague" (non-specific buzzwords like "industry-standard"), or "Missing".
-- evidence_sufficiency: "Sufficient", "Insufficient" (generic policy / no implementation proof), "None" (no evidence), "Expired" (cert/report past its date), or "Misaligned" (evidence does not match the answer).
+- evidence_sufficiency: "Sufficient", "Insufficient" (generic policy / no implementation proof), "None" (no evidence), "Expired" (cert/report past its date), or "Misaligned" (evidence does not match the answer). When evidence documents are provided, ground your evidence_sufficiency verdict in their content — "Sufficient" requires a concrete finding (cert number, test result, config sample, or dated audit opinion) in the documents.
 - data_categories: array, any of: personal, sensitive_personal, phi, children, employee, financial, cross_border, subprocessors (only those clearly implied).
 - ai_finding: one concise sentence describing the gap or status.
 - ai_rationale: one sentence explaining your reasoning.
@@ -59,13 +60,23 @@ function parseModelJson(text: string): any {
   return JSON.parse(t);
 }
 
+function buildEvidenceBlock(evidence: EvidenceContext[]): string {
+  if (!evidence || evidence.length === 0) return '';
+  const snippets = evidence.slice(0, 5).map((e) => {
+    const excerpt = e.text.length > 2000 ? `${e.text.slice(0, 2000)}\n[truncated]` : e.text;
+    return `--- [${e.name}] ---\n${excerpt}`;
+  });
+  return `\nEvidence documents (${evidence.length} file(s)):\n${snippets.join('\n')}`;
+}
+
 export function createClaudeProvider(): AnalysisProvider | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
   const client = new Anthropic({ apiKey });
 
-  async function analyzeItem(item: QuestionnaireItem): Promise<ItemAnalysis> {
+  async function analyzeItem(item: QuestionnaireItem, evidence?: EvidenceContext[]): Promise<ItemAnalysis> {
+    const evidenceBlock = buildEvidenceBlock(evidence ?? []);
     const userContent = `Question ID: ${item.question_id}
 Question: ${item.question_text}
 Response type: ${item.response_type}
@@ -74,7 +85,7 @@ Vendor comments: ${item.vendor_comments ?? '(none)'}
 Evidence provided: ${item.evidence_text ?? '(none)'}
 Evidence location: ${item.evidence_location ?? '(none)'}
 Relevant date: ${item.relevant_date ?? '(none)'}
-Expiration date: ${item.expiration_date ?? '(none)'}`;
+Expiration date: ${item.expiration_date ?? '(none)'}${evidenceBlock}`;
 
     const message = await client.messages.create({
       model: MODEL,
