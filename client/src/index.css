@@ -27,6 +27,10 @@
   .btn-ghost {
     @apply btn text-slate-600 hover:bg-slate-100;
   }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50 hover:border-red-300
+           focus:ring-red-600/30;
+  }
   .input {
     @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/25;
   }
@@ -63,7 +67,8 @@
   .btn,
   .btn-primary,
   .btn-secondary,
-  .btn-ghost {
+  .btn-ghost,
+  .btn-danger {
     min-height: 2.5rem;
   }
 }
