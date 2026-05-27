@@ -1,8 +1,9 @@
 # Spec 0015 — Experimentation platform (software-layer A/B testing + GitHub portal)
 
-- **Status:** Phases 1–3 implemented (config + server engine + client, 2026-05-27). Phase 4 (portal) planned.
-- **Branch:** `feat/0015-experiments-config` (Phase 1), `feat/0015-experiments-server` (Phase 2),
-  `feat/0015-experiments-client` (Phase 3)
+- **Status:** Phases 1–4 implemented (config + server + client + portal, 2026-05-27). Phases 1–3
+  merged in #54; phase 4 (portal) on its own PR.
+- **Branch:** `feat/0015-experiments-config` (1), `feat/0015-experiments-server` (2),
+  `feat/0015-experiments-client` (3), `feat/0015-experiments-portal` (4)
 - **Location (Phase 1):** `experiments/` (new — `schema.json`, `dashboard-cta.yml`, `README.md`),
   `scripts/experiments.mjs` (new), `.github/workflows/validate-experiments.yml` (new),
   `adws/adw_modules/ship_ops.py` (add `experiments` required check),
@@ -14,6 +15,8 @@
 - **Location (Phase 3):** `client/src/lib/FlagsContext.tsx` (new) + `client/src/lib/FlagsContext.test.tsx` (new),
   `client/src/api/client.ts` (+ `.test.ts`), `client/src/types.ts`, `client/src/main.tsx` (provider),
   `client/src/pages/Dashboard.tsx` (CTA variant), `client/src/pages/NewAssessment.tsx` (conversion).
+- **Location (Phase 4):** `portal/` (new Vite/React SPA), `.github/workflows/portal-pages.yml` (new),
+  `CLAUDE.md` (design-system skill made a blocking requirement for all UI).
 - **Related docs:** `README.md`, `specs/0008-zte-agentic-layer.md` (GitHub-native ADW layer
   this mirrors), `specs/0012-ux-tasks-harness.md` + `specs/0013-adw-branch-sync.md` (the
   always-run required-check pattern and stale-check deadlock lesson reused here).
@@ -138,6 +141,24 @@ always `user.id` and sticky assignment needs no cookies.
   safety; `useFlag` no longer hardcodes the control name; the exposure beacon dedup is scoped by
   user + variant; `safeEqual` is shared with `middleware/auth`; results use one SQL pass.
 
+### Phase 4 — GitHub Pages portal
+
+A standalone Vite/React SPA in `portal/`, deployed to GitHub Pages by `portal-pages.yml`
+(build-validates on PRs touching `portal/**`; deploys on push to `main`). It is the management
+plane, but **GitHub stays the source of truth** — the portal authors changes by opening PRs.
+
+- **Auth:** "Sign in with GitHub" via the OAuth **device flow**, through the server's
+  `/api/gh-device/*` relay (no client secret in the browser); token in `sessionStorage`.
+- **Reads:** experiment YAML straight from the repo (GitHub Contents API) + live results from
+  `GET /api/experiments/:key/results` (read token entered once, in `localStorage`).
+- **Authors:** New / Edit / Pause compose the YAML and **open a PR** (branch → commit → PR via the
+  GitHub REST API) — every change is reviewed, CI-validated, and auto-deployed on merge.
+- **Design system:** the portal does NOT duplicate tokens — `portal/src/styles.css` imports
+  `design-system/colors_and_type.css`, and the logo is the canonical `BrandMark` (shield + check).
+  CLAUDE.md now makes the `design-system` skill a blocking requirement for all UI (client + portal).
+- **Prereqs (set on Render):** `GH_OAUTH_CLIENT_ID`, `EXPERIMENTS_READ_TOKEN`,
+  `EXPERIMENTS_PORTAL_ORIGIN`, plus repo Settings → Pages → Source: GitHub Actions.
+
 ## 3. Key decisions & rationale
 
 - **Config-as-code, single source of truth (not a DB-of-experiments).** Definitions live in
@@ -199,6 +220,15 @@ Phase 3 (client):
 - To see the treatment locally: set `dashboard-cta` to `running`, `npm --prefix server run
   gen:experiments`, then sign in as an Analyst/Submitter — the CTA changes and exposure/conversion
   rows appear; `GET /api/experiments/dashboard-cta/results` (with the read token) reflects them.
+
+Phase 4 (portal):
+
+- `npm --prefix portal run typecheck` and `npm --prefix portal run build` both clean; the build
+  bundles the canonical `--brand-*` tokens (the cross-dir `@import` of `design-system/` resolves).
+- `vite preview` + a headless render confirm the sign-in screen mounts with no console errors and
+  shows the canonical `BrandMark` (shield + check) in Inter. Live device-flow + PR authoring run
+  only from the deployed `github.io` origin (the prod API's CORS blocks `localhost`).
+- The `Portal (Pages)` workflow build-validates `portal/` on PRs and deploys on merge to `main`.
 
 ## 5. Known limitations / follow-ups
 
