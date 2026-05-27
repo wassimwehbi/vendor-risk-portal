@@ -195,7 +195,9 @@ export function ReviewWorkspace() {
           </p>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        // contain:paint isolates this wide table's horizontal scroll to the container so
+        // it never phantom-scrolls the whole page on narrow viewports (Chromium).
+        <div className="card overflow-x-auto [contain:paint]">
           <table className="min-w-full divide-y divide-slate-200">
             <caption className="sr-only">Control-by-control AI analysis with analyst review actions</caption>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

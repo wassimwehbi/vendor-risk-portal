@@ -81,7 +81,7 @@ function UserRow({
                 <button
                   type="button"
                   onClick={() => onRevoke(u.id, m.tenant_id)}
-                  className="text-slate-400 hover:text-red-600"
+                  className="text-slate-500 hover:text-red-600"
                   aria-label={`Remove ${m.tenant_name} membership`}
                 >
                   ✕

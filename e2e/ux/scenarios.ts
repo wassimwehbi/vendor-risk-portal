@@ -124,11 +124,7 @@ export const SCENARIOS: UxScenario[] = [
       { kind: 'loadScenario', index: 0 },
       { kind: 'expectVisibleText', text: /\b(Low|Medium|High|Critical)\b/ },
     ],
-    // NOTE: noHorizontalOverflow is intentionally omitted here. The 8-column analyzed
-    // control table is the documented "scrolls as a unit" known limitation (spec 0005 §6)
-    // and pushes page-level overflow on small viewports. Burning that down (and re-adding
-    // the invariant) is a tracked follow-up in specs/0012. a11y + console still gate.
-    invariants: ['axeClean', 'noConsoleErrors'],
+    invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
     snapshot: true,
   },
   {
@@ -137,8 +133,7 @@ export const SCENARIOS: UxScenario[] = [
     role: 'Analyst',
     viewports: ['mobile', 'desktop'],
     steps: [{ kind: 'loadScenario', index: 3 }],
-    // Same known-limitation caveat as `review` — exercise a11y on different demo content.
-    invariants: ['axeClean'],
+    invariants: ['noHorizontalOverflow', 'axeClean'],
   },
   {
     id: 'report',

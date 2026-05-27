@@ -91,13 +91,16 @@ This adds a **UX tasks harness** in two parts:
    *skipped* required check deadlocks the PR. The `ux` job therefore always runs to a conclusion;
    an internal `git diff` change-detector does a fast green pass-through for non-UI PRs instead of
    a `paths:`/`if:` skip.
-6. **Baselined pre-existing debt, gated everything else.** The current app fails two axe rules
-   pervasively (`color-contrast` on muted `slate-400` text ≈ 2.45:1; `scrollable-region-focusable`
-   on the responsive `overflow-x-auto` tables) and the 8-column ReviewWorkspace control table
-   produces page-level overflow on small viewports (the spec 0005 §6 "scrolls as a unit" known
-   limitation). These are baselined explicitly (rule-level for axe; scenario-level for the review
-   overflow) so the gate is green on today's app while still catching every *other* rule and
-   protecting the 8 other surfaces — including the historically fragile new-assessment date input.
+6. **No ignores — fixed the pre-existing debt at the root.** The harness surfaced three real,
+   pre-existing problems; rather than baseline them, they were fixed so the gate runs with **every**
+   axe rule enabled, no `disableRules`, no console ignore-list, and `noHorizontalOverflow` on every
+   surface: (a) **contrast** — muted `text-slate-400` (≈2.45:1) raised to `slate-500`, and chips on
+   `bg-slate-100` raised to `slate-700` (≥4.5:1); (b) **scrollable-region-focusable** — the
+   two read-only overflow tables (audit, report) with no focusable cells got `tabIndex={0}` (the WAI
+   scrollable-region pattern); the other tables already contain focusable controls; (c) **ReviewWorkspace page overflow** — the 8-column analyzed table phantom-scrolled the
+   whole page on narrow viewports (Chromium: `<html>` scrolled while `<body>`/`<main>` did not),
+   fixed with `contain: paint` on the scroll container so its horizontal scroll stays contained
+   (the spec 0005 §6 table still scrolls internally).
 
 ## 4. Verification
 
@@ -118,10 +121,12 @@ This adds a **UX tasks harness** in two parts:
 - **Branch protection (out of repo):** `ux` must be added to `main`'s required status-check
   contexts via `gh api` (alongside `quality, e2e, docker, Analyze (javascript-typescript)`).
 - **`/invite`** is token-dependent offline and is not yet covered (deferred).
-- **Pre-existing a11y/overflow debt** is baselined, not fixed: re-enable `color-contrast` and
-  `scrollable-region-focusable` (and re-add `noHorizontalOverflow` to the review scenarios) after
-  the muted-text contrast pass and the ReviewWorkspace table containment fix. These are good
-  first issues for the Part B ADW UX pipeline to self-heal.
+- **No suppressions in the harness or app a11y rules.** Axe runs with all WCAG2A/AA rules enabled
+  (no `disableRules`), every console error fails the suite (no ignore-list), and
+  `noHorizontalOverflow` gates every scenario. The three pre-existing issues above were fixed at
+  the source, not baselined. The only lint suppressions are two documented `biome-ignore`s for
+  `noNoninteractiveTabindex` on the audit/report scroll regions — Biome's heuristic conflicts with
+  the WAI scrollable-region `tabindex=0` pattern, and axe enforces the actual requirement.
 - **Pixel diffing** starts nightly-advisory; promote to a blocking signal once the Linux
   baseline-refresh ritual is proven. R2 baseline storage (vs committed PNGs) is a future option.
 - **Part B** (the ADW orchestration) lands next; until its `ux` ship-gating is wired, the

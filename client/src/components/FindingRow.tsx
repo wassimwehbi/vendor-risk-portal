@@ -12,7 +12,7 @@ const RESPONSE_TYPE_CLASSES: Record<string, string> = {
   Yes: 'bg-green-50 text-green-700',
   No: 'bg-red-50 text-red-700',
   Partial: 'bg-amber-50 text-amber-700',
-  'N/A': 'bg-slate-100 text-slate-500',
+  'N/A': 'bg-slate-100 text-slate-700',
   FreeText: 'bg-slate-100 text-slate-600',
 };
 
@@ -119,7 +119,7 @@ export function FindingRow({
         Overridden
       </span>
     ) : (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
         Pending
       </span>
     );
@@ -136,7 +136,7 @@ export function FindingRow({
             aria-label={`${open ? 'Hide' : 'Show'} details for ${eff.control_domain} (${item.question_id})`}
           >
             <span className="font-medium text-slate-800">{eff.control_domain}</span>
-            <span aria-hidden="true" className="ml-1 text-slate-400">
+            <span aria-hidden="true" className="ml-1 text-slate-500">
               {open ? '▾' : '▸'}
             </span>
             <span className="block text-xs text-slate-500">{item.question_id}</span>

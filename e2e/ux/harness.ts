@@ -8,21 +8,12 @@ import AxeBuilder from '@axe-core/playwright';
 import { test as base, expect } from '@playwright/test';
 import { VIEWPORTS, type ViewportName } from './scenarios';
 
-// Pre-existing a11y debt in the current app — these axe rules fail pervasively today and
-// are NOT regressions introduced by a PR. Baselining them (rule-level) keeps the harness a
-// usable blocking gate while still catching every OTHER WCAG2A/AA rule. Burning this debt
-// down and re-enabling these is a tracked follow-up (see specs/0012-ux-tasks-harness.md):
-//   - color-contrast: muted slate-400 text (#94a3b8) on slate-50 (#f8fafc) ≈ 2.45:1.
-//   - scrollable-region-focusable: the responsive `overflow-x-auto` table containers
-//     (spec 0005) aren't keyboard-focusable.
-export const KNOWN_AXE_DEBT = ['color-contrast', 'scrollable-region-focusable'];
-
 export interface UxHarness {
   setViewport(v: ViewportName): Promise<void>;
   /** Page-level horizontal overflow ≤ 1px. Page-level on purpose: spec 0005 keeps wide
    *  tables in inner `overflow-x-auto` containers, which are expected, not failures. */
   expectNoHorizontalOverflow(label: string): Promise<void>;
-  /** No serious/critical WCAG2A/AA violations (axe-core), excluding KNOWN_AXE_DEBT. */
+  /** No serious/critical WCAG2A/AA violations (axe-core). No rules are disabled. */
   expectAxeClean(): Promise<void>;
   /** A shared styled control (a .btn-* or .input), when focused, shows the brand focus ring. */
   expectFocusRing(): Promise<void>;
@@ -36,20 +27,12 @@ interface Fixtures {
   uxHarness: UxHarness;
 }
 
-// Pre-existing, benign noise we don't want to fail the suite on. Keep this list tight.
-const CONSOLE_IGNORE: RegExp[] = [
-  /React Router Future Flag/i,
-  /Download the React DevTools/i,
-  /\[vite\] connect(ed|ing)/i,
-];
-
 export const test = base.extend<Fixtures>({
   consoleErrors: async ({ page }, use) => {
     const errors: string[] = [];
+    // No ignore-list: every console error / page error is a failure.
     page.on('console', (m) => {
-      if (m.type() === 'error' && !CONSOLE_IGNORE.some((re) => re.test(m.text()))) {
-        errors.push(m.text());
-      }
+      if (m.type() === 'error') errors.push(m.text());
     });
     page.on('pageerror', (e) => errors.push(String(e)));
     await use(errors);
@@ -72,9 +55,22 @@ export const test = base.extend<Fixtures>({
           const overflow = root.scrollWidth - w;
           const offenders: string[] = [];
           if (overflow > 1) {
+            // Name the widest elements crossing the right edge, skipping those inside an
+            // overflow-clipping ancestor (their un-clipped rect extends past the edge but
+            // they don't actually widen the page) — so a regression points at the real node.
+            const clipsX = (el: Element) => {
+              const ox = getComputedStyle(el).overflowX;
+              return ox === 'auto' || ox === 'scroll' || ox === 'hidden' || ox === 'clip';
+            };
+            const insideClip = (el: HTMLElement) => {
+              for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+                if (clipsX(p)) return true;
+              }
+              return false;
+            };
             for (const el of Array.from(document.body.querySelectorAll<HTMLElement>('*'))) {
               const r = el.getBoundingClientRect();
-              if (r.right <= w + 1 || r.width === 0) continue;
+              if (r.right <= w + 1 || r.width === 0 || insideClip(el)) continue;
               const cls =
                 typeof el.className === 'string'
                   ? el.className
@@ -94,12 +90,15 @@ export const test = base.extend<Fixtures>({
       },
 
       async expectAxeClean() {
-        const results = await new AxeBuilder({ page })
-          .withTags(['wcag2a', 'wcag2aa'])
-          .disableRules(KNOWN_AXE_DEBT)
-          .analyze();
+        const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
         const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-        const detail = blocking.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length }));
+        const detail = blocking.map((v) => ({
+          id: v.id,
+          nodes: v.nodes.map((n) => ({
+            target: n.target?.join(' '),
+            msg: (n.any?.[0]?.message || n.failureSummary || '').slice(0, 180),
+          })),
+        }));
         expect(blocking, `axe serious/critical violations: ${JSON.stringify(detail, null, 2)}`).toEqual([]);
       },
 
