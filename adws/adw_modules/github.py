@@ -4,11 +4,14 @@ Includes PR-status and GitHub Copilot review helpers used by the zero-touch ship
 loop (adw_ship.py).
 """
 
+import logging
 import subprocess
 import sys
 import os
 import json
 from typing import Dict, List, Optional
+
+_log = logging.getLogger(__name__)
 from adw_modules.data_types import (
     GitHubIssue,
     GitHubIssueListItem,
@@ -456,3 +459,87 @@ def update_pr_branch(pr_number: str, repo: Optional[str] = None) -> bool:
         print(f"Note: update-branch returned: {msg}")
         return False
     return True
+
+
+def upload_ux_evidence(
+    pr_number: str,
+    sha: str,
+    evidence_paths: List[str],
+    repo: Optional[str] = None,
+) -> List[tuple]:
+    """Upload PNG evidence to a per-PR GitHub release and return (label, url) pairs.
+
+    Tag: ux-evidence-pr-<pr_number>
+    Asset names: <sha8>_<basename> (idempotent with --clobber).
+    Returns [] on any failure — caller must degrade gracefully.
+    """
+    if not evidence_paths:
+        return []
+
+    repo = repo or repo_path()
+    env = get_github_env()
+    tag = f"ux-evidence-pr-{pr_number}"
+    sha8 = sha[:8]
+
+    # Create release (idempotent — ignore non-zero exit if already exists).
+    subprocess.run(
+        [
+            "gh", "release", "create", tag,
+            "-R", repo,
+            "--title", f"UX Evidence PR #{pr_number}",
+            "--notes", "",
+            "--prerelease",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+    uploaded_names: set = set()
+    for path in evidence_paths:
+        basename = os.path.basename(path)
+        asset_name = f"{sha8}_{basename}"
+        result = subprocess.run(
+            ["gh", "release", "upload", tag, path, "--clobber", "-R", repo],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            _log.warning("UX evidence upload failed for %s: %s", path, result.stderr.strip())
+        else:
+            uploaded_names.add(asset_name)
+
+    if not uploaded_names:
+        return []
+
+    # Fetch release JSON to get canonical browser_download_url values.
+    result = subprocess.run(
+        ["gh", "release", "view", tag, "-R", repo, "--json", "assets"],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    if result.returncode != 0:
+        _log.warning("Could not fetch release assets: %s", result.stderr.strip())
+        return []
+
+    try:
+        assets = json.loads(result.stdout).get("assets", [])
+    except json.JSONDecodeError:
+        return []
+
+    urls = []
+    prefix = sha8 + "_"
+    for asset in assets:
+        name = asset.get("name", "")
+        if name in uploaded_names:
+            url = asset.get("browser_download_url", "")
+            if url:
+                label = name[len(prefix):] if name.startswith(prefix) else name
+                urls.append((label, url))
+
+    return urls
