@@ -126,6 +126,49 @@ def create_worktree(
     return worktree_path, None
 
 
+def attach_worktree_to_branch(
+    adw_id: str, branch_name: str, logger: logging.Logger
+) -> Tuple[Optional[str], Optional[str]]:
+    """Create a worktree under trees/<adw_id>/ checked out to an EXISTING branch.
+
+    Unlike create_worktree (which branches a NEW ref off origin/main and would
+    discard the PR's commits), this attaches to a branch that already exists on
+    origin — used by ship-only runs operating on an open PR's branch.
+    """
+    project_root = _project_root()
+    trees_dir = os.path.join(project_root, "trees")
+    os.makedirs(trees_dir, exist_ok=True)
+
+    worktree_path = os.path.join(trees_dir, adw_id)
+    if os.path.exists(worktree_path):
+        logger.warning(f"Worktree already exists at {worktree_path}")
+        return worktree_path, None
+
+    logger.info("Fetching latest changes from origin")
+    fetch = subprocess.run(
+        ["git", "fetch", "origin"], capture_output=True, text=True, cwd=project_root
+    )
+    if fetch.returncode != 0:
+        logger.warning(f"Failed to fetch from origin: {fetch.stderr}")
+
+    # Attach to the existing branch. `git worktree add <path> <branch>` checks
+    # out a local branch (or DWIM-creates one tracking a unique remote); if that
+    # fails, create an explicit tracking branch from origin/<branch>.
+    cmd = ["git", "worktree", "add", worktree_path, branch_name]
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=project_root)
+    if result.returncode != 0:
+        cmd = ["git", "worktree", "add", "--track", "-b", branch_name,
+               worktree_path, f"origin/{branch_name}"]
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=project_root)
+        if result.returncode != 0:
+            error_msg = f"Failed to attach worktree to {branch_name}: {result.stderr}"
+            logger.error(error_msg)
+            return None, error_msg
+
+    logger.info(f"Attached worktree at {worktree_path} to branch {branch_name}")
+    return worktree_path, None
+
+
 def validate_worktree(adw_id: str, state: ADWState) -> Tuple[bool, Optional[str]]:
     """Three-way validation: state has path, dir exists, git knows it."""
     worktree_path = state.get("worktree_path")
