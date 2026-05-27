@@ -195,7 +195,7 @@ export const api = {
   getReport: (id: number) => get<ReportData>(`/assessments/${id}/report`),
   getAudit: (id: number) => get<AuditEntry[]>(`/assessments/${id}/audit`),
 
-  exportUrl: (id: number, format: 'csv' | 'xlsx') => `${API_BASE}/assessments/${id}/export.${format}`,
+  exportUrl: (id: number, format: 'csv' | 'xlsx' | 'json') => `${API_BASE}/assessments/${id}/export.${format}`,
 
   // ---- Experiments (A/B testing, spec 0015) ----
   getFlags: () => get<FlagAssignments>('/flags'),
