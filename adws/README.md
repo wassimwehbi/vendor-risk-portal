@@ -17,7 +17,9 @@ on a branch when running inside CI).
 
 ## Phase scripts (`adw_*.py`)
 
-Each is runnable on its own (`uv run adws/<script>.py <issue> [adw-id] [flags]`):
+Each is runnable on its own. `adw_plan` / `adw_patch` take `<issue> [adw-id]`
+(the id is optional — they create it); every other phase requires both, e.g.
+`uv run adws/adw_build.py <issue> <adw-id> [flags]`:
 
 | Script | Phase |
 | --- | --- |
@@ -39,13 +41,15 @@ Each is runnable on its own (`uv run adws/<script>.py <issue> [adw-id] [flags]`)
 
 ### The ship loop (`adw_ship.py`)
 
-Open/find PR → wait for the 4 required checks (quality, e2e, docker, CodeQL)
-green on the head SHA, auto-fixing quality/e2e failures → fetch Copilot review →
+Open/find PR → wait for the 4 required checks (`quality`, `e2e`, `docker`, and
+the CodeQL check, whose status context is `Analyze (javascript-typescript)`;
+overridable via `ADW_REQUIRED_CHECKS`) green on the head SHA, auto-fixing
+quality/e2e failures → fetch Copilot review →
 resolve high-importance feedback → loop until green with no high-importance
 items → squash-merge and delete the branch. Bounded by `--max-ship-iters` (5)
 and `--checks-timeout` (45m); aborts to a human via the `adw:needs-human` label
-on exhaustion, conflicts, or unresolvable feedback. `docker`/CodeQL failures are
-not auto-fixed — they abort to a human.
+on exhaustion, conflicts, or unresolvable feedback. `docker` and the CodeQL
+`Analyze (javascript-typescript)` check are not auto-fixed — they abort to a human.
 
 ## Triggers (3 ways)
 
@@ -53,7 +57,7 @@ not auto-fixed — they abort to a human.
    `uv run adws/adw_sdlc_zte.py <issue> [adw-id] [--dry-run] [--skip-e2e] [--admin] [--no-copilot] [--max-ship-iters N]`
 2. **Cron poller:** `adw_triggers/trigger_cron.py` polls issues (label
    `adw:zte` / `adw:ship`, or a comment starting with `adw`), de-dupes via
-   `.cron_state.json` + an open-PR check, and launches `run_zte.py`.
+   `adw_triggers/.cron_state.json` + an open-PR check, and launches `run_zte.py`.
 3. **GitHub Actions:** `.github/workflows/adw-zte.yml` reacts to
    `issues` / `issue_comment` / `workflow_dispatch` / `repository_dispatch` and
    runs the pipeline in CI (the network-friendly substitute for an inbound
