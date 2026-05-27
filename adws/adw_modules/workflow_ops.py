@@ -43,6 +43,7 @@ AVAILABLE_ADW_WORKFLOWS = [
     "adw_document",
     "adw_ship",
     "adw_sdlc_zte",
+    "adw_ship_zte",
     "adw_plan_build",
     "adw_plan_build_test",
     "adw_plan_build_test_review",
@@ -215,6 +216,14 @@ def sanitize_branch_name(raw: str) -> Optional[str]:
     return cleaned or None
 
 
+def adw_id_from_branch(branch_name: str) -> Optional[str]:
+    """Recover the adw_id embedded in an ADW branch (<class>-issue-<n>-adw-<id>-<slug>)."""
+    if not branch_name:
+        return None
+    m = re.search(r"-adw-([A-Za-z0-9]+)-", branch_name)
+    return m.group(1) if m else None
+
+
 def create_commit(
     agent_name: str,
     issue: GitHubIssue,
@@ -353,6 +362,90 @@ def find_existing_branch_for_issue(
             if not adw_id:
                 return branch
     return None
+
+
+def bootstrap_ship_only_state(
+    issue_number: str, logger: logging.Logger
+) -> Tuple[Optional[str], Optional[ADWState], Optional[str]]:
+    """Reconstruct state + a checked-out branch for an issue's existing open PR.
+
+    Lets a ship-only run invoke adw_ship.py (which requires state + a working
+    dir) without a prior plan/build phase. Returns (adw_id, state, error).
+    """
+    from adw_modules.git_ops import find_open_pr_branch_for_issue
+    from adw_modules.phase import is_in_ci, project_root
+    from adw_modules.worktree_ops import (
+        find_next_available_ports,
+        attach_worktree_to_branch,
+        setup_worktree_environment,
+    )
+
+    branch_name, pr_number, error = find_open_pr_branch_for_issue(issue_number)
+    if error:
+        return None, None, error
+
+    adw_id = adw_id_from_branch(branch_name)
+    if not adw_id:
+        return None, None, f"could not parse adw_id from branch '{branch_name}'"
+
+    logger.info(
+        f"Ship-only bootstrap: issue #{issue_number} → PR #{pr_number}, "
+        f"branch {branch_name}, adw_id {adw_id}"
+    )
+
+    state = ADWState.load(adw_id, logger) or ADWState(adw_id)
+    state.update(adw_id=adw_id, issue_number=str(issue_number), branch_name=branch_name)
+
+    if is_in_ci():
+        # In place at repo root: fetch + checkout the PR branch. Leaving
+        # worktree_path unset makes working_dir_for() resolve to the repo root.
+        root = project_root()
+        subprocess.run(
+            ["git", "fetch", "origin", branch_name],
+            cwd=root, capture_output=True, text=True,
+        )
+        checkout = subprocess.run(
+            ["git", "checkout", branch_name],
+            cwd=root, capture_output=True, text=True,
+        )
+        if checkout.returncode != 0:
+            return None, None, f"failed to checkout {branch_name} in CI: {checkout.stderr.strip()}"
+    else:
+        ports = find_next_available_ports(adw_id)
+        worktree_path, error = attach_worktree_to_branch(adw_id, branch_name, logger)
+        if error:
+            return None, None, error
+        state.update(
+            worktree_path=worktree_path,
+            backend_port=ports.backend,
+            frontend_port=ports.frontend,
+            e2e_server_port=ports.e2e_server,
+            e2e_client_port=ports.e2e_client,
+        )
+        db_path = setup_worktree_environment(worktree_path, ports, logger)
+        state.update(db_path=db_path)
+        state.save("adw_ship_bootstrap")
+
+        # Full install so the ship loop can self-heal failing checks locally.
+        install_request = AgentTemplateRequest(
+            agent_name="ops",
+            slash_command="/install_worktree",
+            args=[
+                worktree_path,
+                str(ports.backend),
+                str(ports.frontend),
+                str(ports.e2e_server),
+                str(ports.e2e_client),
+            ],
+            adw_id=adw_id,
+            working_dir=worktree_path,
+        )
+        install_response = execute_template(install_request)
+        if not install_response.success:
+            return None, None, f"worktree install failed: {install_response.output}"
+
+    state.save("adw_ship_bootstrap")
+    return adw_id, state, None
 
 
 def find_spec_file(state: ADWState, logger: logging.Logger) -> Optional[str]:
