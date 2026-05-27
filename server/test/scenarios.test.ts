@@ -14,13 +14,6 @@ const GDPR_TRIGGERS: DataCategory[] = [
   'subprocessors',
 ];
 
-function deriveFrameworks(categories: DataCategory[]): string[] {
-  const f = ['ISO 27001', 'ISO 27002'];
-  if (categories.some((c) => GDPR_TRIGGERS.includes(c))) f.push('GDPR');
-  if (categories.includes('phi')) f.push('HIPAA');
-  return f;
-}
-
 // Mirrors aiEngine.analyzeAssessment's pure computation (without persistence).
 async function analyzeScenario(key: string): Promise<{
   overall: RiskLevel;
@@ -47,10 +40,16 @@ async function analyzeScenario(key: string): Promise<{
       control_domain: a.analysis.control_domain,
     });
   }
+  const frameworkSet = new Set<string>();
+  analyses.forEach(({ analysis }) => {
+    analysis.framework_mappings.forEach(({ framework }) => frameworkSet.add(framework));
+  });
+  if (data_categories.some((c) => GDPR_TRIGGERS.includes(c))) frameworkSet.add('GDPR');
+  if (data_categories.includes('phi')) frameworkSet.add('HIPAA');
   return {
     overall: aggregateRisk(analyses.map((a) => a.level)),
     data_categories,
-    frameworks: deriveFrameworks(data_categories),
+    frameworks: [...frameworkSet],
     analyses,
   };
 }
@@ -81,6 +80,14 @@ test('SecureHealth triggers GDPR and HIPAA frameworks', async () => {
   assert.ok(data_categories.includes('phi'));
   assert.ok(frameworks.includes('HIPAA'));
   assert.ok(frameworks.includes('GDPR'));
+  assert.ok(frameworks.includes('NIST CSF'), 'expected NIST CSF');
+  assert.ok(frameworks.includes('NIST 800-53'), 'expected NIST 800-53');
+});
+
+test('CloudPay includes NIST CSF and NIST 800-53 in applicable frameworks', async () => {
+  const { frameworks } = await analyzeScenario('cloudpay');
+  assert.ok(frameworks.includes('NIST CSF'), 'expected NIST CSF');
+  assert.ok(frameworks.includes('NIST 800-53'), 'expected NIST 800-53');
 });
 
 test('VagueVendor produces pervasive evidence-insufficiency findings', async () => {
