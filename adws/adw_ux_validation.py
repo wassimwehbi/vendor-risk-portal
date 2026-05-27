@@ -30,6 +30,7 @@ from adw_modules.github import (
     fetch_issue,
     get_pr_head_sha,
     get_repo_url,
+    upload_ux_evidence,
     upsert_pr_comment,
     ux_marker_body,
 )
@@ -138,7 +139,20 @@ def main():
     # 4) Post the advisory SHA-bound verdict.
     if result is not None:
         verdict = result.verdict
-        body = format_ux_validation_comment(result)
+        branch = state.get("branch_name")
+        pr_number = get_pr_number(branch) if branch else None
+        head_sha = get_pr_head_sha(str(pr_number)) if pr_number else None
+        evidence_urls = None
+        if result.evidence_paths and pr_number:
+            try:
+                evidence_urls = upload_ux_evidence(
+                    pr_number=str(pr_number),
+                    sha=head_sha or "",
+                    evidence_paths=result.evidence_paths,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("UX evidence upload failed — falling back to path reference: %s", exc)
+        body = format_ux_validation_comment(result, evidence_urls=evidence_urls)
         if failed:
             body += f"\n\n_Deterministic UX suite: {passed} passed / {failed} failed (see the `ux` check)._"
         _post_verdict(state, verdict, body, logger)

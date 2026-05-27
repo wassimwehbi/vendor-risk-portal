@@ -87,7 +87,37 @@ def parse_ux_validation(output: str, logger: logging.Logger) -> Optional[UxValid
         return None
 
 
-def format_ux_validation_comment(result: UxValidationResult) -> str:
+def _pair_evidence(urls: List[Tuple[str, str]]) -> List[str]:
+    """Return markdown lines pairing before/after screenshots by shared suffix."""
+    import re
+    pattern = re.compile(r"^(\d+)_(before|after)_(.+)$", re.IGNORECASE)
+    groups: dict = {}
+    singles: List[Tuple[str, str]] = []
+    for label, url in urls:
+        m = pattern.match(label)
+        if m:
+            key = m.group(3)
+            groups.setdefault(key, {})[m.group(2).lower()] = (label, url)
+        else:
+            singles.append((label, url))
+    lines = []
+    for key, sides in groups.items():
+        name = key.replace("_", " ").replace(".png", "")
+        parts = []
+        if "before" in sides:
+            parts.append(f"![before]({sides['before'][1]})")
+        if "after" in sides:
+            parts.append(f"![after]({sides['after'][1]})")
+        lines.append(f"**{name}** — " + " ".join(parts))
+    for label, url in singles:
+        lines.append(f"![{label}]({url})")
+    return lines
+
+
+def format_ux_validation_comment(
+    result: UxValidationResult,
+    evidence_urls: Optional[List[Tuple[str, str]]] = None,
+) -> str:
     """Markdown body for the PR/issue marker comment."""
     lines = [f"**Verdict:** `{result.verdict}`", "", result.summary or ""]
     if result.findings:
@@ -98,6 +128,17 @@ def format_ux_validation_comment(result: UxValidationResult) -> str:
     if result.acceptance_criteria_checked:
         lines.append("\n**Acceptance criteria checked:**")
         lines.extend(f"- {c}" for c in result.acceptance_criteria_checked)
-    if result.evidence_paths:
+    if evidence_urls:
+        n = len(evidence_urls)
+        detail_lines = _pair_evidence(evidence_urls)
+        block = [
+            f"<details><summary>📸 Evidence ({n} screenshot{'s' if n != 1 else ''})</summary>",
+            "",
+            *detail_lines,
+            "",
+            "</details>",
+        ]
+        lines.append("\n" + "\n".join(block))
+    elif result.evidence_paths:
         lines.append(f"\n_{len(result.evidence_paths)} evidence artifact(s) captured under `agents/<adw_id>/ux_validator/`._")
     return "\n".join(lines)
