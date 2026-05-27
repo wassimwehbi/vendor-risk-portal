@@ -1,3 +1,6 @@
+import { unlinkSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { db, mapAssessment, mapAudit, mapEvidence, mapFinding, mapItem, mapVendor, nowIso } from '../db';
 import type {
   Assessment,
@@ -132,6 +135,45 @@ export function getAssessmentDetail(id: number, scope: AccessScope): AssessmentD
     .all(id)
     .map(mapEvidence);
   return { assessment, items, findings, evidence };
+}
+
+export function deleteAssessment(id: number, scope: AccessScope): boolean {
+  const assessment = getAssessment(id, scope);
+  if (!assessment) return false;
+  const tenantId = assessment.tenant_id;
+
+  const storedFiles = (
+    db.prepare('SELECT stored_name FROM evidence_files WHERE assessment_id = ?').all(id) as { stored_name: string }[]
+  ).map((r) => r.stored_name);
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM findings WHERE assessment_id = ?').run(id);
+    db.prepare('DELETE FROM questionnaire_items WHERE assessment_id = ?').run(id);
+    db.prepare('DELETE FROM evidence_files WHERE assessment_id = ?').run(id);
+    db.prepare('DELETE FROM audit_log WHERE assessment_id = ?').run(id);
+    db.prepare('DELETE FROM assessments WHERE id = ?').run(id);
+  });
+  tx();
+
+  logAudit({
+    assessment_id: 0,
+    tenant_id: tenantId,
+    action: 'assessment_deleted',
+    actor: scope.actor,
+    role: scope.effectiveRole,
+    details: { assessment_id: id, vendor_name: assessment.vendor_name },
+  });
+
+  const uploadDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads');
+  for (const name of storedFiles) {
+    try {
+      unlinkSync(join(uploadDir, name));
+    } catch {
+      // best-effort; silently ignore ENOENT or permission errors
+    }
+  }
+
+  return true;
 }
 
 // ---- Questionnaire items + evidence ---------------------------------------

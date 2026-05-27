@@ -10,6 +10,7 @@ const ts = await import('../src/services/tenantStore');
 const auth = await import('../src/services/auth');
 const inv = await import('../src/services/invites');
 const store = await import('../src/services/store');
+const { db } = await import('../src/db');
 
 test('countAssessmentsForTenant reflects assessments', () => {
   const t = ts.createTenant('HasData');
@@ -32,6 +33,50 @@ test('deleteEmptyTenant clears memberships + invites; tenant gone', () => {
   assert.equal(ts.getTenant(t.id), undefined);
   assert.equal(auth.getMembershipsForUser(u.id).length, 0);
   assert.ok(!inv.listPendingInvites().some((i) => i.tenant_id === t.id));
+});
+
+test('deleteAssessment returns false for a non-existent id', () => {
+  const adminScope = scopeFor({ actor: 'admin@x.com', tenantId: null, role: 'Admin', isAdmin: true });
+  assert.equal(store.deleteAssessment(999999, adminScope), false);
+});
+
+test('deleteAssessment removes the assessment and cascades to dependent rows', () => {
+  const t = ts.createTenant('ADelTenant');
+  const adminScope = scopeFor({ actor: 'admin@x.com', tenantId: t.id, role: 'Admin' });
+
+  const a = store.createAssessment(
+    { vendor_name: 'ADelVendor', questionnaire_type: 'SIG', date_submitted: '2026-05-25' },
+    adminScope,
+  );
+
+  assert.equal(store.deleteAssessment(a.id, adminScope), true);
+
+  assert.equal(store.getAssessment(a.id, adminScope), undefined);
+  const count = (table: string) =>
+    (db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE assessment_id = ?`).get(a.id) as { n: number }).n;
+  assert.equal(count('findings'), 0);
+  assert.equal(count('questionnaire_items'), 0);
+  assert.equal(count('evidence_files'), 0);
+  assert.equal(count('audit_log'), 0);
+});
+
+test('deleteAssessment records an assessment_deleted audit entry', () => {
+  const t = ts.createTenant('AuditDelTenant');
+  const adminScope = scopeFor({ actor: 'admin@x.com', tenantId: t.id, role: 'Admin' });
+
+  const a = store.createAssessment(
+    { vendor_name: 'AuditDelVendor', questionnaire_type: 'SIG', date_submitted: '2026-05-25' },
+    adminScope,
+  );
+
+  store.deleteAssessment(a.id, adminScope);
+
+  const entry = db
+    .prepare("SELECT * FROM audit_log WHERE action = 'assessment_deleted' AND tenant_id = ? ORDER BY id DESC LIMIT 1")
+    .get(t.id) as { assessment_id: number; details: string } | undefined;
+  assert.ok(entry, 'deletion audit entry exists');
+  assert.equal(entry.assessment_id, 0);
+  assert.equal(JSON.parse(entry.details).assessment_id, a.id);
 });
 
 test('deleteUser removes memberships + pending invites; authored assessment retained', () => {

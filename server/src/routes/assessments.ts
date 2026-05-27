@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { createAssessment, getAssessmentDetail, listAssessments } from '../services/store';
+import { createAssessment, deleteAssessment, getAssessmentDetail, listAssessments } from '../services/store';
 import { fail, getScope, ok, parseId } from './_helpers';
-import { requireTenantRole } from '../middleware/tenant';
+import { requireAdmin, requireTenantRole } from '../middleware/tenant';
 
 const router = Router();
 
@@ -34,6 +34,14 @@ router.get('/assessments/:id', (req, res) => {
   const detail = getAssessmentDetail(id, getScope(req));
   if (!detail) return fail(res, 404, 'Assessment not found');
   ok(res, detail);
+});
+
+router.delete('/assessments/:id', requireAdmin, (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return fail(res, 400, 'Invalid assessment id');
+  const deleted = deleteAssessment(id, getScope(req));
+  if (!deleted) return fail(res, 404, 'Assessment not found');
+  ok(res, { deleted: true });
 });
 
 export default router;
