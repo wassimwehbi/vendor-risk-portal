@@ -32,6 +32,7 @@ from adw_modules.git_ops import (
     merge_pr,
     push_branch,
     commit_changes,
+    commit_empty,
     finalize_git_operations,
 )
 from adw_modules.github import (
@@ -99,6 +100,7 @@ def main():
 
     max_iters = _pop_int_flag("--max-ship-iters", 5)
     checks_timeout = _pop_int_flag("--checks-timeout", 45)
+    max_retriggers = _pop_int_flag("--max-retriggers", 2)
     dry_run = "--dry-run" in sys.argv
     admin = "--admin" in sys.argv or os.getenv("ADW_MERGE_ADMIN", "").lower() == "true"
     no_copilot = "--no-copilot" in sys.argv
@@ -153,6 +155,7 @@ def main():
     logger.info(f"Shipping PR #{pr_number} (max_iters={max_iters}, dry_run={dry_run}, admin={admin})")
 
     processed_comment_ids: set = set()
+    ci_retriggers = 0
 
     for iteration in range(1, max_iters + 1):
         logger.info(f"=== Ship iteration {iteration}/{max_iters} ===")
@@ -186,6 +189,27 @@ def main():
         result, failing = wait_for_required_checks(pr_number, logger, timeout_min=checks_timeout, is_ux_work=is_ux_work)
         if result == "timeout":
             abort_to_human(pr_number, issue_number, adw_id, logger, "required checks did not complete in time")
+        if result == "missing":
+            # The PR head never triggered CI (e.g. a final commit whose push didn't fire
+            # `pull_request: synchronize`). Mint a fresh head with an empty commit so the
+            # workflows re-run; the squash-merge later discards it. Bounded so a genuinely
+            # broken trigger aborts to a human instead of spinning.
+            if ci_retriggers >= max_retriggers:
+                abort_to_human(
+                    pr_number, issue_number, adw_id, logger,
+                    f"required checks never started on the PR head after "
+                    f"{max_retriggers} re-trigger attempt(s): {failing}",
+                )
+            ci_retriggers += 1
+            post(issue_number, adw_id, AGENT_SHIPPER,
+                 f"♻️ Required checks never started on the head commit; re-triggering CI "
+                 f"({ci_retriggers}/{max_retriggers})")
+            ok, err = commit_empty("ci: re-trigger required checks (empty commit)", cwd=working_dir)
+            if ok:
+                ok, err = push_branch(branch_name, cwd=working_dir)
+            if not ok:
+                abort_to_human(pr_number, issue_number, adw_id, logger, f"could not re-trigger CI: {err}")
+            continue
         if result == "failing":
             if iteration == max_iters:
                 abort_to_human(pr_number, issue_number, adw_id, logger, f"checks still failing: {failing}")
