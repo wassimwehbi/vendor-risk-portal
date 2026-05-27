@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setCsrfToken } from '../api/client';
 import { useAuth } from '../lib/AuthContext';
 import { ErrorNote, Spinner } from '../components/ui';
+import { BrandMark } from '../components/BrandMark';
 import type { MembershipRole } from '../types';
 
 interface InviteInfo {
@@ -72,12 +73,7 @@ export function InviteAccept() {
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <span
-              aria-hidden="true"
-              className="grid h-11 w-11 place-items-center rounded-lg bg-slate-800 text-sm font-bold tracking-tight text-white"
-            >
-              VR
-            </span>
+            <BrandMark size={44} />
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-slate-900">Vendor Risk Portal</h1>
               <p className="text-sm text-slate-500">AI-assisted vendor security &amp; privacy reviews</p>
