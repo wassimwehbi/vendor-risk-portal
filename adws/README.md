@@ -44,10 +44,12 @@ The UX validation phase self-skips for non-UX work and can be disabled with `--s
 
 ### The ship loop (`adw_ship.py`)
 
-Open/find PR → wait for the 4 required checks (`quality`, `e2e`, `docker`, and
-the CodeQL check, whose status context is `Analyze (javascript-typescript)`;
-overridable via `ADW_REQUIRED_CHECKS`) green on the head SHA, auto-fixing
-quality/e2e failures → fetch Copilot review →
+Open/find PR → **sync the branch with `main`** (merge `main` in; auto-resolve any conflicts
+via `/resolve_conflicts`; push — so stale/conflicting branches recover and any newly-required
+check re-runs on the fresh SHA; see `specs/0013-adw-branch-sync.md`) → wait for the 4 required
+checks (`quality`, `e2e`, `docker`, and the CodeQL check, whose status context is
+`Analyze (javascript-typescript)`; overridable via `ADW_REQUIRED_CHECKS`) green on the head SHA,
+auto-fixing quality/e2e failures → fetch Copilot review →
 resolve high-importance feedback → loop until green with no high-importance
 items → squash-merge and delete the branch. Bounded by `--max-ship-iters` (5)
 and `--checks-timeout` (45m); aborts to a human via the `adw:needs-human` label

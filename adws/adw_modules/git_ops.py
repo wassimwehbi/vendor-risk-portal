@@ -7,7 +7,8 @@ loop (squash + delete-branch, optional admin bypass) and a PR state reader.
 import subprocess
 import json
 import logging
-from typing import Optional, Tuple
+import os
+from typing import List, Optional, Tuple
 
 from adw_modules.github import (
     get_repo_url,
@@ -39,6 +40,71 @@ def push_branch(branch_name: str, cwd: Optional[str] = None) -> Tuple[bool, Opti
     if result.returncode != 0:
         return False, result.stderr
     return True, None
+
+
+# ── Branch-currency + conflict resolution (ship loop, spec 0013) ────────────
+
+
+def fetch_ref(ref: str = "main", cwd: Optional[str] = None) -> bool:
+    """`git fetch origin <ref>`. Returns success."""
+    r = subprocess.run(["git", "fetch", "origin", ref], capture_output=True, text=True, cwd=cwd)
+    return r.returncode == 0
+
+
+def is_up_to_date_with(base: str, cwd: Optional[str] = None) -> bool:
+    """True if `base` is already an ancestor of HEAD (branch contains base)."""
+    r = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base, "HEAD"], capture_output=True, text=True, cwd=cwd
+    )
+    return r.returncode == 0
+
+
+def merge_base_into_head(base: str, cwd: Optional[str] = None) -> Tuple[str, List[str]]:
+    """Merge `base` into the current branch (no commit message edit).
+
+    Returns (status, conflicted_files):
+      'merged'     — clean merge (already committed by git); no conflicts.
+      'conflicted' — merge stopped with conflicts; caller resolves then completes.
+      'error'      — merge failed for a non-conflict reason; merge has been aborted.
+    """
+    m = subprocess.run(["git", "merge", "--no-edit", base], capture_output=True, text=True, cwd=cwd)
+    if m.returncode == 0:
+        return "merged", []
+    conflicts = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=U"], capture_output=True, text=True, cwd=cwd
+    ).stdout.split()
+    if conflicts:
+        return "conflicted", conflicts
+    subprocess.run(["git", "merge", "--abort"], capture_output=True, text=True, cwd=cwd)
+    return "error", []
+
+
+def has_conflict_markers(files: List[str], cwd: Optional[str] = None) -> bool:
+    """True if any of `files` still contains git conflict markers."""
+    root = cwd or "."
+    for rel in files:
+        try:
+            with open(os.path.join(root, rel), "r", encoding="utf-8", errors="ignore") as fh:
+                text = fh.read()
+        except OSError:
+            continue
+        if "<<<<<<<" in text or ">>>>>>>" in text or "\n=======\n" in text:
+            return True
+    return False
+
+
+def complete_merge(cwd: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Stage everything and commit the in-progress merge (default merge message)."""
+    subprocess.run(["git", "add", "-A"], capture_output=True, text=True, cwd=cwd)
+    r = subprocess.run(["git", "commit", "--no-edit"], capture_output=True, text=True, cwd=cwd)
+    if r.returncode != 0:
+        return False, r.stderr
+    return True, None
+
+
+def abort_merge(cwd: Optional[str] = None) -> None:
+    """Abort an in-progress merge, restoring the pre-merge state. Best-effort."""
+    subprocess.run(["git", "merge", "--abort"], capture_output=True, text=True, cwd=cwd)
 
 
 def check_pr_exists(branch_name: str) -> Optional[str]:

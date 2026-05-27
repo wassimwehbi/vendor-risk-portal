@@ -67,6 +67,7 @@ SlashCommand = Literal[
     "/patch",
     "/document",
     "/resolve_copilot_feedback",
+    "/resolve_conflicts",
     "/track_agentic_kpis",
     # UX validation commands (gated on detected UX work)
     "/test_ux",
