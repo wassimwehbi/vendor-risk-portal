@@ -8,6 +8,8 @@
     "node": ">=20"
   },
   "scripts": {
+    "gen:experiments": "node ../scripts/experiments.mjs build",
+    "predev": "npm run gen:experiments",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",

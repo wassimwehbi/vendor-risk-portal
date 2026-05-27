@@ -1,11 +1,15 @@
 # Spec 0015 — Experimentation platform (software-layer A/B testing + GitHub portal)
 
-- **Status:** Phase 1 implemented (config foundation, 2026-05-27). Phases 2–4 planned.
-- **Branch:** `feat/0015-experiments-config` (Phase 1)
+- **Status:** Phases 1–2 implemented (config foundation + server engine, 2026-05-27). Phases 3–4 planned.
+- **Branch:** `feat/0015-experiments-config` (Phase 1), `feat/0015-experiments-server` (Phase 2)
 - **Location (Phase 1):** `experiments/` (new — `schema.json`, `dashboard-cta.yml`, `README.md`),
   `scripts/experiments.mjs` (new), `.github/workflows/validate-experiments.yml` (new),
   `adws/adw_modules/ship_ops.py` (add `experiments` required check),
   root `package.json` / `package-lock.json` (add `js-yaml`, `ajv` devDeps).
+- **Location (Phase 2):** `server/src/services/experiments.ts` (new), `server/src/routes/experiments.ts` (new),
+  `server/test/experiments.test.ts` (new), `server/src/db.ts` (telemetry tables),
+  `server/src/types.ts` (experiment types), `server/src/app.ts` (mount + CORS), `server/package.json`
+  (`gen:experiments` + `predev`), `Dockerfile` (registry build stage), `.gitignore`, `.env.example`.
 - **Related docs:** `README.md`, `specs/0008-zte-agentic-layer.md` (GitHub-native ADW layer
   this mirrors), `specs/0012-ux-tasks-harness.md` + `specs/0013-adw-branch-sync.md` (the
   always-run required-check pattern and stale-check deadlock lesson reused here).
@@ -69,6 +73,32 @@ always `user.id` and sticky assignment needs no cookies.
 - **`adws/adw_modules/ship_ops.py`** — `experiments` added to `DEFAULT_REQUIRED_CHECKS` so the
   ADW ship loop waits on it.
 
+### Phase 2 — server engine
+
+- **`services/experiments.ts`** loads the compiled registry at boot (defensive: a
+  missing/invalid file → empty registry, so the platform never breaks the app) and exposes
+  pure assignment functions:
+  - `bucket(key, subjectId)` — `sha256(key:subjectId)` → first uint32 `% 100`; sticky, storage-free.
+  - `eligible(exp, scope)` — role/tenant targeting against `req.scope` (omitted facet = everyone;
+    an admin in all-tenants mode is excluded from tenant-targeted experiments).
+  - `assignVariant(exp, scope)` — `null` unless `running` **and** eligible; else a weighted pick.
+  - `evaluateAll(scope)` / `recordExposure` / `recordEvent` / `computeResults`.
+- **Telemetry tables** (`db.ts`): `experiment_exposures` (PK `exp_key,user_id` → idempotent,
+  first variant render wins) and `experiment_events` (metric hits by `user_id`).
+- **Routes** (`routes/experiments.ts`):
+  - *Authed* (after `resolveTenant`): `GET /api/flags`, `POST /api/experiments/:key/expose`
+    (server recomputes the variant — the client can't pick it), `POST /api/events`.
+  - *Public* (before `requireAuth`, for the cross-origin portal): `GET /api/experiments/:key/results`
+    (bearer-token gated; per-variant exposed/converted/rate + a two-proportion z-test & 95% CI),
+    and `POST /api/gh-device/{code,token}` — the device-flow CORS relay (injects the public
+    client_id, holds no secret, returns GitHub's native JSON).
+- **`app.ts`** mounts the public router before `requireAuth`, the authed router with the feature
+  routers, adds the portal origin to the CORS allow-list, and rate-limits `/api/gh-device`.
+- **Registry build path:** `scripts/experiments.mjs build` → `server/src/data/experiments.json`
+  (gitignored). Local dev runs it via `predev`; the Docker image builds it in a throwaway stage
+  and copies only the JSON, so the runtime never needs js-yaml or the YAML sources. New optional
+  env: `EXPERIMENTS_READ_TOKEN`, `EXPERIMENTS_PORTAL_ORIGIN`, `GH_OAUTH_CLIENT_ID`.
+
 ## 3. Key decisions & rationale
 
 - **Config-as-code, single source of truth (not a DB-of-experiments).** Definitions live in
@@ -89,6 +119,14 @@ always `user.id` and sticky assignment needs no cookies.
 - **`surface`-scoped overlap guard, not global.** Forbidding *all* concurrent experiments is
   too strict — independent experiments on different surfaces assign independently and don't
   interfere. We only block collisions on the same declared `surface`.
+- **Server recomputes the variant on expose** (the client sends only the key) so assignment is
+  authoritative and exposures can't be spoofed. Pure assignment functions keep it unit-testable.
+- **Registry is a build artifact, not committed.** The YAML is the only thing the portal edits;
+  the JSON is regenerated from it at build/dev time, so the two can never drift.
+- **Device-flow relay is required + secret-less.** GitHub's device/token endpoints send no CORS
+  headers, so a static SPA can't call them; the relay forwards them with CORS and injects only
+  the public client_id. Results use a separate bearer token (the portal calls them cross-origin
+  with no app session).
 
 ## 4. Verification
 
@@ -101,10 +139,26 @@ always `user.id` and sticky assignment needs no cookies.
 - `npm run check` (Biome) is unaffected — `scripts/` and `experiments/*.yml` are outside its
   `files.includes`.
 
+Phase 2 (verified locally with Homebrew `node@22` — system `node 26` breaks the `better-sqlite3`
+native ABI):
+
+- `npm --prefix server test` → 89/89 pass, including the new `experiments.test.ts`: bucketing
+  determinism/stickiness, ~50/50 weight distribution over 4000 subjects, role+tenant targeting,
+  `draft`/`paused` → control, idempotent exposure, the z-test math (p < 0.05 on a 10% vs 25%
+  split; null comparison when an arm has no exposures), and the route auth/CSRF/token paths.
+- `npm --prefix server run typecheck` and `npm run check` (Biome) both clean.
+- `node scripts/experiments.mjs build` then boot the server: `GET /api/flags` returns the
+  assigned variant for a targeted user and `{}` otherwise; `expose`/`events`/`results` behave.
+- The `docker` CI job exercises the new registry build stage end-to-end.
+
 ## 5. Known limitations / follow-ups
 
-- **No runtime behavior yet.** Phase 1 only validates config; nothing assigns variants until
-  Phase 2 (server) + Phase 3 (client). The sample stays `draft`.
+- **No client wiring yet.** The server assigns and records (Phase 2), but no UI reads
+  `/api/flags` or branches on a variant until Phase 3. The sample stays `draft`, so it assigns
+  nothing even once the client lands.
+- **Conversion attribution is coarse.** A user counts as converted if they fire the primary
+  metric at least once after exposure (distinct users, `ts >= first_seen`); there's no
+  per-session or funnel-window logic yet.
 - **Branch protection is a separate admin step.** `experiments` is added to the ADW ship
   loop's checks here, but making it merge-blocking at the GitHub level requires adding it to
   the `main` ruleset (repo setting) once the check has run at least once.

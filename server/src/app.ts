@@ -20,6 +20,8 @@ import auditRouter from './routes/audit';
 import demoRouter from './routes/demo';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
+import { experimentsPublicRouter, experimentsRouter } from './routes/experiments';
+import { experimentsConfig } from './services/experiments';
 
 const isProd = (process.env.NODE_ENV || 'development') === 'production';
 
@@ -67,6 +69,8 @@ export function createApp(): Express {
       origin: (origin, cb) => {
         if (!origin) return cb(null, true); // same-origin, curl, server-to-server
         if (origin === authConfig.clientOrigin) return cb(null, true);
+        // The experiments portal (GitHub Pages) reads results + uses the device-flow relay.
+        if (experimentsConfig.portalOrigin && origin === experimentsConfig.portalOrigin) return cb(null, true);
         if (authConfig.devMode && isLocalOrigin(origin)) return cb(null, true);
         return cb(null, false);
       },
@@ -118,6 +122,14 @@ export function createApp(): Express {
   // Public auth endpoints (per-endpoint throttling for logins lives in the router).
   app.use('/api/auth', authRouter);
 
+  // Experiment endpoints that must NOT require an app session: the portal (a separate
+  // GitHub Pages origin) reads results with a bearer token, and the GitHub device-flow
+  // relay runs pre-login. Mounted before requireAuth. The relay is rate-limited tighter
+  // than the rest of the API since it makes outbound calls to GitHub.
+  const deviceLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false });
+  app.use('/api/gh-device', deviceLimiter);
+  app.use('/api', experimentsPublicRouter);
+
   // Everything else requires an authenticated session + CSRF token on mutations.
   app.use('/api', requireAuth, requireCsrf);
   // Resolve the per-request tenant scope (req.scope) from the session + live
@@ -135,6 +147,7 @@ export function createApp(): Express {
   app.use('/api', reportsRouter);
   app.use('/api', auditRouter);
   app.use('/api', demoRouter);
+  app.use('/api', experimentsRouter);
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ success: false, error: 'Not found' });

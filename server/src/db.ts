@@ -150,6 +150,30 @@ export function initDb(): void {
       updated_at TEXT NOT NULL
     );
 
+    -- A/B experimentation telemetry (spec 0015). Experiment DEFINITIONS live in the
+    -- repo (experiments/*.yml); these tables only record what users saw and did.
+    -- One exposure per (experiment, user) — the first variant render wins, so counts
+    -- stay stable and writes are idempotent. Events are metric hits keyed by user_id.
+    CREATE TABLE IF NOT EXISTS experiment_exposures (
+      exp_key TEXT NOT NULL,
+      variant TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      tenant_id INTEGER,
+      first_seen TEXT NOT NULL,
+      PRIMARY KEY (exp_key, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS experiment_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metric TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      tenant_id INTEGER,
+      ts TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_exposures_exp ON experiment_exposures(exp_key);
+    CREATE INDEX IF NOT EXISTS idx_events_metric_user ON experiment_events(metric, user_id);
+
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_item ON findings(item_id);

@@ -10,6 +10,12 @@ logs/
 coverage/
 *.log
 
+# Generated experiment registry (spec 0015): built from experiments/*.yml by
+# scripts/experiments.mjs. The YAML is the source of truth; this JSON is a build
+# artifact (the Docker image builds it in a stage; local dev runs the builder via
+# `npm --prefix server run gen:experiments`, which `predev` does automatically).
+server/src/data/experiments.json
+
 # Playwright E2E
 playwright-report/
 test-results/
