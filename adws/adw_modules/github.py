@@ -251,6 +251,55 @@ def get_pr_head_sha(pr_number: str, repo: Optional[str] = None) -> Optional[str]
         return None
 
 
+# ── UX validation PR comment (idempotent, author-owned, SHA-bound) ──────────
+# The /ux_validate agent PRINTS its verdict JSON; Python POSTS it here, so idempotency
+# and ownership live in one place. Ownership = our marker + ADW_BOT_IDENTIFIER in the body
+# (single bot identity in this repo), so re-runs edit one comment in place.
+ADW_UX_MARKER = "<!-- ADW-UX-VALIDATION -->"
+
+
+def ux_marker_body(sha: Optional[str], verdict: str, body_md: str) -> str:
+    """Compose the SHA-bound UX verdict comment body (carries the marker + bot identity)."""
+    short = (sha or "")[:8]
+    suffix = f" for `{short}`" if short else ""
+    return "\n".join(
+        [
+            ADW_UX_MARKER,
+            f"<!-- sha:{sha or ''} verdict:{verdict} -->",
+            f"{ADW_BOT_IDENTIFIER} **UX Validation** — `{verdict}`{suffix}",
+            "",
+            body_md,
+        ]
+    )
+
+
+def find_adw_pr_comment(pr_number: str, marker: str, repo: Optional[str] = None) -> Optional[Dict]:
+    """Newest issue/PR comment carrying ``marker`` AND authored by ADW (the bot identity)."""
+    repo = repo or repo_path()
+    comments = _gh_api(["--paginate", f"repos/{repo}/issues/{pr_number}/comments"]) or []
+    for c in reversed(comments):
+        body = c.get("body", "") or ""
+        if marker in body and ADW_BOT_IDENTIFIER in body:
+            return c
+    return None
+
+
+def upsert_pr_comment(pr_number: str, marker: str, body: str, repo: Optional[str] = None) -> bool:
+    """Edit our existing marker comment in place, else post a new one. Best-effort."""
+    repo = repo or repo_path()
+    env = get_github_env()
+    existing = find_adw_pr_comment(pr_number, marker, repo)
+    if existing:
+        args = ["-X", "PATCH", f"repos/{repo}/issues/comments/{existing['id']}", "-f", f"body={body}"]
+    else:
+        args = ["-X", "POST", f"repos/{repo}/issues/{pr_number}/comments", "-f", f"body={body}"]
+    result = subprocess.run(["gh", "api", *args], capture_output=True, text=True, env=env)
+    if result.returncode != 0:
+        print(f"UX comment upsert failed: {result.stderr.strip()}", file=sys.stderr)
+        return False
+    return True
+
+
 def get_required_check_runs(
     pr_number: str, required_names: List[str], repo: Optional[str] = None
 ) -> List[CheckRun]:

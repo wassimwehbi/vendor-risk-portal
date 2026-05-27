@@ -191,6 +191,9 @@ def get_safe_subprocess_env() -> Dict[str, str]:
         "ADW_REQUIRED_CHECKS": os.getenv("ADW_REQUIRED_CHECKS"),
         "ADW_MERGE_ADMIN": os.getenv("ADW_MERGE_ADMIN"),
         "ADW_DISABLED": os.getenv("ADW_DISABLED"),
+        # UX harness controls (spec 0012): merge-gate mode + diff base for detection.
+        "ADW_UX_GATE": os.getenv("ADW_UX_GATE"),
+        "ADW_UX_DIFF_BASE": os.getenv("ADW_UX_DIFF_BASE"),
         # Vendor Risk Portal app runtime knobs (offline-friendly defaults).
         "AUTH_MODE": os.getenv("AUTH_MODE"),
         "NODE_ENV": os.getenv("NODE_ENV"),

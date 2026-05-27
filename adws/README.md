@@ -27,6 +27,7 @@ Each is runnable on its own. `adw_plan` / `adw_patch` take `<issue> [adw-id]`
 | `adw_build.py` | Implement the plan in the worktree (requires `adw_plan` to have run). |
 | `adw_test.py` | Run check → typecheck → test → build (+ optional E2E) with automatic failure resolution. |
 | `adw_review.py` | Review the implementation against the plan-spec, capture screenshots, patch blockers. |
+| `adw_ux_validation.py` | **(UX work only)** Run the deterministic UX regression suite (`/test_ux`) + an agent visual confirmation (`/ux_validate`), then post an advisory SHA-bound PR verdict. Self-skips for non-UX changes (spec 0012). |
 | `adw_document.py` | Generate feature documentation under `app_docs/`. |
 | `adw_patch.py` | Fast path: turn an issue directly into a small targeted patch (no full feature plan). |
 | `adw_ship.py` | The ZTE shipper — PR-based, Copilot-iterating, auto-merge loop (see below). |
@@ -35,9 +36,11 @@ Each is runnable on its own. `adw_plan` / `adw_patch` take `<issue> [adw-id]`
 
 - `adw_plan_build.py` — plan → build
 - `adw_plan_build_test.py` — plan → build → test
-- `adw_plan_build_test_review.py` — plan → build → test → review
-- `adw_sdlc.py` — plan → build → test → review → document (no ship)
-- `adw_sdlc_zte.py` — **the full pipeline + ship** (zero-touch)
+- `adw_plan_build_test_review.py` — plan → build → test → review (→ ux)
+- `adw_sdlc.py` — plan → build → test → review → **ux** → document (no ship)
+- `adw_sdlc_zte.py` — **the full pipeline + ship** (zero-touch), including the ux phase
+
+The UX validation phase self-skips for non-UX work and can be disabled with `--skip-ux`.
 
 ### The ship loop (`adw_ship.py`)
 
@@ -50,11 +53,14 @@ items → squash-merge and delete the branch. Bounded by `--max-ship-iters` (5)
 and `--checks-timeout` (45m); aborts to a human via the `adw:needs-human` label
 on exhaustion, conflicts, or unresolvable feedback. `docker` and the CodeQL
 `Analyze (javascript-typescript)` check are not auto-fixed — they abort to a human.
+When UX work is detected, the deterministic `ux` check is added to the waited-on set
+(unless `ADW_UX_GATE=advisory`); it is not auto-fixed either — a red `ux` aborts to a human
+(visual regressions need eyes). See `specs/0012-ux-tasks-harness.md`.
 
 ## Triggers (3 ways)
 
 1. **Local CLI:**
-   `uv run adws/adw_sdlc_zte.py <issue> [adw-id] [--dry-run] [--skip-e2e] [--admin] [--no-copilot] [--max-ship-iters N]`
+   `uv run adws/adw_sdlc_zte.py <issue> [adw-id] [--dry-run] [--skip-e2e] [--skip-ux] [--admin] [--no-copilot] [--max-ship-iters N]`
 2. **Cron poller:** `adw_triggers/trigger_cron.py` polls issues (label
    `adw:zte` / `adw:ship`, or a comment starting with `adw`), de-dupes via
    `adw_triggers/.cron_state.json` + an open-PR check, and launches `run_zte.py`.
@@ -76,7 +82,7 @@ adws/
                           phase.py, state.py, data_types.py, utils.py,
                           git_ops.py, github.py, workflow_ops.py,
                           worktree_ops.py, test_ops.py, ship_ops.py,
-                          copilot_ops.py
+                          copilot_ops.py, ux_detection.py, ux_ops.py
   adw_triggers/         trigger_cron.py (poller), run_zte.py (entry point)
   adw_tests/            unit tests (e.g. test_model_selection.py)
   adw_settings.json     Claude Code hook registry (scopes hooks to ADW sessions)

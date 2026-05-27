@@ -17,25 +17,24 @@ from adw_modules.orchestrate import run_pipeline
 
 def main():
     skip_e2e = "--skip-e2e" in sys.argv
-    if skip_e2e:
-        sys.argv.remove("--skip-e2e")
+    skip_ux = "--skip-ux" in sys.argv
+    for f in ("--skip-e2e", "--skip-ux"):
+        if f in sys.argv:
+            sys.argv.remove(f)
     if len(sys.argv) < 2:
-        print("Usage: uv run adws/adw_plan_build_test_review.py <issue-number> [adw-id] [--skip-e2e]")
+        print("Usage: uv run adws/adw_plan_build_test_review.py <issue-number> [adw-id] [--skip-e2e] [--skip-ux]")
         sys.exit(1)
     issue_number = sys.argv[1]
     adw_id = ensure_adw_id(issue_number, sys.argv[2] if len(sys.argv) > 2 else None)
-    sys.exit(
-        run_pipeline(
-            issue_number,
-            adw_id,
-            [
-                ("adw_plan.py", [], True),
-                ("adw_build.py", [], True),
-                ("adw_test.py", ["--skip-e2e"] if skip_e2e else [], False),
-                ("adw_review.py", [], False),
-            ],
-        )
-    )
+    phases = [
+        ("adw_plan.py", [], True),
+        ("adw_build.py", [], True),
+        ("adw_test.py", ["--skip-e2e"] if skip_e2e else [], False),
+        ("adw_review.py", [], False),
+    ]
+    if not skip_ux:
+        phases.append(("adw_ux_validation.py", [], False))
+    sys.exit(run_pipeline(issue_number, adw_id, phases))
 
 
 if __name__ == "__main__":

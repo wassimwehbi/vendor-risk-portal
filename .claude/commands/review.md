@@ -20,6 +20,7 @@ review_image_dir: `<absolute path to worktree>/agents/<adw_id>/reviewer/review_i
   - Look for corresponding E2E test files in `.claude/commands/e2e/test_*.md` that mirror the feature name.
   - Use E2E test files only as navigation guides for screenshot locations, not for other purposes.
   - IMPORTANT: To be clear, we're not testing. We know the functionality works. We're reviewing the implementation against the plan-spec to make sure it matches what was requested.
+  - NOTE: For UX-facing work, a separate UX Validation phase (`/ux_validate`, spec 0012) owns the before/after visual-evidence audit and the deterministic `ux` regression check. Do NOT duplicate exhaustive visual diffing here — capture only the spec-critical screenshots needed to confirm the implementation matches the plan.
   - IMPORTANT: Take screenshots along the way to showcase the new functionality and any issues you find.
     - Use the **chrome-devtools MCP** tools to drive the browser and capture screenshots if they are available; otherwise fall back to **Playwright** (`npx playwright`).
     - Capture visual proof of working features through targeted screenshots.
