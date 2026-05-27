@@ -150,7 +150,7 @@ def main():
     else:
         post(issue_number, adw_id, "ops", "⚠️ UX validation produced no parseable verdict (advisory)")
 
-    ux_detection.record_to_state(state, signal)
+    # (is_ux_work/ux_signal were already recorded above; no need to re-persist.)
     state.to_stdout()
 
 

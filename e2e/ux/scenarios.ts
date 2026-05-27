@@ -105,7 +105,11 @@ export const SCENARIOS: UxScenario[] = [
     id: 'new-assessment',
     title: 'New assessment form (guards date-input overflow #18/#23)',
     role: 'Analyst',
-    // Mobile is where the date-input overflow reproduced; desktop confirms the wide layout.
+    // 375px guards the width-driven half of the #18/#23 date-input overflow (the
+    // text-align + @media (max-width) rules). NOTE: the `@media (pointer: coarse)` half
+    // is NOT exercised — setViewportSize resizes but doesn't emulate touch, and the
+    // project is Desktop Chrome (fine pointer). A touch-emulated mobile project is a
+    // tracked follow-up (spec 0012 §limitations).
     viewports: ['mobile', 'desktop'],
     steps: [{ kind: 'goto', path: '/assessments/new' }],
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors', 'focusVisibleRing'],

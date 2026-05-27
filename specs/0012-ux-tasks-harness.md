@@ -126,3 +126,8 @@ This adds a **UX tasks harness** in two parts:
   baseline-refresh ritual is proven. R2 baseline storage (vs committed PNGs) is a future option.
 - **Part B** (the ADW orchestration) lands next; until its `ux` ship-gating is wired, the
   harness is already useful as a standalone CI gate.
+- **Mobile is resized, not touch-emulated.** The 375px viewport uses `setViewportSize` on
+  the Desktop Chrome project (fine pointer), so `@media (pointer: coarse)` rules (e.g. the
+  coarse-pointer half of the #18/#23 date-input fix) are not exercised. Follow-up: add a
+  touch-emulated mobile Playwright project (e.g. a Pixel device descriptor) and route the
+  `mobile` viewport through it.

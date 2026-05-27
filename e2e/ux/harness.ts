@@ -66,10 +66,12 @@ export const test = base.extend<Fixtures>({
         // points straight at the offending node instead of just a pixel count.
         const { overflow, offenders } = await page.evaluate(() => {
           const root = document.scrollingElement || document.documentElement;
-          const overflow = root.scrollWidth - window.innerWidth;
+          // clientWidth excludes the scrollbar gutter, so a vertical scrollbar can't
+          // masquerade as horizontal overflow on classic-scrollbar hosts.
+          const w = document.documentElement.clientWidth;
+          const overflow = root.scrollWidth - w;
           const offenders: string[] = [];
           if (overflow > 1) {
-            const w = window.innerWidth;
             for (const el of Array.from(document.body.querySelectorAll<HTMLElement>('*'))) {
               const r = el.getBoundingClientRect();
               if (r.right <= w + 1 || r.width === 0) continue;

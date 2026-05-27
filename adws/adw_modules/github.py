@@ -285,10 +285,25 @@ def find_adw_pr_comment(pr_number: str, marker: str, repo: Optional[str] = None)
 
 
 def upsert_pr_comment(pr_number: str, marker: str, body: str, repo: Optional[str] = None) -> bool:
-    """Edit our existing marker comment in place, else post a new one. Best-effort."""
+    """Edit our existing marker comment in place, else post a new one. Best-effort.
+
+    If the comment listing fails (transient gh error → None, distinct from an empty list),
+    SKIP rather than post — a flaky GET must not spawn a duplicate marker comment.
+    """
     repo = repo or repo_path()
     env = get_github_env()
-    existing = find_adw_pr_comment(pr_number, marker, repo)
+    comments = _gh_api(["--paginate", f"repos/{repo}/issues/{pr_number}/comments"])
+    if comments is None:
+        print("UX comment upsert skipped: could not list PR comments", file=sys.stderr)
+        return False
+    existing = next(
+        (
+            c
+            for c in reversed(comments)
+            if marker in (c.get("body") or "") and ADW_BOT_IDENTIFIER in (c.get("body") or "")
+        ),
+        None,
+    )
     if existing:
         args = ["-X", "PATCH", f"repos/{repo}/issues/comments/{existing['id']}", "-f", f"body={body}"]
     else:
