@@ -61,6 +61,62 @@ def test_format_comment():
     assert "2 evidence artifact(s)" in body
 
 
+def test_format_comment_with_evidence_urls_before_after_pair():
+    result = parse_ux_validation(_SAMPLE, _LOG)
+    evidence_urls = [
+        ("01_before_new-assessment_mobile.png", "https://example.com/before.png"),
+        ("02_after_new-assessment_mobile.png", "https://example.com/after.png"),
+    ]
+    body = format_ux_validation_comment(result, evidence_urls=evidence_urls)
+    assert "<details>" in body
+    assert "📸 Evidence" in body
+    assert "![before](https://example.com/before.png)" in body
+    assert "![after](https://example.com/after.png)" in body
+    assert "new-assessment mobile" in body
+    assert "evidence artifact(s)" not in body
+
+
+def test_format_comment_with_evidence_urls_singles():
+    result = parse_ux_validation(_SAMPLE, _LOG)
+    evidence_urls = [
+        ("screenshot_dashboard.png", "https://example.com/dash.png"),
+    ]
+    body = format_ux_validation_comment(result, evidence_urls=evidence_urls)
+    assert "<details>" in body
+    assert "![screenshot_dashboard.png](https://example.com/dash.png)" in body
+    assert "evidence artifact(s)" not in body
+
+
+def test_format_comment_no_urls_fallback():
+    result = parse_ux_validation(_SAMPLE, _LOG)
+    body = format_ux_validation_comment(result, evidence_urls=None)
+    assert "2 evidence artifact(s)" in body
+    assert "<details>" not in body
+
+
+def test_format_comment_empty_urls_fallback():
+    result = parse_ux_validation(_SAMPLE, _LOG)
+    body = format_ux_validation_comment(result, evidence_urls=[])
+    assert "2 evidence artifact(s)" in body
+    assert "<details>" not in body
+
+
+def test_format_comment_singular_plural():
+    result = parse_ux_validation(_SAMPLE, _LOG)
+    one_url = [("01_before_foo.png", "https://example.com/a.png")]
+    body_one = format_ux_validation_comment(result, evidence_urls=one_url)
+    assert "1 screenshot)" in body_one
+    assert "1 screenshots)" not in body_one
+
+    three_urls = [
+        ("01_before_foo.png", "https://example.com/a.png"),
+        ("02_after_foo.png", "https://example.com/b.png"),
+        ("screenshot_extra.png", "https://example.com/c.png"),
+    ]
+    body_three = format_ux_validation_comment(result, evidence_urls=three_urls)
+    assert "3 screenshots)" in body_three
+
+
 def test_ux_marker_body():
     body = ux_marker_body("abc123def", "PASS", "looks good")
     assert body.startswith(ADW_UX_MARKER)
@@ -96,6 +152,11 @@ def main():
         test_parse_ux_validation,
         test_parse_ux_validation_bad_input,
         test_format_comment,
+        test_format_comment_with_evidence_urls_before_after_pair,
+        test_format_comment_with_evidence_urls_singles,
+        test_format_comment_no_urls_fallback,
+        test_format_comment_empty_urls_fallback,
+        test_format_comment_singular_plural,
         test_ux_marker_body,
         test_required_checks_gating,
     ]
