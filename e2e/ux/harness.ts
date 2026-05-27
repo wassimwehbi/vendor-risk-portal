@@ -104,8 +104,11 @@ export const test = base.extend<Fixtures>({
 
       async expectFocusRing() {
         const result = await page.evaluate(() => {
+          // Scope to the page region (#main-content), not the shared layout nav, so we gate
+          // the styling of a control on the surface the scenario actually navigated to.
+          const root = document.querySelector('#main-content') ?? document.body;
           const sel = '.btn-primary, .btn-secondary, .btn-ghost, .input';
-          const els = Array.from(document.querySelectorAll<HTMLElement>(sel)).filter(
+          const els = Array.from(root.querySelectorAll<HTMLElement>(sel)).filter(
             (el) => el.offsetParent !== null && !(el as HTMLInputElement).disabled,
           );
           if (els.length === 0) return { checked: false, ok: true, box: '' };

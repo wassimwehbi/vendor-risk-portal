@@ -29,7 +29,10 @@ from adw_modules.data_types import GitHubIssue, UxSignal
 UX_PATH_PREFIXES: Tuple[str, ...] = (
     "client/src/pages/",
     "client/src/components/",
-    "client/src/",  # hooks/context/styles that affect render
+    # Broad, intentional fail-open catch. Also covers client/src/lib/, which holds shared
+    # style maps (RISK_CLASSES/STATUS_CLASSES in lib/format.ts) + context that affect render,
+    # so excluding lib/ would miss real UX changes. Over-detection is acceptable by design.
+    "client/src/",
     "e2e/ux/",  # the UX scenario manifest/harness itself
 )
 UX_PATH_EXACT: Tuple[str, ...] = ("client/src/index.css",)

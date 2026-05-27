@@ -2,10 +2,12 @@
 // specs can reuse it (via storageState) instead of logging in on every test. Only the
 // roles actually exercised by the manifest are minted. See playwright.ux.config.ts.
 import { test as setup } from '@playwright/test';
-import type { Role } from './scenarios';
 import { ROLE_STATE, devSignIn } from './auth';
+import { SCENARIOS } from './scenarios';
 
-const ROLES: Role[] = ['Analyst', 'Admin'];
+// Mint exactly the roles the manifest actually uses (single source of truth), so a new
+// scenario role can never reference a non-existent storageState file.
+const ROLES = [...new Set(SCENARIOS.filter((s) => !s.public).map((s) => s.role))];
 
 for (const role of ROLES) {
   setup(`authenticate ${role}`, async ({ page }) => {

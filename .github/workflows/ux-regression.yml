@@ -47,7 +47,7 @@ jobs:
           fi
           CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
           echo "Changed files:"; echo "$CHANGED"
-          if echo "$CHANGED" | grep -qE '^(client/|e2e/|playwright(\.ux)?\.config\.ts|package(-lock)?\.json|\.nvmrc)'; then
+          if echo "$CHANGED" | grep -qE '^(client/|e2e/|playwright(\.ux)?\.config\.ts|package(-lock)?\.json|\.nvmrc|\.github/workflows/ux-regression\.yml)'; then
             echo "ui=true" >> "$GITHUB_OUTPUT"
           else
             echo "ui=false" >> "$GITHUB_OUTPUT"

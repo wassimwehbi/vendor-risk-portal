@@ -148,6 +148,13 @@ def main():
         else:
             post(issue_number, adw_id, "ops", "✅ UX validation phase completed")
     else:
+        # Refresh the SHA-bound comment so a prior SHA's verdict can't linger as authoritative.
+        _post_verdict(
+            state,
+            "NEEDS_FIXES",
+            "UX validation agent returned no parseable verdict — advisory. See the `ux` check and the run logs.",
+            logger,
+        )
         post(issue_number, adw_id, "ops", "⚠️ UX validation produced no parseable verdict (advisory)")
 
     # (is_ux_work/ux_signal were already recorded above; no need to re-persist.)
