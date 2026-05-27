@@ -64,7 +64,7 @@ def main():
         sys.exit(1)
 
     issue_number = sys.argv[1]
-    logger = setup_logger("ship-only", "adw_ship_zte")
+    logger = setup_logger("ship-only", "adw_ship_zte")  # temp until adw_id is recovered
 
     adw_id, _state, error = bootstrap_ship_only_state(issue_number, logger)
     if error:
@@ -72,6 +72,10 @@ def main():
         post(issue_number, adw_id or "ship-only", "shipper",
              f"🛑 Needs human attention: {error}")
         sys.exit(1)
+
+    # Re-bind the logger to the recovered id so logs sit with the run's state.
+    logger = setup_logger(adw_id, "adw_ship_zte")
+    logger.info(f"Using ADW ID: {adw_id}")
     print(f"Using ADW ID: {adw_id}")
 
     ship_args = []
