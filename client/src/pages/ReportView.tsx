@@ -59,6 +59,9 @@ export function ReportView() {
           <a className="btn-secondary" href={api.exportUrl(assessmentId, 'xlsx')}>
             Export Excel
           </a>
+          <a className="btn-secondary" href={api.exportUrl(assessmentId, 'json')}>
+            Export GRC JSON
+          </a>
           <button className="btn-primary" onClick={() => window.print()}>
             Print / PDF
           </button>
