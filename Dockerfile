@@ -8,6 +8,21 @@
 # Pinned Litestream binary (multi-stage copy, per Litestream's container docs).
 FROM litestream/litestream:0.3.14 AS litestream
 
+# Compile the experiment registry (experiments/*.yml -> JSON) for the server to read at
+# boot (spec 0015). Throwaway stage: only the generated JSON is copied into the final
+# image, so the runtime never needs js-yaml or the experiments/ sources, and the YAML
+# stays the single source of truth (no committed/derived JSON to drift).
+FROM node:22-bookworm-slim AS experiments
+WORKDIR /build
+# Reproducible install from the repo's root lockfile (js-yaml + ajv live there).
+# --ignore-scripts skips the biome/playwright postinstall binaries we don't need here.
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY scripts/ ./scripts/
+COPY experiments/ ./experiments/
+# `build` validates first, so a schema-invalid definition can never reach the image.
+RUN node scripts/experiments.mjs build
+
 FROM node:22-bookworm-slim
 
 # CA certs for outbound HTTPS (R2, Google, Anthropic) + build tools as a fallback
@@ -29,6 +44,8 @@ RUN npm --prefix server ci --omit=dev
 
 # App source + Litestream config + entrypoint.
 COPY server/ ./server/
+# The experiment registry compiled in the `experiments` stage above (spec 0015).
+COPY --from=experiments /build/server/src/data/experiments.json ./server/src/data/experiments.json
 COPY litestream.yml /etc/litestream.yml
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh && mkdir -p /data

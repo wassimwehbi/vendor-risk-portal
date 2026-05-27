@@ -36,6 +36,7 @@ only Analyst/Admin can approve.
 | GET  | `/assessments/:id/report` | — | `ReportData` (12-field analyst report) |
 | GET  | `/assessments/:id/export.csv` | — | CSV download |
 | GET  | `/assessments/:id/export.xlsx` | — | Excel download |
+| GET  | `/assessments/:id/export.json` | — | GRC-consumable JSON download (`Content-Disposition: attachment`). Body: `{ schema_version, disclaimer, vendor, assessment, summary, controls[], follow_up_questions[] }`. Analyst overrides applied via `effectiveFinding`. |
 | GET  | `/assessments/:id/audit` | — | `AuditEntry[]` |
 | GET  | `/demo/scenarios` | — | `ScenarioSummary[]` |
 | POST | `/demo/scenarios/:key/load` | — | `Assessment` (201, status `extracted`) |

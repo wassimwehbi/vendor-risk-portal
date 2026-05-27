@@ -13,6 +13,10 @@ export type Role = 'Analyst' | 'Admin' | 'Viewer' | 'Submitter';
 // Roles assignable per tenant. 'Admin' is a global flag, not a membership role.
 export type MembershipRole = 'Analyst' | 'Viewer' | 'Submitter';
 
+// Experiment key -> assigned variant (GET /api/flags). An absent key means the user
+// is not enrolled, so callers treat it as the control (spec 0015).
+export type FlagAssignments = Record<string, string>;
+
 export interface Tenant {
   id: number;
   name: string;

@@ -300,3 +300,65 @@ export function effectiveFinding(f: Finding): {
     follow_up_questions: ov.follow_up_questions ?? f.follow_up_questions,
   };
 }
+
+// ---- Experimentation platform (A/B testing, spec 0015) ---------------------
+// Definitions are config-as-code in experiments/*.yml (validated by
+// scripts/experiments.mjs) and compiled to server/src/data/experiments.json.
+
+export type ExperimentStatus = 'draft' | 'running' | 'paused' | 'completed';
+
+export interface ExperimentVariant {
+  key: string;
+  weight: number; // 0..100; the variants' weights sum to 100 (CI-enforced)
+}
+
+export interface ExperimentTargeting {
+  roles?: Role[]; // omitted/empty = all roles
+  tenants?: number[]; // omitted/empty = all tenants
+}
+
+export interface Experiment {
+  key: string;
+  name: string;
+  hypothesis?: string;
+  owner?: string;
+  surface?: string;
+  status: ExperimentStatus;
+  created?: string;
+  start?: string;
+  end?: string;
+  variants: ExperimentVariant[]; // variants[0] is the control / default
+  targeting?: ExperimentTargeting;
+  metrics?: { primary: string; secondary?: string[] };
+  tracking_issue?: number;
+}
+
+// GET /api/flags response: experiment key -> assigned variant, for running+eligible
+// experiments only. Absent key => the caller treats it as control.
+export type FlagAssignments = Record<string, string>;
+
+export interface VariantResult {
+  key: string;
+  exposed: number;
+  converted: number;
+  rate: number; // converted / exposed (0 when exposed is 0)
+}
+
+// Two-proportion z-test of one variant against the control, for the primary metric.
+export interface VariantComparison {
+  variant: string;
+  control: string;
+  z: number | null;
+  pValue: number | null; // two-sided; null when either arm has no exposures
+  ciLow: number | null; // 95% CI for (rate_variant - rate_control)
+  ciHigh: number | null;
+}
+
+export interface ExperimentResults {
+  key: string;
+  name: string;
+  status: ExperimentStatus;
+  metric: string | null; // primary metric conversions are counted on
+  variants: VariantResult[];
+  comparisons: VariantComparison[];
+}

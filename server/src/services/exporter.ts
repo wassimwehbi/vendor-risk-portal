@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { ReportData } from '../types';
+import type { ReportData, RiskLevel } from '../types';
 import { effectiveFinding } from '../types';
 
 const HEADERS = [
@@ -62,6 +62,62 @@ export function toCsv(report: ReportData): string {
   ];
   const all = [...meta, HEADERS, ...rowsFromReport(report)];
   return all.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+export function toGrcJson(report: ReportData): string {
+  const riskDistribution: Record<RiskLevel, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+
+  const controls = report.controls.map(({ item, finding }) => {
+    const eff = effectiveFinding(finding);
+    riskDistribution[eff.risk_level] = (riskDistribution[eff.risk_level] ?? 0) + 1;
+    return {
+      question_id: item.question_id,
+      question_text: item.question_text,
+      control_domain: eff.control_domain,
+      vendor_response: item.response,
+      response_type: item.response_type,
+      framework_mappings: eff.framework_mappings,
+      ai_finding: finding.ai_finding,
+      control_strength: finding.control_strength,
+      completeness: finding.completeness,
+      evidence_sufficiency: eff.evidence_sufficiency,
+      risk_level: eff.risk_level,
+      analyst_status: finding.analyst_status,
+      follow_up_questions: eff.follow_up_questions,
+      rationale: finding.ai_rationale,
+    };
+  });
+
+  const obj = {
+    schema_version: '1.0',
+    disclaimer: 'AI output is preliminary. Final vendor-risk decisions are made by a human analyst.',
+    vendor: report.vendor_name,
+    assessment: {
+      questionnaire_type: report.questionnaire_type,
+      date_submitted: report.date_submitted,
+      overall_risk: report.overall_risk,
+      validation_status: report.validation_status,
+      validated_by: report.validated_by,
+      validated_at: report.validated_at,
+      applicable_frameworks: report.applicable_frameworks,
+      data_categories: report.data_categories,
+      analyst_notes: report.analyst_notes,
+      ai_engine: report.ai_engine_used,
+      mapping_version: report.mapping_version,
+      generated_at: report.generated_at,
+    },
+    summary: {
+      control_count: controls.length,
+      weak_or_missing_count: report.weak_or_missing.length,
+      evidence_gap_count: report.evidence_gaps.length,
+      follow_up_count: report.follow_ups.length,
+      risk_distribution: riskDistribution,
+    },
+    controls,
+    follow_up_questions: report.follow_ups,
+  };
+
+  return JSON.stringify(obj, null, 2);
 }
 
 export function toXlsx(report: ReportData): Buffer {

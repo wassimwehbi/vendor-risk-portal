@@ -143,6 +143,7 @@ export const SCENARIOS: UxScenario[] = [
     steps: [
       { kind: 'loadScenario', index: 0 },
       { kind: 'gotoAssessmentSub', sub: 'report' },
+      { kind: 'expectVisibleText', text: 'Export GRC JSON' },
     ],
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
     snapshot: true,

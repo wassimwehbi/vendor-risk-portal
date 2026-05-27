@@ -13,7 +13,7 @@ export function ensureCsrf(req: Request): string {
 }
 
 /** Constant-time string comparison (avoids leaking via timing). */
-function safeEqual(a: string, b: string): boolean {
+export function safeEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
   const bb = Buffer.from(b);
   return ba.length === bb.length && timingSafeEqual(ba, bb);

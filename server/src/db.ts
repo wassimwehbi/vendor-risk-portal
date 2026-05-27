@@ -150,6 +150,33 @@ export function initDb(): void {
       updated_at TEXT NOT NULL
     );
 
+    -- A/B experimentation telemetry (spec 0015). Experiment DEFINITIONS live in the
+    -- repo (experiments/*.yml); these tables only record what users saw and did.
+    -- One exposure per (experiment, user) — the first variant render wins, so counts
+    -- stay stable and writes are idempotent. Events are metric hits keyed by user_id.
+    CREATE TABLE IF NOT EXISTS experiment_exposures (
+      exp_key TEXT NOT NULL,
+      variant TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      tenant_id INTEGER,
+      first_seen TEXT NOT NULL,
+      PRIMARY KEY (exp_key, user_id)
+    );
+
+    -- exp_key binds each event to a specific experiment (set by recordEvent from the user's
+    -- exposures), so experiments that share a metric name don't cross-attribute conversions.
+    CREATE TABLE IF NOT EXISTS experiment_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exp_key TEXT,
+      metric TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      tenant_id INTEGER,
+      ts TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_exposures_exp ON experiment_exposures(exp_key);
+    CREATE INDEX IF NOT EXISTS idx_events_exp_user ON experiment_events(exp_key, user_id, metric);
+
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_item ON findings(item_id);
@@ -178,6 +205,8 @@ export function initDb(): void {
   ensureColumn('assessments', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
   ensureColumn('assessments', 'created_by', 'TEXT');
   ensureColumn('audit_log', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
+  // experiment_events gained exp_key (spec 0015 review): bind conversions to a specific experiment.
+  ensureColumn('experiment_events', 'exp_key', 'TEXT');
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
