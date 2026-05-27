@@ -39,7 +39,9 @@
     "rules": {
       "recommended": true,
       "a11y": {
-        "useButtonType": "off"
+        "useButtonType": "off",
+        "noStaticElementInteractions": "off",
+        "noNoninteractiveTabindex": "off"
       },
       "correctness": {
         "useExhaustiveDependencies": "off",

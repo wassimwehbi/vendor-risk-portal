@@ -23,9 +23,12 @@
     "test": "npm --prefix server test && npm --prefix client test",
     "test:coverage": "npm --prefix server run test:coverage && npm --prefix client run test:coverage",
     "test:e2e": "playwright test",
+    "test:ux": "playwright test --config=playwright.ux.config.ts",
+    "test:ux:update": "UX_VISUAL=1 playwright test --config=playwright.ux.config.ts --update-snapshots",
     "prepare": "lefthook install || true"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
     "@biomejs/biome": "^2.0.0",
     "@playwright/test": "^1.49.1",
     "concurrently": "^9.1.0",

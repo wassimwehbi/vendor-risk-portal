@@ -1,0 +1,190 @@
+name: UX Regression
+
+# Scenario-driven UX regression harness (see specs/0012-ux-tasks-harness.md).
+#  - PR: the `ux` job is a BLOCKING required check (structural + a11y invariants, no pixels).
+#  - Nightly: re-runs structural as a safety net and files an `adw:zte` issue on failure
+#    (ZTE self-heal), plus an advisory pixel-diff job.
+#  - workflow_dispatch: regenerate visual baselines on Linux (the only sanctioned source).
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # 05:11 UTC nightly — offset from CodeQL (03:27 Mon) and r2-live (04:37) to avoid contention.
+    - cron: '11 5 * * *'
+  workflow_dispatch:
+    inputs:
+      update_baselines:
+        description: 'Regenerate visual baselines on Linux and push them'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ux-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # BLOCKING required check on PRs. Must ALWAYS run to a conclusion: a required check that
+  # is *skipped* (via paths: / if:) deadlocks the PR under strict branch protection. So the
+  # job always runs and an internal change-detector decides full-suite vs fast green
+  # pass-through for non-UI PRs. The job name `ux` IS the status-check context.
+  ux:
+    name: ux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for the base diff on PRs
+
+      - name: Detect UI-affecting changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"   # nightly / dispatch always run the full suite
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "Changed files:"; echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^(client/|e2e/|playwright(\.ux)?\.config\.ts|package(-lock)?\.json|\.nvmrc|\.github/workflows/ux-regression\.yml)'; then
+            echo "ui=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ui=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: No UI changes — pass-through
+        if: steps.changes.outputs.ui != 'true'
+        run: echo "No UI-affecting files changed; UX suite skipped (check passes)." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v4
+        if: steps.changes.outputs.ui == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - name: Install (root + server + client)
+        if: steps.changes.outputs.ui == 'true'
+        run: npm run install:ci
+      - name: Install Playwright browser
+        if: steps.changes.outputs.ui == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Run UX regression suite (structural + a11y)
+        if: steps.changes.outputs.ui == 'true'
+        run: npm run test:ux
+      - name: Upload Playwright report
+        if: ${{ steps.changes.outputs.ui == 'true' && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Nightly self-heal: a regression that slipped onto main files a labeled issue, which
+  # .github/workflows/adw-zte.yml (issues: labeled) picks up to plan→build→test→ship a fix.
+  ux-nightly-issue:
+    name: ux-nightly-issue
+    needs: ux
+    if: ${{ github.event_name == 'schedule' && failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: File UX regression issue (labeled for ADW)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create ux --color B60205 --description "UX harness" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          gh label create adw:zte --color 5319E7 --description "ADW zero-touch trigger" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "UX regression detected on $(date -u +%F)" \
+            --label ux --label adw:zte \
+            --body "The nightly UX regression suite failed on \`main\`. Download the **ux-playwright-report** artifact from run ${{ github.run_id }} for the failing invariant. Reproduce locally with \`npm run test:ux\`."
+
+  # Advisory pixel visual-diff — nightly + dispatch only, never on PRs and never blocking.
+  # continue-on-error keeps a baseline diff/miss from failing the workflow; the report
+  # artifact is the deliverable for human review. Seed baselines via update-baselines first.
+  ux-visual:
+    name: ux-visual
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.update_baselines) }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - run: npm run install:ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run UX suite with pixel snapshots (advisory)
+        env:
+          UX_VISUAL: '1'
+        run: npm run test:ux
+      - name: Upload visual diff report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-visual-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Manual baseline regeneration — Linux is the ONLY sanctioned baseline source (macOS font
+  # rendering differs → false-red). Run via "Run workflow" with update_baselines = true.
+  update-baselines:
+    name: update-baselines
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_baselines }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          # Non-default token so the baseline PR's push re-triggers required checks.
+          token: ${{ secrets.ADW_GH_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            client/package-lock.json
+      - run: npm run install:ci
+      - run: npx playwright install --with-deps chromium
+      - name: Regenerate baselines (Linux)
+        run: npm run test:ux:update
+      - name: Open PR with regenerated baselines
+        env:
+          GH_TOKEN: ${{ secrets.ADW_GH_TOKEN }}
+        run: |
+          git config user.name "adw-bot"
+          git config user.email "adw-bot@users.noreply.github.com"
+          git add e2e/ux/__screenshots__
+          if git diff --staged --quiet; then
+            echo "No baseline changes." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Never push directly to protected main — land baselines via a PR.
+          BRANCH="auto/ux-baselines-$(date -u +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          git commit -m "chore(ux): regenerate visual baselines on Linux CI"
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore(ux): regenerate visual baselines" \
+            --body "Linux-generated pixel baselines for the UX harness (spec 0012). Generated by the update-baselines workflow dispatch."

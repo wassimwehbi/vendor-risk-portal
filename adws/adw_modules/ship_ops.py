@@ -19,13 +19,24 @@ DEFAULT_REQUIRED_CHECKS = [
     "Analyze (javascript-typescript)",
 ]
 
+# The deterministic UX regression check (spec 0012, .github/workflows/ux-regression.yml).
+# Added to the waited-on set ONLY when UX work is detected, so non-UX runs are unaffected.
+UX_CHECK_NAME = "ux"
 
-def required_checks() -> List[str]:
-    """Required checks, overridable via ADW_REQUIRED_CHECKS (comma-separated)."""
+
+def required_checks(is_ux_work: bool = False) -> List[str]:
+    """Required checks, overridable via ADW_REQUIRED_CHECKS (comma-separated).
+
+    When UX work is detected, the deterministic ``ux`` check is appended unless
+    ``ADW_UX_GATE`` is ``advisory`` (default ``block``). ``ux`` is intentionally not
+    in the auto-fixable set — a red ``ux`` aborts to a human (visual regressions need eyes).
+    """
     raw = os.getenv("ADW_REQUIRED_CHECKS")
-    if raw:
-        return [c.strip() for c in raw.split(",") if c.strip()]
-    return list(DEFAULT_REQUIRED_CHECKS)
+    base = [c.strip() for c in raw.split(",") if c.strip()] if raw else list(DEFAULT_REQUIRED_CHECKS)
+    gate = os.getenv("ADW_UX_GATE", "block").lower()
+    if is_ux_work and gate != "advisory" and UX_CHECK_NAME not in base:
+        base.append(UX_CHECK_NAME)
+    return base
 
 
 def evaluate_checks(runs, required: List[str]) -> Tuple[str, List[str]]:
@@ -69,12 +80,13 @@ def wait_for_required_checks(
     logger: logging.Logger,
     timeout_min: int = 45,
     interval_sec: int = 30,
+    is_ux_work: bool = False,
 ) -> Tuple[str, List[str]]:
     """Poll required checks until green/failing or timeout.
 
     Returns ('green'|'failing'|'timeout', failing_names).
     """
-    required = required_checks()
+    required = required_checks(is_ux_work)
     deadline = time.time() + timeout_min * 60
     while time.time() < deadline:
         runs = get_required_check_runs(pr_number, required)

@@ -108,7 +108,8 @@ export function ReportView() {
         {/* Control-by-control */}
         <section>
           <h2 className="mb-2 text-sm font-semibold text-slate-800">Control-by-control assessment</h2>
-          <div className="overflow-x-auto">
+          {/* biome-ignore lint/a11y/noNoninteractiveTabindex: WAI scrollable-region pattern — this read-only overflow table has no focusable cells, so the scroll container must be keyboard-focusable (axe scrollable-region-focusable). */}
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <caption className="sr-only">Control-by-control assessment results</caption>
               <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">

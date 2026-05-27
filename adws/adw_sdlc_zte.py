@@ -9,7 +9,7 @@ plan → build → test → review → document → ship (PR + Copilot iteration
 
 Usage:
   uv run adws/adw_sdlc_zte.py <issue-number> [adw-id]
-    [--skip-e2e] [--dry-run] [--admin] [--no-copilot] [--max-ship-iters N]
+    [--skip-e2e] [--skip-ux] [--dry-run] [--admin] [--no-copilot] [--max-ship-iters N]
 
 --dry-run runs the entire pipeline but stops before the final merge.
 """
@@ -43,11 +43,12 @@ def main():
         sys.exit(0)
 
     skip_e2e = "--skip-e2e" in sys.argv
+    skip_ux = "--skip-ux" in sys.argv
     dry_run = "--dry-run" in sys.argv
     admin = "--admin" in sys.argv
     no_copilot = "--no-copilot" in sys.argv
     max_ship_iters = _pop_int_flag("--max-ship-iters", None)
-    for f in ("--skip-e2e", "--dry-run", "--admin", "--no-copilot"):
+    for f in ("--skip-e2e", "--skip-ux", "--dry-run", "--admin", "--no-copilot"):
         if f in sys.argv:
             sys.argv.remove(f)
 
@@ -71,11 +72,17 @@ def main():
 
     test_args = ["--skip-e2e"] if skip_e2e else []
 
+    # UX validation runs after review / before document; it self-skips for non-UX work,
+    # so it's safe to always include. The deterministic `ux` CI check (not this phase) gates merge.
     phases = [
         ("adw_plan.py", [], True),
         ("adw_build.py", [], True),
         ("adw_test.py", test_args, False),
         ("adw_review.py", [], False),
+    ]
+    if not skip_ux:
+        phases.append(("adw_ux_validation.py", [], False))
+    phases += [
         ("adw_document.py", [], False),
         ("adw_ship.py", ship_args, True),
     ]

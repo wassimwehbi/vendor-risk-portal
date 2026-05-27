@@ -68,6 +68,10 @@ SlashCommand = Literal[
     "/document",
     "/resolve_copilot_feedback",
     "/track_agentic_kpis",
+    # UX validation commands (gated on detected UX work)
+    "/test_ux",
+    "/resolve_failed_ux_test",
+    "/ux_validate",
     # Installation/setup commands
     "/install_worktree",
 ]
@@ -246,6 +250,10 @@ class ADWStateData(BaseModel):
     db_path: Optional[str] = None
     model_set: Optional[ModelSet] = "base"  # Default to "base" model set
     all_adws: List[str] = Field(default_factory=list)
+    # UX harness (spec 0012). Optional + backward-compatible: older state files load fine.
+    # ``is_ux_work`` is None until detected; ``ux_signal`` records which signals fired.
+    is_ux_work: Optional[bool] = None
+    ux_signal: Optional[dict] = None
 
 
 class ReviewIssue(BaseModel):
@@ -267,6 +275,68 @@ class ReviewResult(BaseModel):
     review_issues: List[ReviewIssue] = []
     screenshots: List[str] = []
     screenshot_urls: List[str] = []
+
+
+# ── UX validation models (UX tasks harness, spec 0012) ──────────────────────
+
+UxVerdict = Literal["PASS", "NEEDS_FIXES", "NOT_APPLICABLE"]
+
+
+class UxSignal(BaseModel):
+    """Which UX-detection signals fired, and the combined decision.
+
+    Detection is layered and fails OPEN: any error obtaining the diff or evaluating
+    a signal sets ``failed_open`` and forces ``is_ux_work`` True (cheaper to run an
+    extra advisory phase than to silently ship a broken UI). Persisted into ADW
+    state as a dict for transparency.
+    """
+
+    diff_paths_hit: List[str] = Field(default_factory=list)  # UX paths in the diff (authoritative)
+    keyword_hits: List[str] = Field(default_factory=list)  # ≥2 distinct → heuristic fires
+    label_hits: List[str] = Field(default_factory=list)
+    has_screenshots: bool = False
+    plan_self_declared: Optional[bool] = None  # plan-spec UX-impact flag (None = not evaluated)
+    failed_open: bool = False
+    is_ux_work: bool = False
+
+    def summary(self) -> str:
+        """Short human string for issue comments / logs."""
+        if self.failed_open:
+            return "UX detection failed open → treated as UX work"
+        bits: List[str] = []
+        if self.diff_paths_hit:
+            bits.append(f"{len(self.diff_paths_hit)} UX path(s) changed")
+        if self.keyword_hits:
+            bits.append(f"keywords: {', '.join(self.keyword_hits)}")
+        if self.label_hits:
+            bits.append(f"labels: {', '.join(self.label_hits)}")
+        if self.has_screenshots:
+            bits.append("screenshot attached")
+        if self.plan_self_declared:
+            bits.append("plan declared UX impact")
+        return "; ".join(bits) if bits else "no UX signals"
+
+
+class UxFinding(BaseModel):
+    """A single issue found while visually validating a UX change."""
+
+    description: str
+    severity: Literal["info", "minor", "blocker"]
+    evidence_path: Optional[str] = None  # before/after screenshot for this finding
+
+
+class UxValidationResult(BaseModel):
+    """Parsed JSON returned by the /ux_validate command."""
+
+    verdict: UxVerdict
+    summary: str
+    findings: List[UxFinding] = Field(default_factory=list)
+    evidence_paths: List[str] = Field(default_factory=list)  # all before/after screenshots
+    acceptance_criteria_checked: List[str] = Field(default_factory=list)
+
+    @property
+    def blockers(self) -> List[UxFinding]:
+        return [f for f in self.findings if f.severity == "blocker"]
 
 
 class DocumentationResult(BaseModel):

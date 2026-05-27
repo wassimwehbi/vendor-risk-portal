@@ -281,7 +281,7 @@ export function Layout() {
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-6 focus:outline-none">
         {hasNoTenants ? <NoTenantAccess /> : <Outlet />}
       </main>
-      <footer className="no-print mx-auto max-w-7xl px-4 py-6 text-center text-xs text-slate-400">
+      <footer className="no-print mx-auto max-w-7xl px-4 py-6 text-center text-xs text-slate-500">
         AI-assisted preliminary analysis · ISO 27001 · ISO 27002 · GDPR · NIST · Human analyst retains final decision
         authority
       </footer>

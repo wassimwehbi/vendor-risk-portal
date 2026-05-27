@@ -30,6 +30,7 @@ issue_json: $3
   - Add E2E test validation to your Validation Commands section
   - IMPORTANT: When you fill out the `Plan Format: Relevant Files` section, add an instruction to read `.claude/commands/test_e2e.md`, and `.claude/commands/e2e/test_basic_assessment.md` to understand how to create an E2E test file. List your new E2E test file to the `Plan Format: New Files` section.
   - To be clear, we're not creating a new E2E test file, we're creating a task to create a new E2E test file in the `Plan Format` below
+- IMPORTANT: If the fix is UX-facing (touches `client/src/**`, styling, layout, responsive behavior, or accessibility — e.g. the mobile-overflow class of bug), the plan MUST include a `UX Scenarios, Acceptance & Evidence Checklist` section: the UX scenarios + viewports to cover, measurable UX acceptance criteria, and the before/after screenshots that prove the fix. The ADW UX validation phase (`/ux_validate`) audits the rendered result and the deterministic `ux` check (`npm run test:ux`, manifest `e2e/ux/scenarios.ts`) gates merge — see `specs/0012-ux-tasks-harness.md`. Add a task to extend `e2e/ux/scenarios.ts` if a route/flow is added.
 - Respect requested files in the `Relevant Files` section.
 - Start your research by reading the `README.md` file.
 

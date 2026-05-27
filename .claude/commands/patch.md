@@ -24,6 +24,7 @@ issue_screenshots: $ARGUMENTS (optional) - comma-separated list of screenshot pa
 - Run `git diff --stat`. If changes are available, use them to understand what's been done in the codebase so you can detail the exact changes in the patch plan.
 - Ultra think about the most efficient way to implement the solution with minimal code changes.
 - IMPORTANT: This is a vendor-risk app. The final vendor-risk decision is always made by a human analyst, never automatically by the AI. Do not change that contract while patching.
+- IMPORTANT: If the patch is UX-facing (touches `client/src/**`, styling, layout, or accessibility), state the UX acceptance criteria and the before/after screenshots that prove the fix in the `Verification` section. The ADW UX validation (`/ux_validate`) + the deterministic `ux` check (`npm run test:ux`) apply — see `specs/0012-ux-tasks-harness.md`.
 - Base your `Verification` on the validation steps from `spec_path` if provided.
   - If any tests fail in the validation steps, you must fix them.
   - If not provided, READ `.claude/commands/test.md: ## Test Execution Sequence` and execute the tests to understand the tests that need to be run to validate the patch.
