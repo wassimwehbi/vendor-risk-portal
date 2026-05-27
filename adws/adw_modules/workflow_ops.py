@@ -43,7 +43,6 @@ AVAILABLE_ADW_WORKFLOWS = [
     "adw_document",
     "adw_ship",
     "adw_sdlc_zte",
-    "adw_ship_zte",
     "adw_plan_build",
     "adw_plan_build_test",
     "adw_plan_build_test_review",
