@@ -1,7 +1,8 @@
 # Spec 0015 — Experimentation platform (software-layer A/B testing + GitHub portal)
 
-- **Status:** Phases 1–2 implemented (config foundation + server engine, 2026-05-27). Phases 3–4 planned.
-- **Branch:** `feat/0015-experiments-config` (Phase 1), `feat/0015-experiments-server` (Phase 2)
+- **Status:** Phases 1–3 implemented (config + server engine + client, 2026-05-27). Phase 4 (portal) planned.
+- **Branch:** `feat/0015-experiments-config` (Phase 1), `feat/0015-experiments-server` (Phase 2),
+  `feat/0015-experiments-client` (Phase 3)
 - **Location (Phase 1):** `experiments/` (new — `schema.json`, `dashboard-cta.yml`, `README.md`),
   `scripts/experiments.mjs` (new), `.github/workflows/validate-experiments.yml` (new),
   `adws/adw_modules/ship_ops.py` (add `experiments` required check),
@@ -10,6 +11,9 @@
   `server/test/experiments.test.ts` (new), `server/src/db.ts` (telemetry tables),
   `server/src/types.ts` (experiment types), `server/src/app.ts` (mount + CORS), `server/package.json`
   (`gen:experiments` + `predev`), `Dockerfile` (registry build stage), `.gitignore`, `.env.example`.
+- **Location (Phase 3):** `client/src/lib/FlagsContext.tsx` (new) + `client/src/lib/FlagsContext.test.tsx` (new),
+  `client/src/api/client.ts` (+ `.test.ts`), `client/src/types.ts`, `client/src/main.tsx` (provider),
+  `client/src/pages/Dashboard.tsx` (CTA variant), `client/src/pages/NewAssessment.tsx` (conversion).
 - **Related docs:** `README.md`, `specs/0008-zte-agentic-layer.md` (GitHub-native ADW layer
   this mirrors), `specs/0012-ux-tasks-harness.md` + `specs/0013-adw-branch-sync.md` (the
   always-run required-check pattern and stale-check deadlock lesson reused here).
@@ -99,6 +103,20 @@ always `user.id` and sticky assignment needs no cookies.
   and copies only the JSON, so the runtime never needs js-yaml or the YAML sources. New optional
   env: `EXPERIMENTS_READ_TOKEN`, `EXPERIMENTS_PORTAL_ORIGIN`, `GH_OAUTH_CLIENT_ID`.
 
+### Phase 3 — client integration
+
+- **`FlagsProvider`** (in `main.tsx`, inside `AuthProvider`) fetches `GET /api/flags` once a user
+  exists and **re-fetches on tenant switch** (`[user, activeTenantId]`), since targeting is
+  tenant-aware. A failed fetch falls back to `{}` — flags never break the app.
+- **`useVariant(key, fallback='control')`** returns the assigned variant and fires a **one-time
+  exposure beacon**, deduped per experiment per session via `sessionStorage`, only when the user
+  is actually enrolled (so exposures count real renders, and React StrictMode double-effects
+  don't double-count). **`useFlag(key)`** is the boolean view.
+- **`api.getFlags` / `exposeExperiment` / `trackEvent`** added to the client API wrapper.
+- **Sample wired end-to-end:** `Dashboard` branches its primary CTA on `useVariant('dashboard-cta')`
+  and `NewAssessment` fires `trackEvent('assessment_created')` on creation. The experiment stays
+  `draft`, so the treatment is dormant until it is set `running` (via a PR / the Phase 4 portal).
+
 ## 3. Key decisions & rationale
 
 - **Config-as-code, single source of truth (not a DB-of-experiments).** Definitions live in
@@ -151,11 +169,21 @@ native ABI):
   assigned variant for a targeted user and `{}` otherwise; `expose`/`events`/`results` behave.
 - The `docker` CI job exercises the new registry build stage end-to-end.
 
+Phase 3 (client):
+
+- `npm --prefix client test` → 19/19 pass, incl. `FlagsContext.test.tsx` (variant resolution,
+  control fallback, one-time exposure beacon, no beacon when unenrolled) and the new API-wrapper
+  cases (`/flags`, `/experiments/:key/expose`, `/events`).
+- `npm --prefix client run typecheck` and `npm --prefix client run build` both clean; Biome clean.
+- To see the treatment locally: set `dashboard-cta` to `running`, `npm --prefix server run
+  gen:experiments`, then sign in as an Analyst/Submitter — the CTA changes and exposure/conversion
+  rows appear; `GET /api/experiments/dashboard-cta/results` (with the read token) reflects them.
+
 ## 5. Known limitations / follow-ups
 
-- **No client wiring yet.** The server assigns and records (Phase 2), but no UI reads
-  `/api/flags` or branches on a variant until Phase 3. The sample stays `draft`, so it assigns
-  nothing even once the client lands.
+- **Sample experiment is dormant by design.** `dashboard-cta` is `draft`, so the treatment CTA
+  never shows and no one is bucketed until it is flipped to `running` (a one-line PR, or the
+  Phase 4 portal). The wiring + beacon + conversion are live; only the assignment is gated off.
 - **Conversion attribution is coarse.** A user counts as converted if they fire the primary
   metric at least once after exposure (distinct users, `ts >= first_seen`); there's no
   per-session or funnel-window logic yet.

@@ -5,6 +5,7 @@ import type {
   AnalyzeResult,
   AuthProviders,
   AuditEntry,
+  FlagAssignments,
   Finding,
   Invite,
   MembershipRole,
@@ -195,4 +196,10 @@ export const api = {
   getAudit: (id: number) => get<AuditEntry[]>(`/assessments/${id}/audit`),
 
   exportUrl: (id: number, format: 'csv' | 'xlsx') => `${API_BASE}/assessments/${id}/export.${format}`,
+
+  // ---- Experiments (A/B testing, spec 0015) ----
+  getFlags: () => get<FlagAssignments>('/flags'),
+  exposeExperiment: (key: string) =>
+    post<{ recorded: boolean; variant?: string }>(`/experiments/${encodeURIComponent(key)}/expose`),
+  trackEvent: (metric: string) => post<{ recorded: boolean }>('/events', { metric }),
 };

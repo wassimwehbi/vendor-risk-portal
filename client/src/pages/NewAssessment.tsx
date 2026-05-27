@@ -48,6 +48,8 @@ export function NewAssessment() {
         questionnaire_type: type,
         date_submitted: date,
       });
+      // A/B conversion signal for the `dashboard-cta` experiment (spec 0015). Fire-and-forget.
+      api.trackEvent('assessment_created').catch(() => undefined);
       await api.uploadFiles(assessment.id, questionnaire, evidence);
       navigate(`/assessments/${assessment.id}`);
     } catch (err) {
