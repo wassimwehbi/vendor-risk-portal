@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { AssessmentDetail, Finding, RiskLevel } from '../types';
@@ -14,6 +14,77 @@ import { useAuth } from '../lib/AuthContext';
 
 const RISK_OPTIONS: RiskLevel[] = ['Low', 'Medium', 'High', 'Critical'];
 
+const STORAGE_KEY = 'vrp-grid-col-widths-v1';
+const DEFAULT_COL_WIDTHS: Record<string, number> = {
+  control: 160,
+  response: 220,
+  framework: 160,
+  finding: 200,
+  evidence: 100,
+  risk: 80,
+  analyst: 90,
+  actions: 80,
+};
+
+function useResizableColumns() {
+  const [widths, setWidths] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(stored) };
+    } catch {
+      // ignore parse errors
+    }
+    return { ...DEFAULT_COL_WIDTHS };
+  });
+
+  const widthsRef = useRef(widths);
+  useEffect(() => {
+    widthsRef.current = widths;
+  }, [widths]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(widths));
+  }, [widths]);
+
+  const updateWidth = useCallback((key: string, delta: number) => {
+    setWidths((prev) => ({
+      ...prev,
+      [key]: Math.min(400, Math.max(80, (prev[key] ?? DEFAULT_COL_WIDTHS[key] ?? 100) + delta)),
+    }));
+  }, []);
+
+  const resetColumn = useCallback((key: string) => {
+    setWidths((prev) => ({ ...prev, [key]: DEFAULT_COL_WIDTHS[key] ?? 100 }));
+  }, []);
+
+  const startResize = useCallback((key: string, e: React.PointerEvent<HTMLElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = widthsRef.current[key] ?? DEFAULT_COL_WIDTHS[key] ?? 100;
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+
+    function onMove(ev: PointerEvent) {
+      setWidths((prev) => ({
+        ...prev,
+        [key]: Math.min(400, Math.max(80, startWidth + (ev.clientX - startX))),
+      }));
+    }
+
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, []);
+
+  return { widths, startResize, resetColumn, updateWidth };
+}
+
 export function ReviewWorkspace() {
   const { id } = useParams();
   const assessmentId = Number(id);
@@ -25,6 +96,7 @@ export function ReviewWorkspace() {
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [approving, setApproving] = useState(false);
+  const { widths, startResize, resetColumn, updateWidth } = useResizableColumns();
 
   const load = useCallback(() => {
     api
@@ -196,30 +268,120 @@ export function ReviewWorkspace() {
         </div>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
+          <table
+            className="min-w-full divide-y divide-slate-200"
+            style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}
+          >
             <caption className="sr-only">Control-by-control AI analysis with analyst review actions</caption>
+            <colgroup>
+              <col style={{ width: widths.control }} />
+              <col style={{ width: widths.response }} />
+              <col style={{ width: widths.framework }} />
+              <col style={{ width: widths.finding }} />
+              <col style={{ width: widths.evidence }} />
+              <col style={{ width: widths.risk }} />
+              <col style={{ width: widths.analyst }} />
+              <col style={{ width: widths.actions }} />
+            </colgroup>
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Control area
+                  <button
+                    type="button"
+                    aria-label="Resize Control area column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('control', e)}
+                    onDoubleClick={() => resetColumn('control')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('control', -10);
+                      if (e.key === 'ArrowRight') updateWidth('control', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Vendor response
+                  <button
+                    type="button"
+                    aria-label="Resize Vendor response column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('response', e)}
+                    onDoubleClick={() => resetColumn('response')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('response', -10);
+                      if (e.key === 'ArrowRight') updateWidth('response', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Framework mapping
+                  <button
+                    type="button"
+                    aria-label="Resize Framework mapping column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('framework', e)}
+                    onDoubleClick={() => resetColumn('framework')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('framework', -10);
+                      if (e.key === 'ArrowRight') updateWidth('framework', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   AI finding
+                  <button
+                    type="button"
+                    aria-label="Resize AI finding column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('finding', e)}
+                    onDoubleClick={() => resetColumn('finding')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('finding', -10);
+                      if (e.key === 'ArrowRight') updateWidth('finding', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Evidence
+                  <button
+                    type="button"
+                    aria-label="Resize Evidence column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('evidence', e)}
+                    onDoubleClick={() => resetColumn('evidence')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('evidence', -10);
+                      if (e.key === 'ArrowRight') updateWidth('evidence', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Risk
+                  <button
+                    type="button"
+                    aria-label="Resize Risk column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('risk', e)}
+                    onDoubleClick={() => resetColumn('risk')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('risk', -10);
+                      if (e.key === 'ArrowRight') updateWidth('risk', +10);
+                    }}
+                  />
                 </th>
-                <th scope="col" className="px-3 py-3 font-medium">
+                <th scope="col" className="relative px-3 py-3 font-medium">
                   Analyst
+                  <button
+                    type="button"
+                    aria-label="Resize Analyst column"
+                    className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none select-none bg-brand-200 opacity-0 hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-40"
+                    onPointerDown={(e) => startResize('analyst', e)}
+                    onDoubleClick={() => resetColumn('analyst')}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') updateWidth('analyst', -10);
+                      if (e.key === 'ArrowRight') updateWidth('analyst', +10);
+                    }}
+                  />
                 </th>
                 <th scope="col" className="px-3 py-3">
                   <span className="sr-only">Actions</span>

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export function Spinner({ label }: { label?: string }) {
   return (
@@ -70,5 +71,71 @@ export function FrameworkChips({ frameworks }: { frameworks: string[] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+export function Tooltip({ content, children }: { content: string; children: ReactNode }) {
+  const [visible, setVisible] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const tooltipId = useId();
+
+  function show() {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left });
+    setVisible(true);
+  }
+
+  function hide() {
+    setVisible(false);
+  }
+
+  useEffect(() => {
+    if (!visible) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') hide();
+    }
+    function handleTouchOutside(e: TouchEvent) {
+      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) hide();
+    }
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('touchstart', handleTouchOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('touchstart', handleTouchOutside);
+    };
+  }, [visible]);
+
+  if (!content) return <>{children}</>;
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        aria-describedby={visible ? tooltipId : undefined}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        onTouchStart={show}
+        tabIndex={0}
+        className="outline-none"
+      >
+        {children}
+      </span>
+      {visible &&
+        createPortal(
+          <div
+            id={tooltipId}
+            role="tooltip"
+            className="pointer-events-none fixed z-50 max-w-xs rounded-md bg-slate-800 px-3 py-2 text-xs text-white shadow-lg"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {content}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
