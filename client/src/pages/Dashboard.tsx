@@ -7,9 +7,17 @@ import { StatusChip, ValidationChip } from '../components/StatusChip';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '../components/ui';
 import { formatDay } from '../lib/format';
 import { useAuth } from '../lib/AuthContext';
+import { useVariant } from '../lib/FlagsContext';
 
 export function Dashboard() {
   const { canSubmit, isAdmin, activeTenantId } = useAuth();
+  // A/B (spec 0015): `dashboard-cta` tests a more prominent primary CTA. The experiment key and the
+  // 'treatment' string below MUST match experiments/dashboard-cta.yml — there is no typed link
+  // between config variant keys and this branch, so renaming the variant there silently reverts this
+  // to control. Both variants link to the same place; only enrolled users see treatment.
+  const ctaVariant = useVariant('dashboard-cta');
+  const ctaClass = ctaVariant === 'treatment' ? 'btn-primary px-5 py-2.5 text-base' : 'btn-primary';
+  const ctaLabel = ctaVariant === 'treatment' ? '+ Start a new assessment' : '+ New Assessment';
   const [assessments, setAssessments] = useState<Assessment[] | null>(null);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [tenantNames, setTenantNames] = useState<Record<number, string>>({});
@@ -64,8 +72,8 @@ export function Dashboard() {
         subtitle="AI-assisted preliminary analysis of SIG questionnaires against ISO 27001, ISO 27002 and GDPR."
         actions={
           canSubmit ? (
-            <Link to="/assessments/new" className="btn-primary">
-              + New Assessment
+            <Link to="/assessments/new" className={ctaClass}>
+              {ctaLabel}
             </Link>
           ) : undefined
         }
