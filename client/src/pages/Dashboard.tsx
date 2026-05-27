@@ -14,6 +14,7 @@ export function Dashboard() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [tenantNames, setTenantNames] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Admin "all tenants" mode shows which tenant each assessment belongs to.
   const showTenantCol = isAdmin && activeTenantId == null;
@@ -42,6 +43,19 @@ export function Dashboard() {
       .then((ts) => setTenantNames(Object.fromEntries(ts.map((t) => [t.id, t.name]))))
       .catch(() => undefined);
   }, [showTenantCol]);
+
+  async function handleDelete(a: Assessment) {
+    if (!window.confirm(`Delete the assessment for "${a.vendor_name}"? This cannot be undone.`)) return;
+    setDeletingId(a.id);
+    try {
+      await api.deleteAssessment(a.id);
+      setAssessments((prev) => prev?.filter((x) => x.id !== a.id) ?? prev);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div>
@@ -154,9 +168,20 @@ export function Dashboard() {
                       <ValidationChip status={a.validation_status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link to={`/assessments/${a.id}`} className="font-medium text-brand-700 hover:underline">
-                        Open<span className="sr-only"> {a.vendor_name} assessment</span> →
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        {isAdmin && (
+                          <button
+                            className="text-xs font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline"
+                            onClick={() => handleDelete(a)}
+                            disabled={deletingId === a.id}
+                          >
+                            {deletingId === a.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        )}
+                        <Link to={`/assessments/${a.id}`} className="font-medium text-brand-700 hover:underline">
+                          Open<span className="sr-only"> {a.vendor_name} assessment</span> →
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
