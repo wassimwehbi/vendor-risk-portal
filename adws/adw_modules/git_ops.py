@@ -118,6 +118,50 @@ def get_pr_number(branch_name: str) -> Optional[str]:
     return None
 
 
+def filter_adw_pr_branches(prs: list, issue_number) -> list:
+    """From `gh pr list --json number,headRefName` output, return [(branch, number)]
+    for PRs whose head follows the ADW branch convention for this issue.
+
+    Matches the `<class>-issue-<n>-adw-...` token (not any branch that merely
+    mentions the number) to avoid false positives on human PRs.
+    """
+    token = f"-issue-{issue_number}-adw-"
+    return [
+        (pr.get("headRefName", ""), str(pr.get("number")))
+        for pr in prs
+        if token in pr.get("headRefName", "")
+    ]
+
+
+def find_open_pr_branch_for_issue(issue_number) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Find the single open ADW PR for an issue. Returns (branch, pr_number, error)."""
+    try:
+        repo = extract_repo_path(get_repo_url())
+    except Exception as e:  # noqa: BLE001
+        return None, None, f"could not resolve repo: {e}"
+    result = subprocess.run(
+        ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", "200",
+         "--json", "number,headRefName"],
+        capture_output=True,
+        text=True,
+        env=get_github_env(),
+    )
+    if result.returncode != 0:
+        return None, None, f"gh pr list failed: {result.stderr.strip()}"
+    try:
+        prs = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None, None, "could not parse gh pr list output"
+    matches = filter_adw_pr_branches(prs, issue_number)
+    if not matches:
+        return None, None, f"no open ADW PR found for issue #{issue_number}"
+    if len(matches) > 1:
+        branches = ", ".join(b for b, _ in matches)
+        return None, None, f"multiple open ADW PRs for issue #{issue_number}: {branches}"
+    branch, number = matches[0]
+    return branch, number, None
+
+
 def get_pr_state(pr_number: str) -> Optional[dict]:
     """Return {merged, mergeable, mergeStateStatus, state} for a PR."""
     try:

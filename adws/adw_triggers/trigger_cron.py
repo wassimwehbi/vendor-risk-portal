@@ -3,16 +3,17 @@
 # requires-python = ">=3.12"
 # dependencies = ["python-dotenv>=1.0", "pydantic>=2.7", "requests>=2.32"]
 # ///
-"""Cron-style ADW trigger: poll GitHub issues and launch the ZTE pipeline.
+"""Cron-style ADW trigger: poll GitHub issues and launch an ADW pipeline.
 
-An issue qualifies when EITHER it carries the label `adw:zte` / `adw:ship`, OR
-its latest non-bot comment starts with `adw`. Bot comments (tagged
-`[ADW-AGENTS]`) never trigger (loop guard), and `adw:freeze` / ADW_DISABLED act
-as kill-switches.
+An issue qualifies when it carries the label `adw:zte` / `adw:ship`, OR its
+latest non-bot comment starts with `adw`. The label decides the mode:
+- `adw:ship` → ship-only: ship the issue's EXISTING open PR (requires one).
+- `adw:zte` (or the magic comment) → full pipeline (only when no PR is open yet).
+`adw:ship` wins if both labels are present. Bot comments (tagged `[ADW-AGENTS]`)
+never trigger (loop guard), and `adw:freeze` / ADW_DISABLED act as kill-switches.
 
 State persists in adw_triggers/.cron_state.json (last-processed comment id per
-issue) so restarts don't reprocess, and an existing open ADW PR for the issue is
-skipped.
+issue) so restarts don't reprocess.
 
 Usage:
   uv run adws/adw_triggers/trigger_cron.py [--interval SECONDS] [--once]
@@ -42,7 +43,8 @@ from adw_modules.github import (
 
 load_dotenv()
 
-TRIGGER_LABELS = {"adw:zte", "adw:ship"}
+ZTE_LABEL = "adw:zte"
+SHIP_LABEL = "adw:ship"
 FREEZE_LABEL = "adw:freeze"
 STATE_FILE = Path(__file__).parent / ".cron_state.json"
 
@@ -88,11 +90,11 @@ def has_open_adw_pr(repo_path: str, issue_number: int) -> bool:
     return any(f"-issue-{issue_number}-adw-" in pr.get("headRefName", "") for pr in prs)
 
 
-def qualifies(issue, repo_path: str, cron_state: Dict[str, str]) -> Tuple[bool, Optional[str]]:
-    """Return (should_process, latest_comment_id)."""
+def qualifies(issue, repo_path: str, cron_state: Dict[str, str]) -> Tuple[Optional[str], Optional[str]]:
+    """Return (mode, latest_comment_id) where mode ∈ {None, "zte", "ship"}."""
     labels = {label.name for label in issue.labels}
     if FREEZE_LABEL in labels:
-        return False, None
+        return None, None
 
     comments = fetch_issue_comments(repo_path, issue.number)
     latest = comments[-1] if comments else None
@@ -101,28 +103,43 @@ def qualifies(issue, repo_path: str, cron_state: Dict[str, str]) -> Tuple[bool, 
 
     # Loop guard: never trigger off a bot comment.
     if latest and ADW_BOT_IDENTIFIER in latest_body:
-        return False, latest_id
+        return None, latest_id
 
-    triggered = bool(TRIGGER_LABELS & labels) or latest_body.strip().lower().startswith("adw")
-    if not triggered:
-        return False, latest_id
+    # Determine the mode. adw:ship (ship the existing PR) wins over the
+    # full-pipeline triggers when both are present.
+    if SHIP_LABEL in labels:
+        mode = "ship"
+    elif ZTE_LABEL in labels or latest_body.strip().lower().startswith("adw"):
+        mode = "zte"
+    else:
+        return None, latest_id
 
     # De-dup: same comment id already processed.
     if cron_state.get(str(issue.number)) == latest_id:
-        return False, latest_id
+        return None, latest_id
 
-    # Don't start a second run if a PR for this issue is already open.
-    if has_open_adw_pr(repo_path, issue.number):
-        return False, latest_id
+    pr_open = has_open_adw_pr(repo_path, issue.number)
+    if mode == "ship":
+        # Ship-only needs an existing PR — nothing to ship otherwise.
+        if not pr_open:
+            return None, latest_id
+    else:
+        # Don't start a second full run if a PR for this issue is already open.
+        if pr_open:
+            return None, latest_id
 
-    return True, latest_id
+    return mode, latest_id
 
 
-def launch(issue_number: int) -> bool:
-    adw_id = make_adw_id()
+def launch(issue_number: int, mode: str) -> bool:
     run_zte = Path(__file__).parent / "run_zte.py"
-    cmd = ["uv", "run", str(run_zte), str(issue_number), adw_id]
-    print(f"Launching ZTE for issue #{issue_number} (adw_id={adw_id})")
+    if mode == "ship":
+        # Ship-only resolves the adw_id from the existing PR branch (no id passed).
+        cmd = ["uv", "run", str(run_zte), str(issue_number), "--ship-only"]
+    else:
+        adw_id = make_adw_id()
+        cmd = ["uv", "run", str(run_zte), str(issue_number), adw_id]
+    print(f"Launching ADW ({mode}) for issue #{issue_number}: {' '.join(cmd)}")
     result = subprocess.run(cmd, env=get_safe_subprocess_env())
     return result.returncode == 0
 
@@ -141,13 +158,13 @@ def check_cycle(repo_path: str) -> None:
     for issue in issues:
         if shutdown_requested:
             break
-        should, latest_id = qualifies(issue, repo_path, cron_state)
+        mode, latest_id = qualifies(issue, repo_path, cron_state)
         if latest_id is not None:
             # Record the latest comment id we've seen regardless, to avoid
             # re-evaluating the same state repeatedly.
             cron_state[str(issue.number)] = latest_id
-        if should:
-            launch(issue.number)
+        if mode:
+            launch(issue.number, mode)
     save_cron_state(cron_state)
 
 
