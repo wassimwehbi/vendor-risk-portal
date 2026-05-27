@@ -42,6 +42,24 @@ def push_branch(branch_name: str, cwd: Optional[str] = None) -> Tuple[bool, Opti
     return True, None
 
 
+def commit_empty(message: str, cwd: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Create an empty commit to mint a fresh head SHA (no tree change).
+
+    Used to re-trigger a PR's required checks when a push failed to start them
+    (the new head fires ``pull_request: synchronize``). The empty commit carries no
+    diff and is discarded by the squash-merge, so it never lands on main's history.
+    """
+    r = subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", message],
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+    )
+    if r.returncode != 0:
+        return False, r.stderr
+    return True, None
+
+
 # ── Branch-currency + conflict resolution (ship loop, spec 0013) ────────────
 
 
@@ -105,6 +123,43 @@ def complete_merge(cwd: Optional[str] = None) -> Tuple[bool, Optional[str]]:
 def abort_merge(cwd: Optional[str] = None) -> None:
     """Abort an in-progress merge, restoring the pre-merge state. Best-effort."""
     subprocess.run(["git", "merge", "--abort"], capture_output=True, text=True, cwd=cwd)
+
+
+def is_binary_path(path: str, cwd: Optional[str] = None) -> bool:
+    """True if `path` looks binary (NUL byte in the first 8 KiB) — git's own heuristic.
+
+    Used to spot conflicts the text-based ``/resolve_conflicts`` agent can't merge (e.g.
+    e2e screenshot baselines): a binary conflict carries no ``<<<<<<<`` markers, so it is
+    invisible to ``has_conflict_markers`` and must be resolved a different way.
+    """
+    full = os.path.join(cwd or ".", path)
+    try:
+        with open(full, "rb") as fh:
+            return b"\x00" in fh.read(8000)
+    except OSError:
+        return False
+
+
+def resolve_take_theirs(files: List[str], cwd: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Resolve conflicted `files` by taking the merged-in side (``--theirs``) and staging.
+
+    During ``git merge origin/main`` on a PR branch, ``--theirs`` is main's version. Used
+    for binary conflicts where main is the source of truth (spec 0012 baselines); the
+    re-run ``ux`` check re-validates, so a wrong pick self-corrects to a human.
+    """
+    if not files:
+        return True, None
+    co = subprocess.run(
+        ["git", "checkout", "--theirs", "--", *files], capture_output=True, text=True, cwd=cwd
+    )
+    if co.returncode != 0:
+        return False, co.stderr
+    add = subprocess.run(
+        ["git", "add", "--", *files], capture_output=True, text=True, cwd=cwd
+    )
+    if add.returncode != 0:
+        return False, add.stderr
+    return True, None
 
 
 def check_pr_exists(branch_name: str) -> Optional[str]:
