@@ -470,7 +470,7 @@ def upload_ux_evidence(
     """Upload PNG evidence to a per-PR GitHub release and return (label, url) pairs.
 
     Tag: ux-evidence-pr-<pr_number>
-    Asset names: <sha8>_<basename> (idempotent with --clobber).
+    Asset names: <basename> (idempotent with --clobber per per-PR tag).
     Returns [] on any failure — caller must degrade gracefully.
     """
     if not evidence_paths:
@@ -499,7 +499,6 @@ def upload_ux_evidence(
     uploaded_names: set = set()
     for path in evidence_paths:
         basename = os.path.basename(path)
-        asset_name = f"{sha8}_{basename}"
         result = subprocess.run(
             ["gh", "release", "upload", tag, path, "--clobber", "-R", repo],
             capture_output=True,
@@ -510,7 +509,7 @@ def upload_ux_evidence(
         if result.returncode != 0:
             _log.warning("UX evidence upload failed for %s: %s", path, result.stderr.strip())
         else:
-            uploaded_names.add(asset_name)
+            uploaded_names.add(basename)
 
     if not uploaded_names:
         return []
@@ -533,13 +532,11 @@ def upload_ux_evidence(
         return []
 
     urls = []
-    prefix = sha8 + "_"
     for asset in assets:
         name = asset.get("name", "")
         if name in uploaded_names:
             url = asset.get("browser_download_url", "")
             if url:
-                label = name[len(prefix):] if name.startswith(prefix) else name
-                urls.append((label, url))
+                urls.append((name, url))
 
     return urls
