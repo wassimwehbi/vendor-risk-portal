@@ -1,9 +1,20 @@
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { EvidenceSufficiency, Finding, FrameworkMapping, QuestionnaireItem, RiskLevel } from '../types';
 import { effectiveFinding } from '../types';
 import { api } from '../api/client';
 import { RiskBadge } from './RiskBadge';
 import { EVIDENCE_CLASSES, STRENGTH_CLASSES } from '../lib/format';
+import { Tooltip } from './ui';
+
+function useTruncated(ref: { readonly current: HTMLElement | null }): boolean {
+  const [truncated, setTruncated] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setTruncated(el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight);
+  }, []);
+  return truncated;
+}
 
 const RISK_OPTIONS: RiskLevel[] = ['Low', 'Medium', 'High', 'Critical'];
 const EVIDENCE_OPTIONS: EvidenceSufficiency[] = ['Sufficient', 'Insufficient', 'None', 'Expired', 'Misaligned'];
@@ -58,6 +69,13 @@ export function FindingRow({
 
   // Unique field ids so labels associate correctly across many rendered rows.
   const fid = useId();
+
+  const responseRef = useRef<HTMLParagraphElement>(null);
+  const responseTruncated = useTruncated(responseRef);
+  const findingRef = useRef<HTMLParagraphElement>(null);
+  const findingTruncated = useTruncated(findingRef);
+  const frameworkRef = useRef<HTMLUListElement>(null);
+  const frameworkTruncated = useTruncated(frameworkRef);
 
   // edit form state
   const [domain, setDomain] = useState(eff.control_domain);
@@ -148,25 +166,33 @@ export function FindingRow({
           >
             {item.response_type}
           </span>
-          <p className="line-clamp-2 max-w-[18rem] text-sm text-slate-700">
-            {item.response || <span className="italic text-slate-500">(blank)</span>}
-          </p>
+          <Tooltip content={item.response && responseTruncated ? item.response : ''}>
+            <p ref={responseRef} className="line-clamp-2 max-w-[18rem] text-sm text-slate-700">
+              {item.response || <span className="italic text-slate-500">(blank)</span>}
+            </p>
+          </Tooltip>
         </td>
         <td className="px-3 py-3 text-xs text-slate-600">
           {eff.framework_mappings.length === 0 ? (
             <span className="text-slate-500">—</span>
           ) : (
-            <ul className="space-y-0.5">
-              {eff.framework_mappings.map((m) => (
-                <li key={m.framework}>
-                  <span className="font-medium text-slate-700">{m.framework}:</span> {m.references.join('; ')}
-                </li>
-              ))}
-            </ul>
+            <Tooltip content={frameworkTruncated ? formatMappings(eff.framework_mappings) : ''}>
+              <ul ref={frameworkRef} className="space-y-0.5">
+                {eff.framework_mappings.map((m) => (
+                  <li key={m.framework}>
+                    <span className="font-medium text-slate-700">{m.framework}:</span> {m.references.join('; ')}
+                  </li>
+                ))}
+              </ul>
+            </Tooltip>
           )}
         </td>
         <td className="px-3 py-3 text-sm text-slate-700">
-          <p className="max-w-[16rem]">{finding.ai_finding}</p>
+          <Tooltip content={finding.ai_finding && findingTruncated ? finding.ai_finding : ''}>
+            <p ref={findingRef} className="max-w-[16rem]">
+              {finding.ai_finding}
+            </p>
+          </Tooltip>
           <p className="mt-1 text-xs text-slate-500">
             strength <span className={STRENGTH_CLASSES[finding.control_strength]}>{finding.control_strength}</span> ·{' '}
             {finding.completeness}
