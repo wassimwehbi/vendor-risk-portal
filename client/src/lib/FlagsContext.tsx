@@ -57,10 +57,15 @@ export function useVariant(key: string, fallback = 'control'): string {
 
   useEffect(() => {
     if (beaconed.current || !variant) return;
+    beaconed.current = true; // in-memory guard, also our fallback if storage is unavailable
     const sessionKey = `vrp.exposed.${key}`;
-    beaconed.current = true;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, '1');
+    try {
+      if (sessionStorage.getItem(sessionKey)) return; // already beaconed earlier this session
+      sessionStorage.setItem(sessionKey, '1');
+    } catch {
+      // sessionStorage can throw (disabled / quota / private mode). Fall back to the
+      // in-memory guard — at worst we re-beacon once after a reload. Flags never break the app.
+    }
     api.exposeExperiment(key).catch(() => undefined); // best-effort
   }, [key, variant]);
 

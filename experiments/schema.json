@@ -74,10 +74,10 @@
       "required": ["primary"],
       "description": "Event names used to measure the experiment. Reported per-variant in the portal.",
       "properties": {
-        "primary": { "type": "string", "minLength": 1 },
+        "primary": { "type": "string", "minLength": 1, "maxLength": 64 },
         "secondary": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
         }
       }
     },

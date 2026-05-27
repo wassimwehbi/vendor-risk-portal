@@ -4,7 +4,7 @@
  * See specs/0015-experimentation-platform.md.
  *
  *   node scripts/experiments.mjs validate   CI gate: schema + cross-file invariants (exit 1 on error)
- *   node scripts/experiments.mjs build       emit server/src/data/experiments.json (consumed at boot)
+ *   node scripts/experiments.mjs build       emit server/src/data/experiments.json (validates first)
  *
  * Pure Node + js-yaml + ajv; runs at the repo root, no app build required.
  */
@@ -36,19 +36,30 @@ function loadExperiments() {
   });
 }
 
-/** Two audiences overlap when their roles AND tenants both intersect (an omitted facet = "everyone"). */
+/**
+ * Two audiences overlap when their roles AND tenants both intersect. An omitted OR EMPTY
+ * facet means "everyone" (matching the server's `eligible()` and the schema docs), so it
+ * overlaps with anything.
+ */
 function audiencesOverlap(a = {}, b = {}) {
-  const rolesOverlap = !a.roles || !b.roles || a.roles.some((r) => b.roles.includes(r));
-  const tenantsOverlap = !a.tenants || !b.tenants || a.tenants.some((t) => b.tenants.includes(t));
+  const everyone = (arr) => !arr || arr.length === 0;
+  const rolesOverlap = everyone(a.roles) || everyone(b.roles) || a.roles.some((r) => b.roles.includes(r));
+  const tenantsOverlap = everyone(a.tenants) || everyone(b.tenants) || a.tenants.some((t) => b.tenants.includes(t));
   return rolesOverlap && tenantsOverlap;
 }
 
-function validate() {
+/**
+ * Load + validate every experiment. Returns the error list and the experiments that PASSED
+ * schema validation (semantic checks + the build output only ever consider these, so a
+ * schema-invalid file can never crash a later check or leak into the compiled registry).
+ */
+function collect() {
   const schema = JSON.parse(readFileSync(SCHEMA_PATH, 'utf8'));
   const validateSchema = new Ajv({ allErrors: true }).compile(schema);
   const loaded = loadExperiments();
   const errors = [];
   const keyToFile = new Map();
+  const valid = []; // [{ file, data }] that passed JSON Schema
 
   for (const { file, data, parseError } of loaded) {
     if (parseError) {
@@ -73,12 +84,13 @@ function validate() {
     if (new Set(variantKeys).size !== variantKeys.length) errors.push(`${file}: duplicate variant keys`);
 
     if (data.start && data.end && data.start > data.end) errors.push(`${file}: start (${data.start}) is after end (${data.end})`);
+
+    valid.push({ file, data });
   }
 
   // No two running experiments may collide on the same surface for overlapping audiences.
-  const running = loaded
-    .filter(({ data, parseError }) => !parseError && data && data.status === 'running' && data.surface)
-    .map(({ file, data }) => ({ file, data }));
+  // Only schema-valid entries are considered, so targeting shapes here are well-formed.
+  const running = valid.filter(({ data }) => data.status === 'running' && data.surface);
   for (let i = 0; i < running.length; i++) {
     for (let j = i + 1; j < running.length; j++) {
       const a = running[i];
@@ -89,22 +101,32 @@ function validate() {
     }
   }
 
+  return { errors, experiments: valid.map((v) => v.data) };
+}
+
+function printErrors(errors) {
+  console.error(`✖ ${errors.length} experiment validation error(s):\n`);
+  for (const e of errors) console.error(`  - ${e}`);
+}
+
+function validate() {
+  const { errors, experiments } = collect();
   if (errors.length) {
-    console.error(`✖ ${errors.length} experiment validation error(s):\n`);
-    for (const e of errors) console.error(`  - ${e}`);
+    printErrors(errors);
     process.exit(1);
   }
-  console.log(`✓ ${loaded.length} experiment(s) valid.`);
+  console.log(`✓ ${experiments.length} experiment(s) valid.`);
 }
 
 function build() {
-  const loaded = loadExperiments();
-  const broken = loaded.filter(({ parseError }) => parseError);
-  if (broken.length) {
-    console.error('✖ cannot build: un-parseable experiment file(s). Run `validate` first.');
+  // Build validates first so a schema-invalid definition can never reach the compiled
+  // registry (the Docker image runs `build` directly — see Dockerfile).
+  const { errors, experiments } = collect();
+  if (errors.length) {
+    console.error('✖ refusing to build — run `validate` to see the errors:');
+    printErrors(errors);
     process.exit(1);
   }
-  const experiments = loaded.map(({ data }) => data);
   mkdirSync(dirname(OUTPUT_PATH), { recursive: true });
   writeFileSync(OUTPUT_PATH, `${JSON.stringify({ generated: new Date().toISOString(), experiments }, null, 2)}\n`);
   console.log(`✓ wrote ${experiments.length} experiment(s) → ${OUTPUT_PATH}`);

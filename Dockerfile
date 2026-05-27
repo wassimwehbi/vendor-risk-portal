@@ -14,10 +14,14 @@ FROM litestream/litestream:0.3.14 AS litestream
 # stays the single source of truth (no committed/derived JSON to drift).
 FROM node:22-bookworm-slim AS experiments
 WORKDIR /build
+# Reproducible install from the repo's root lockfile (js-yaml + ajv live there).
+# --ignore-scripts skips the biome/playwright postinstall binaries we don't need here.
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
 COPY scripts/ ./scripts/
 COPY experiments/ ./experiments/
-RUN npm install --no-save --no-package-lock js-yaml@^4 ajv@^8 \
-  && node scripts/experiments.mjs build
+# `build` validates first, so a schema-invalid definition can never reach the image.
+RUN node scripts/experiments.mjs build
 
 FROM node:22-bookworm-slim
 

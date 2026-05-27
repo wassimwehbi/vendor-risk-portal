@@ -29,15 +29,33 @@ export const experimentsConfig = {
 let cache: Experiment[] | null = null;
 
 /**
- * Loads the experiment registry. A missing or invalid file yields an EMPTY
- * registry (no variants assigned) — the experimentation layer must never break
- * the app if the build artifact is absent.
+ * Minimal shape guard for a single registry entry. The registry is produced by the
+ * validated build script, but we still guard at load so a malformed entry (e.g. missing
+ * `variants`) is dropped rather than crashing assignment later — flags never break the app.
+ */
+function isValidExperiment(e: unknown): e is Experiment {
+  const x = e as Partial<Experiment>;
+  return (
+    !!x &&
+    typeof x.key === 'string' &&
+    typeof x.name === 'string' &&
+    typeof x.status === 'string' &&
+    Array.isArray(x.variants) &&
+    x.variants.length > 0 &&
+    x.variants.every((v) => v && typeof v.key === 'string' && typeof v.weight === 'number')
+  );
+}
+
+/**
+ * Loads the experiment registry. A missing or invalid file — or any malformed entry —
+ * is dropped, yielding an EMPTY/clean registry (no variants assigned) rather than ever
+ * breaking the app.
  */
 export function getRegistry(): Experiment[] {
   if (cache) return cache;
   try {
-    const parsed = JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) as { experiments?: Experiment[] };
-    cache = Array.isArray(parsed.experiments) ? parsed.experiments : [];
+    const parsed = JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) as { experiments?: unknown };
+    cache = Array.isArray(parsed.experiments) ? parsed.experiments.filter(isValidExperiment) : [];
   } catch {
     cache = [];
   }
@@ -131,10 +149,14 @@ export function computeResults(exp: Experiment): ExperimentResults {
   if (metric) {
     const rows = db
       .prepare(
+        // Tenant-scoped: a conversion counts only when it fired in the SAME tenant the user
+        // was exposed in. `IS` is SQLite's null-safe equality, so a null-tenant exposure
+        // (admin "all tenants") matches null-tenant events rather than never matching.
         `SELECT e.variant AS variant, COUNT(DISTINCT ev.user_id) AS n
            FROM experiment_exposures e
            JOIN experiment_events ev
              ON ev.user_id = e.user_id AND ev.metric = ? AND ev.ts >= e.first_seen
+            AND ev.tenant_id IS e.tenant_id
           WHERE e.exp_key = ?
           GROUP BY e.variant`,
       )
