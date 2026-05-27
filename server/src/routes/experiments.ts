@@ -1,6 +1,6 @@
-import { timingSafeEqual } from 'node:crypto';
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
+import { safeEqual } from '../middleware/auth';
 import {
   assignVariant,
   computeResults,
@@ -12,13 +12,6 @@ import {
 } from '../services/experiments';
 import { fail, getScope, ok } from './_helpers';
 
-/** Constant-time string compare (avoids leaking the results token via timing). */
-function safeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ba.length === bb.length && timingSafeEqual(ba, bb);
-}
-
 // ---- Authenticated routes --------------------------------------------------
 // Mounted AFTER requireAuth + requireCsrf + resolveTenant, so req.scope is present.
 export const experimentsRouter = Router();
@@ -28,8 +21,8 @@ experimentsRouter.get('/flags', (req, res) => {
   ok(res, evaluateAll(getScope(req)));
 });
 
-// Record that the user actually rendered an experiment's variant (idempotent). The
-// server recomputes the variant authoritatively — the client never gets to pick it.
+// Record that the user actually rendered an experiment's variant (idempotent). The server
+// recomputes the variant authoritatively — the client never gets to pick it.
 experimentsRouter.post('/experiments/:key/expose', (req, res) => {
   const scope = getScope(req);
   const exp = getExperiment(req.params.key);
@@ -42,22 +35,23 @@ experimentsRouter.post('/experiments/:key/expose', (req, res) => {
 
 const eventSchema = z.object({ metric: z.string().min(1).max(64) });
 
-// Record a conversion / metric event for the current user.
+// Record a conversion / metric event for the current user. recordEvent attributes it only to
+// experiments the user was exposed to that declare this metric (returns the count attributed).
 experimentsRouter.post('/events', (req, res) => {
   const parsed = eventSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, parsed.error.issues[0]?.message ?? 'Invalid request');
-  recordEvent(parsed.data.metric, getScope(req));
-  ok(res, { recorded: true }, 201);
+  const recorded = recordEvent(parsed.data.metric, getScope(req));
+  ok(res, { recorded }, 201);
 });
 
 // ---- Public routes ---------------------------------------------------------
-// Mounted BEFORE requireAuth: the portal is a separate (GitHub Pages) origin with no
-// app session. Results are token-gated; the device-flow relay is unauthenticated by
-// design (it forwards to GitHub with a PUBLIC client_id and holds no secret).
+// Mounted BEFORE requireAuth: the portal is a separate (GitHub Pages) origin with no app session.
+// Results are token-gated; the device-flow relay is unauthenticated by design (it forwards to
+// GitHub with a PUBLIC client_id and holds no secret). CORS for these is scoped in app.ts.
 export const experimentsPublicRouter = Router();
 
-// Aggregate results for the portal dashboard. Bearer-token gated (low-sensitivity,
-// non-PII counts). Disabled (503) unless EXPERIMENTS_READ_TOKEN is configured.
+// Aggregate results for the portal dashboard. Bearer-token gated (low-sensitivity, non-PII counts).
+// Disabled (503) unless EXPERIMENTS_READ_TOKEN is configured. The token check is constant-time.
 experimentsPublicRouter.get('/experiments/:key/results', (req, res) => {
   if (!experimentsConfig.readToken) return fail(res, 503, 'Results API not configured');
   const header = req.header('authorization') || '';
@@ -68,44 +62,54 @@ experimentsPublicRouter.get('/experiments/:key/results', (req, res) => {
   ok(res, computeResults(exp));
 });
 
-// GitHub device-flow relay. GitHub's device/token endpoints send no CORS headers, so
-// a static SPA can't call them directly; these forward the calls and add CORS. They
-// inject the public client_id from env, carry no secret, and return GitHub's native
-// JSON (not the app's {success,data} envelope) so the portal can consume it directly.
+// GitHub device-flow relay. GitHub's device/token endpoints send no CORS headers, so a static SPA
+// can't call them directly; these forward the calls and inject the public client_id from env. They
+// carry no secret and return GitHub's native JSON (not the app's {success,data} envelope).
 const GH_DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const GH_TOKEN_URL = 'https://github.com/login/oauth/access_token';
+const GH_TIMEOUT_MS = 10_000;
 
-experimentsPublicRouter.post('/gh-device/code', async (req, res) => {
-  if (!experimentsConfig.ghClientId) return fail(res, 503, 'GitHub OAuth not configured');
-  const scope = typeof req.body?.scope === 'string' ? req.body.scope : 'public_repo';
+/** POST `body` to a GitHub OAuth endpoint and relay the response — with a timeout and non-JSON safety. */
+async function proxyToGitHub(res: Response, url: string, body: Record<string, string>): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GH_TIMEOUT_MS);
   try {
-    const gh = await fetch(GH_DEVICE_CODE_URL, {
+    const gh = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ client_id: experimentsConfig.ghClientId, scope }),
+      body: JSON.stringify(body),
+      signal: controller.signal,
     });
-    res.status(gh.status).json(await gh.json());
+    const text = await gh.text();
+    let data: unknown;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      return fail(res, 502, `GitHub returned a non-JSON response (status ${gh.status})`);
+    }
+    res.status(gh.status).json(data);
   } catch (err) {
-    fail(res, 502, `GitHub device-code request failed: ${(err as Error).message}`);
+    const msg = (err as Error).name === 'AbortError' ? 'request timed out' : (err as Error).message;
+    fail(res, 502, `GitHub request failed: ${msg}`);
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+experimentsPublicRouter.post('/gh-device/code', async (_req, res) => {
+  if (!experimentsConfig.ghClientId) return fail(res, 503, 'GitHub OAuth not configured');
+  // Scope is FIXED server-side (never read from the request body) so the relay can't be used to
+  // request escalated scopes under the app's OAuth identity. The portal only needs public_repo.
+  await proxyToGitHub(res, GH_DEVICE_CODE_URL, { client_id: experimentsConfig.ghClientId, scope: 'public_repo' });
 });
 
 experimentsPublicRouter.post('/gh-device/token', async (req, res) => {
   if (!experimentsConfig.ghClientId) return fail(res, 503, 'GitHub OAuth not configured');
   const deviceCode = req.body?.device_code;
   if (typeof deviceCode !== 'string' || !deviceCode) return fail(res, 400, 'device_code is required');
-  try {
-    const gh = await fetch(GH_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        client_id: experimentsConfig.ghClientId,
-        device_code: deviceCode,
-        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-      }),
-    });
-    res.status(gh.status).json(await gh.json());
-  } catch (err) {
-    fail(res, 502, `GitHub token request failed: ${(err as Error).message}`);
-  }
+  await proxyToGitHub(res, GH_TOKEN_URL, {
+    client_id: experimentsConfig.ghClientId,
+    device_code: deviceCode,
+    grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+  });
 });

@@ -90,6 +90,16 @@ test('assignVariant is sticky and only assigns for running experiments', () => {
   assert.equal(exp.assignVariant({ ...running, status: 'paused' }, s), null);
 });
 
+test('assignVariant respects the start/end window', () => {
+  const s = scope({ userId: 7 });
+  assert.equal(exp.assignVariant({ ...running, start: '2020-01-01', end: '2020-12-31' }, s), null); // expired
+  assert.equal(exp.assignVariant({ ...running, start: '2099-01-01' }, s), null); // not started yet
+  const live = { ...running, start: '2000-01-01', end: '2099-12-31' };
+  assert.ok(['control', 'treatment'].includes(exp.assignVariant(live, s) as string));
+  assert.ok(exp.withinWindow(live));
+  assert.equal(exp.withinWindow({ ...running, end: '2000-01-01' }), false);
+});
+
 test('weights are respected across many subjects (~50/50)', () => {
   let treatment = 0;
   const n = 4000;
@@ -133,6 +143,20 @@ test('recordExposure is idempotent per (experiment, user)', () => {
   assert.equal(row.v, 'control'); // first write wins
 });
 
+test('recordEvent attributes only to exposed experiments that declare the metric (exp_key-bound)', () => {
+  const s = scope({ userId: 7777 });
+  assert.equal(exp.recordEvent('reg_converted', s), 0); // not exposed yet → nothing recorded
+  exp.recordExposure('reg-exp', 'treatment', s);
+  assert.equal(exp.recordEvent('reg_converted', s), 1); // exposed + declared metric → one bound row
+  assert.equal(exp.recordEvent('not-a-real-metric', s), 0); // undeclared metric → allow-listed out
+  const rows = db.prepare('SELECT exp_key, metric FROM experiment_events WHERE user_id = ?').all(7777) as Array<{
+    exp_key: string;
+    metric: string;
+  }>;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].exp_key, 'reg-exp'); // event is bound to the specific experiment
+});
+
 test('computeResults: per-variant rates + a significant z-test', () => {
   const seed: Experiment = {
     key: 'seed-exp',
@@ -147,14 +171,16 @@ test('computeResults: per-variant rates + a significant z-test', () => {
   const insE = db.prepare(
     'INSERT OR IGNORE INTO experiment_exposures (exp_key, variant, user_id, tenant_id, first_seen) VALUES (?,?,?,?,?)',
   );
-  const insEv = db.prepare('INSERT INTO experiment_events (metric, user_id, tenant_id, ts) VALUES (?,?,?,?)');
+  const insEv = db.prepare(
+    'INSERT INTO experiment_events (exp_key, metric, user_id, tenant_id, ts) VALUES (?,?,?,?,?)',
+  );
   const FS = '2026-01-01T00:00:00.000Z';
   const TS = '2026-01-02T00:00:00.000Z';
   db.transaction(() => {
     for (let u = 1; u <= 100; u++) insE.run('seed-exp', 'control', u, 1, FS);
     for (let u = 101; u <= 200; u++) insE.run('seed-exp', 'treatment', u, 1, FS);
-    for (let u = 1; u <= 10; u++) insEv.run('converted', u, 1, TS); // 10/100 control
-    for (let u = 101; u <= 125; u++) insEv.run('converted', u, 1, TS); // 25/100 treatment
+    for (let u = 1; u <= 10; u++) insEv.run('seed-exp', 'converted', u, 1, TS); // 10/100 control
+    for (let u = 101; u <= 125; u++) insEv.run('seed-exp', 'converted', u, 1, TS); // 25/100 treatment
   })();
 
   const r = exp.computeResults(seed);

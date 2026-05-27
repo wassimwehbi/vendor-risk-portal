@@ -11,8 +11,10 @@ import { useVariant } from '../lib/FlagsContext';
 
 export function Dashboard() {
   const { canSubmit, isAdmin, activeTenantId } = useAuth();
-  // A/B (spec 0015): `dashboard-cta` tests a more prominent primary CTA. Both variants link
-  // to the same place; only users enrolled in the running experiment see `treatment`.
+  // A/B (spec 0015): `dashboard-cta` tests a more prominent primary CTA. The experiment key and the
+  // 'treatment' string below MUST match experiments/dashboard-cta.yml — there is no typed link
+  // between config variant keys and this branch, so renaming the variant there silently reverts this
+  // to control. Both variants link to the same place; only enrolled users see treatment.
   const ctaVariant = useVariant('dashboard-cta');
   const ctaClass = ctaVariant === 'treatment' ? 'btn-primary px-5 py-2.5 text-base' : 'btn-primary';
   const ctaLabel = ctaVariant === 'treatment' ? '+ Start a new assessment' : '+ New Assessment';

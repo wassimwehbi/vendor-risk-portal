@@ -163,8 +163,11 @@ export function initDb(): void {
       PRIMARY KEY (exp_key, user_id)
     );
 
+    -- exp_key binds each event to a specific experiment (set by recordEvent from the user's
+    -- exposures), so experiments that share a metric name don't cross-attribute conversions.
     CREATE TABLE IF NOT EXISTS experiment_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exp_key TEXT,
       metric TEXT NOT NULL,
       user_id INTEGER NOT NULL,
       tenant_id INTEGER,
@@ -172,7 +175,7 @@ export function initDb(): void {
     );
 
     CREATE INDEX IF NOT EXISTS idx_exposures_exp ON experiment_exposures(exp_key);
-    CREATE INDEX IF NOT EXISTS idx_events_metric_user ON experiment_events(metric, user_id);
+    CREATE INDEX IF NOT EXISTS idx_events_exp_user ON experiment_events(exp_key, user_id, metric);
 
     CREATE INDEX IF NOT EXISTS idx_items_assessment ON questionnaire_items(assessment_id);
     CREATE INDEX IF NOT EXISTS idx_findings_assessment ON findings(assessment_id);
@@ -202,6 +205,8 @@ export function initDb(): void {
   ensureColumn('assessments', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
   ensureColumn('assessments', 'created_by', 'TEXT');
   ensureColumn('audit_log', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
+  // experiment_events gained exp_key (spec 0015 review): bind conversions to a specific experiment.
+  ensureColumn('experiment_events', 'exp_key', 'TEXT');
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);

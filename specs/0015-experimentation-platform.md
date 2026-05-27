@@ -117,6 +117,27 @@ always `user.id` and sticky assignment needs no cookies.
   and `NewAssessment` fires `trackEvent('assessment_created')` on creation. The experiment stays
   `draft`, so the treatment is dormant until it is set `running` (via a PR / the Phase 4 portal).
 
+### Review hardening (post multi-agent + Copilot review)
+
+- **Conversions are bound to an experiment.** `experiment_events` gained `exp_key`; `recordEvent`
+  attributes an event only to experiments the user was **exposed to** that **declare** the metric.
+  This kills cross-experiment contamination when experiments share a metric name, and allow-lists
+  metrics (undeclared/garbage metrics record nothing — no unbounded rows).
+- **User-level attribution.** The results join is user-level (`exp_key` + `user_id` + `metric` +
+  `ts >= first_seen`), matching user-level bucketing — a conversion fired under a different active
+  tenant than the exposure is still counted. (Replaces the earlier tenant-strict join, which dropped
+  cross-tenant conversions.) `tenant_id` is retained for analytics, not joined on.
+- **Schedule enforced.** `assignVariant` now also gates on the `[start, end]` window
+  (`withinWindow`), so an expired/not-yet-started `running` experiment assigns nobody.
+- **OAuth scope fixed server-side.** The device-flow relay no longer forwards a caller-supplied
+  `scope`; it always requests `public_repo`, removing a scope-escalation/consent-phishing vector.
+- **Portal CORS scoped.** The Pages origin is granted CORS access (without credentials) to ONLY the
+  two public routes via a `cors` delegate — not the whole credentialed `/api` surface.
+- **Misc:** runtime registry guard now mirrors the build invariants (≥2 variants, weights sum 100);
+  a missing registry warns instead of silently serving control; the relay has a timeout + non-JSON
+  safety; `useFlag` no longer hardcodes the control name; the exposure beacon dedup is scoped by
+  user + variant; `safeEqual` is shared with `middleware/auth`; results use one SQL pass.
+
 ## 3. Key decisions & rationale
 
 - **Config-as-code, single source of truth (not a DB-of-experiments).** Definitions live in

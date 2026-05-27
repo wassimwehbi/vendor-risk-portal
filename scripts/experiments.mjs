@@ -38,8 +38,11 @@ function loadExperiments() {
 
 /**
  * Two audiences overlap when their roles AND tenants both intersect. An omitted OR EMPTY
- * facet means "everyone" (matching the server's `eligible()` and the schema docs), so it
- * overlaps with anything.
+ * facet means "everyone", so it overlaps with anything.
+ *
+ * NB: this "empty/omitted = everyone" rule is intentionally mirrored in the server's
+ * `eligible()` (server/src/services/experiments.ts). The JSON Schema only checks shape, not
+ * these semantics — keep the two in sync (a shared test would be the deeper fix; see spec 0015).
  */
 function audiencesOverlap(a = {}, b = {}) {
   const everyone = (arr) => !arr || arr.length === 0;

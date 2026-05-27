@@ -1,5 +1,5 @@
-import express, { type Express } from 'express';
-import cors from 'cors';
+import express, { type Express, type Request } from 'express';
+import cors, { type CorsOptionsDelegate } from 'cors';
 import helmet from 'helmet';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
@@ -60,23 +60,23 @@ export function createApp(): Express {
   // still controls *who* may read responses.
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-  // CORS (credentialed). Production: only CLIENT_ORIGIN. Development: also accept any
-  // localhost / 127.0.0.1 origin (any port) so the app works regardless of which
-  // local host/port the SPA is opened on.
+  // CORS. The app SPA gets CREDENTIALED access (prod: CLIENT_ORIGIN; dev: any localhost). The
+  // experiments portal is a SEPARATE GitHub Pages origin with no app session, so it is granted
+  // access ONLY to the two public experiment routes (results + device-flow relay) and WITHOUT
+  // credentials — never to the authenticated/cookie API surface.
   const isLocalOrigin = (origin: string): boolean => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  app.use(
-    cors({
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true); // same-origin, curl, server-to-server
-        if (origin === authConfig.clientOrigin) return cb(null, true);
-        // The experiments portal (GitHub Pages) reads results + uses the device-flow relay.
-        if (experimentsConfig.portalOrigin && origin === experimentsConfig.portalOrigin) return cb(null, true);
-        if (authConfig.devMode && isLocalOrigin(origin)) return cb(null, true);
-        return cb(null, false);
-      },
-      credentials: true,
-    }),
-  );
+  const isPortalPublicRoute = (path: string): boolean =>
+    path.startsWith('/api/gh-device/') || /^\/api\/experiments\/[^/]+\/results$/.test(path);
+  const corsDelegate: CorsOptionsDelegate<Request> = (req, cb) => {
+    const origin = req.headers.origin;
+    if (origin && experimentsConfig.portalOrigin && origin === experimentsConfig.portalOrigin) {
+      cb(null, isPortalPublicRoute(req.path) ? { origin: true, credentials: false } : { origin: false });
+      return;
+    }
+    const allowed = !origin || origin === authConfig.clientOrigin || (authConfig.devMode && isLocalOrigin(origin));
+    cb(null, { origin: allowed, credentials: true });
+  };
+  app.use(cors(corsDelegate));
 
   app.use(express.json({ limit: '2mb' }));
 
