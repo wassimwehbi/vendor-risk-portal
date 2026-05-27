@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { buildReport } from '../services/store';
-import { toCsv, toXlsx } from '../services/exporter';
+import { toCsv, toGrcJson, toXlsx } from '../services/exporter';
 import { fail, getScope, ok, parseId } from './_helpers';
 
 const router = Router();
@@ -37,6 +37,17 @@ router.get('/assessments/:id/export.xlsx', (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${safeName(report.vendor_name)}_risk_report.xlsx"`);
   res.send(buffer);
+});
+
+router.get('/assessments/:id/export.json', (req, res) => {
+  const id = parseId(req.params.id);
+  if (id === null) return fail(res, 400, 'Invalid assessment id');
+  const report = buildReport(id, getScope(req));
+  if (!report) return fail(res, 404, 'Assessment not found');
+  const json = toGrcJson(report);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName(report.vendor_name)}_grc_export.json"`);
+  res.send(json);
 });
 
 export default router;
