@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { AssessmentDetail, Finding, RiskLevel } from '../types';
 import { DATA_CATEGORY_LABELS } from '../types';
@@ -88,7 +88,8 @@ function useResizableColumns() {
 export function ReviewWorkspace() {
   const { id } = useParams();
   const assessmentId = Number(id);
-  const { canEdit, canApprove, isSubmitterScope } = useAuth();
+  const { canEdit, canApprove, isAdmin, isSubmitterScope } = useAuth();
+  const navigate = useNavigate();
 
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [error, setError] = useState('');
@@ -96,6 +97,7 @@ export function ReviewWorkspace() {
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { widths, startResize, resetColumn, updateWidth } = useResizableColumns();
 
   const load = useCallback(() => {
@@ -144,6 +146,19 @@ export function ReviewWorkspace() {
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm(`Delete the assessment for "${detail?.assessment.vendor_name}"? This cannot be undone.`))
+      return;
+    setDeleting(true);
+    try {
+      await api.deleteAssessment(assessmentId);
+      navigate('/');
+    } catch (e) {
+      setError((e as Error).message);
+      setDeleting(false);
+    }
+  }
+
   async function approve() {
     setApproving(true);
     setError('');
@@ -185,6 +200,15 @@ export function ReviewWorkspace() {
         subtitle={`${assessment.questionnaire_type} · submitted ${formatDay(assessment.date_submitted)}`}
         actions={
           <>
+            {isAdmin && (
+              <button
+                className="text-xs font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            )}
             {!isSubmitterScope && (
               <Link to={`/assessments/${assessmentId}/audit`} className="btn-ghost">
                 Audit trail

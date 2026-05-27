@@ -94,6 +94,36 @@ test('RBAC: a Viewer cannot create an assessment', async () => {
   assert.equal(res.status, 403);
 });
 
+test('DELETE /assessments/:id: non-admin gets 403', async () => {
+  const { agent, csrf } = await login({ email: 'analyst-nodelete@acme.test', role: 'Analyst', tenant: 'Acme' });
+  const res = await agent.delete('/api/assessments/1').set('x-csrf-token', csrf);
+  assert.equal(res.status, 403);
+});
+
+test('DELETE /assessments/:id: admin deletes successfully and assessment is gone', async () => {
+  // Create the assessment as an analyst (needs a tenant context for writes).
+  const analyst = await login({ email: 'analyst-for-del@acme.test', role: 'Analyst', tenant: 'DelCo' });
+  const created = await analyst.agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', analyst.csrf);
+  assert.equal(created.status, 201, `scenario load failed: ${JSON.stringify(created.body)}`);
+  const id = created.body.data.id as number;
+
+  // Admin in all-tenants mode can delete any assessment.
+  const admin = await login({ email: 'admin-delete@acme.test', role: 'Admin' });
+  const deleted = await admin.agent.delete(`/api/assessments/${id}`).set('x-csrf-token', admin.csrf);
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.data.deleted, true);
+
+  // Assessment is gone from the analyst's view too.
+  const check = await analyst.agent.get(`/api/assessments/${id}`);
+  assert.equal(check.status, 404);
+});
+
+test('DELETE /assessments/:id: 404 for non-existent id', async () => {
+  const { agent, csrf } = await login({ email: 'admin-404del@acme.test', role: 'Admin' });
+  const res = await agent.delete('/api/assessments/999999').set('x-csrf-token', csrf);
+  assert.equal(res.status, 404);
+});
+
 test('tenant isolation: one tenant cannot read another tenant’s assessment', async () => {
   const a = await login({ email: 'analyst@tenant-a.test', role: 'Analyst', tenant: 'Tenant A' });
   const b = await login({ email: 'analyst@tenant-b.test', role: 'Analyst', tenant: 'Tenant B' });

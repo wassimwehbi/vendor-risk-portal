@@ -139,6 +139,7 @@ export const api = {
   createAssessment: (input: { vendor_name: string; questionnaire_type: string; date_submitted: string }) =>
     post<Assessment>('/assessments', input),
   getAssessment: (id: number) => get<AssessmentDetail>(`/assessments/${id}`),
+  deleteAssessment: (id: number) => del<{ deleted: boolean }>(`/assessments/${id}`),
 
   uploadFiles: async (
     id: number,

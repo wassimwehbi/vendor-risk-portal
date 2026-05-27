@@ -18,9 +18,11 @@ test.describe('Vendor Risk Portal smoke', () => {
     await page.getByLabel('Tenant for local developer session').fill('E2E Co');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    // Authenticated dashboard, with the offline rule engine reported.
+    // Authenticated dashboard, with the offline rule engine reported. Assert the page
+    // heading specifically — `getByText` also matches the table's sr-only <caption> when
+    // the dashboard has assessments (e.g. seeded by an earlier spec in the shared run).
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText('Vendor risk assessments')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vendor risk assessments' })).toBeVisible();
     await expect(page.getByText('Rule-based (offline)')).toBeVisible();
 
     // Load + analyze a built-in scenario. The button only navigates once both the
