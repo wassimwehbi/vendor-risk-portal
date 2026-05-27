@@ -40,38 +40,51 @@ def required_checks(is_ux_work: bool = False) -> List[str]:
 
 
 def evaluate_checks(runs, required: List[str]) -> Tuple[str, List[str]]:
-    """Return ('green'|'failing'|'pending', failing_names).
+    """Classify the required checks on a PR's head commit.
 
-    A CANCELLED conclusion is treated as pending: CI uses cancel-in-progress, so a
-    cancelled run was superseded by a newer one on a fresh push.
+    Returns ``(state, names)`` where ``state`` is one of:
+      ``"failing"`` — ≥1 required check concluded red; ``names`` = the red checks.
+      ``"pending"`` — ≥1 required check is actively running (QUEUED / IN_PROGRESS, or
+                      CANCELLED — superseded by a newer run under cancel-in-progress);
+                      keep waiting.
+      ``"missing"`` — nothing is running, yet ≥1 required check has NO run at all on the
+                      head SHA; ``names`` = those checks. The push almost certainly did
+                      not trigger CI — actionable: re-trigger with a fresh head SHA.
+      ``"green"``   — every required check succeeded (or was neutral / skipped).
+
+    Priority is failing > pending > missing > green: an absent check is only actionable
+    once nothing is still running, since a freshly-pushed head registers its runs over a
+    few seconds, during which the required checks are transiently absent.
     """
     by_name = {r.name: r for r in runs}
     failing: List[str] = []
-    pending = False
+    missing: List[str] = []
+    in_progress = False
 
     for name in required:
         r = by_name.get(name)
         if r is None:
-            pending = True
+            missing.append(name)
             continue
         conclusion = (r.conclusion or "").upper()
-        status = (r.status or "").upper()
         if conclusion in (
             "FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED", "ERROR", "STALE"
         ):
             failing.append(name)
         elif conclusion == "CANCELLED":
-            pending = True
+            in_progress = True
         elif conclusion in ("SUCCESS", "NEUTRAL", "SKIPPED"):
             continue
         else:
             # Not concluded yet (QUEUED / IN_PROGRESS / empty).
-            pending = True
+            in_progress = True
 
     if failing:
         return "failing", failing
-    if pending:
+    if in_progress:
         return "pending", []
+    if missing:
+        return "missing", missing
     return "green", []
 
 
@@ -81,21 +94,32 @@ def wait_for_required_checks(
     timeout_min: int = 45,
     interval_sec: int = 30,
     is_ux_work: bool = False,
+    missing_grace_sec: int = 120,
 ) -> Tuple[str, List[str]]:
-    """Poll required checks until green/failing or timeout.
+    """Poll required checks until green / failing / missing or timeout.
 
-    Returns ('green'|'failing'|'timeout', failing_names).
+    Returns ``(result, names)`` where ``result`` is
+    ``'green' | 'failing' | 'missing' | 'timeout'``. ``'missing'`` is returned only
+    once the required checks have stayed absent with nothing running for
+    ``missing_grace_sec`` — CI registers its runs within seconds of a push, so
+    sustained silence means the push never triggered it. The caller then re-triggers
+    CI (a fresh head SHA) rather than burning the full timeout waiting for runs that
+    will never appear.
     """
     required = required_checks(is_ux_work)
-    deadline = time.time() + timeout_min * 60
+    start = time.time()
+    deadline = start + timeout_min * 60
     while time.time() < deadline:
         runs = get_required_check_runs(pr_number, required)
-        state, failing = evaluate_checks(runs, required)
-        logger.info(f"Checks state={state} failing={failing}")
+        state, names = evaluate_checks(runs, required)
+        logger.info(f"Checks state={state} names={names}")
         if state == "green":
             return "green", []
         if state == "failing":
-            return "failing", failing
+            return "failing", names
+        if state == "missing" and (time.time() - start) >= missing_grace_sec:
+            logger.warning(f"Required checks never started on the head commit: {names}")
+            return "missing", names
         time.sleep(interval_sec)
     logger.warning("Timed out waiting for required checks")
     return "timeout", []

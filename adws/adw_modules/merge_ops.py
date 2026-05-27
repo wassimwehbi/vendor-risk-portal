@@ -59,20 +59,42 @@ def sync_pr_branch(
             issue_number, adw_id, AGENT_MERGER,
             f"🔀 {len(conflicts)} merge conflict(s) with main; auto-resolving: {', '.join(conflicts)}",
         )
-        response = execute_template(
-            AgentTemplateRequest(
-                agent_name=AGENT_MERGER,
-                slash_command="/resolve_conflicts",
-                args=[adw_id, ",".join(conflicts)],
-                adw_id=adw_id,
-                working_dir=working_dir,
+
+        # Binary conflicts (e.g. e2e screenshot baselines) carry no textual conflict
+        # markers and can't be merged by the /resolve_conflicts agent. Resolve them in
+        # favor of main — the integration source of truth (spec 0012 baselines are
+        # Linux-CI-generated); the re-run `ux` check re-validates, so a wrong pick on a
+        # genuine UI change goes red and self-corrects to a human.
+        binary = [f for f in conflicts if git_ops.is_binary_path(f, cwd=working_dir)]
+        text = [f for f in conflicts if f not in binary]
+
+        if binary:
+            ok, err = git_ops.resolve_take_theirs(binary, cwd=working_dir)
+            if not ok:
+                git_ops.abort_merge(cwd=working_dir)
+                logger.error("Taking main's side for binary conflicts failed: %s", err)
+                return "unresolvable"
+            post(
+                issue_number, adw_id, AGENT_MERGER,
+                f"🖼️ {len(binary)} binary conflict(s) resolved in favor of main: {', '.join(binary)}",
             )
-        )
-        # Verify the agent actually removed every marker before completing the merge.
-        if not response.success or git_ops.has_conflict_markers(conflicts, cwd=working_dir):
-            git_ops.abort_merge(cwd=working_dir)
-            post(issue_number, adw_id, AGENT_MERGER, "❌ Could not auto-resolve conflicts; merge aborted")
-            return "unresolvable"
+
+        if text:
+            response = execute_template(
+                AgentTemplateRequest(
+                    agent_name=AGENT_MERGER,
+                    slash_command="/resolve_conflicts",
+                    args=[adw_id, ",".join(text)],
+                    adw_id=adw_id,
+                    working_dir=working_dir,
+                )
+            )
+            # Verify the agent actually removed every marker before completing the merge.
+            if not response.success or git_ops.has_conflict_markers(text, cwd=working_dir):
+                git_ops.abort_merge(cwd=working_dir)
+                post(issue_number, adw_id, AGENT_MERGER, "❌ Could not auto-resolve conflicts; merge aborted")
+                return "unresolvable"
+
         ok, err = git_ops.complete_merge(cwd=working_dir)
         if not ok:
             git_ops.abort_merge(cwd=working_dir)
