@@ -1,0 +1,212 @@
+/* ============================================================
+   Vendor Risk Portal — Foundational tokens
+   Calm, restrained enterprise GRC tooling.
+   Neutral slate UI with a single muted "steel" brand accent.
+   ============================================================ */
+
+@import url("./fonts.css");
+
+:root {
+  /* --------- Brand: muted steel-blue accent (mirrors tailwind.config.js) --------- */
+  --brand-50:  #f4f6f9;
+  --brand-100: #e6eaf0;
+  --brand-200: #ccd4e0;
+  --brand-500: #5d6a82;
+  --brand-600: #44546a;   /* primary action */
+  --brand-700: #374459;   /* primary hover */
+  --brand-900: #1f2733;
+
+  /* --------- Neutrals: Tailwind slate (the foundation) --------- */
+  --slate-50:  #f8fafc;   /* page bg */
+  --slate-100: #f1f5f9;   /* hover surfaces */
+  --slate-200: #e2e8f0;   /* borders */
+  --slate-300: #cbd5e1;   /* input borders */
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;   /* muted text */
+  --slate-600: #475569;
+  --slate-700: #334155;   /* labels */
+  --slate-800: #1e293b;   /* body text + logo bg */
+  --slate-900: #0f172a;   /* page titles */
+
+  /* --------- Semantic risk levels (soft-tinted pills) --------- */
+  /* Low */
+  --emerald-50:  #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-200: #a7f3d0;
+  --emerald-700: #047857;
+
+  /* Medium / Submitter */
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-300: #fcd34d;
+  --amber-700: #b45309;
+  --amber-800: #92400e;
+  --amber-900: #78350f;
+
+  /* High */
+  --orange-50:  #fff7ed;
+  --orange-200: #fed7aa;
+  --orange-700: #c2410c;
+
+  /* Critical / Expired / Errors */
+  --red-50:  #fef2f2;
+  --red-300: #fca5a5;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+  --red-800: #991b1b;
+
+  /* Analyst role */
+  --green-100: #dcfce7;
+  --green-700: #15803d;
+
+  /* --------- Foreground / background semantic aliases --------- */
+  --bg-page:        var(--slate-50);
+  --bg-surface:     #ffffff;
+  --bg-surface-2:   var(--slate-50);
+  --bg-hover:       var(--slate-100);
+
+  --fg-strong:      var(--slate-900);   /* H1 / titles */
+  --fg-body:        var(--slate-800);   /* body */
+  --fg-label:       var(--slate-700);   /* form labels */
+  --fg-muted:       var(--slate-500);   /* subtitles, captions */
+  --fg-faint:       var(--slate-400);
+
+  --border:         var(--slate-200);
+  --border-strong:  var(--slate-300);
+
+  --link:           var(--brand-700);
+  --focus-ring:     rgb(68 84 106 / 0.30);   /* brand-600 / 30 */
+  --focus-input:    rgb(68 84 106 / 0.25);   /* brand-600 / 25 */
+
+  /* --------- Type --------- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Scale (Tailwind text-*) */
+  --text-xs:   0.75rem;   /* 12px — chips, pill labels */
+  --text-sm:   0.875rem;  /* 14px — body + most controls */
+  --text-base: 1rem;      /* 16px */
+  --text-lg:   1.125rem;  /* 18px — login heading */
+  --text-xl:   1.25rem;   /* 20px — page titles */
+  --text-2xl:  1.5rem;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+
+  --leading-tight: 1.25;
+  --leading-snug:  1.375;
+  --leading-normal:1.5;
+
+  --tracking-tight: -0.01em;
+  --tracking-wide:  0.05em;     /* uppercase mini-labels */
+
+  /* --------- Shape & elevation --------- */
+  --radius-sm: 0.25rem;   /* 4px — logo monogram corners */
+  --radius-md: 0.375rem; /* 6px — default radius */
+  --radius-lg: 0.5rem;   /* 8px — large logo / cards in login */
+  --radius-full: 9999px;  /* pills / avatars */
+
+  /* The one soft shadow — borders do most of the separation work. */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-tooltip: 0 4px 12px rgba(15, 23, 42, 0.12);
+
+  /* --------- Spacing primitives (Tailwind scale) --------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* --------- Layout --------- */
+  --container-max: 80rem;     /* max-w-7xl */
+  --gutter:        1rem;       /* px-4 */
+  --header-h:      3.25rem;    /* sticky top bar */
+  --touch-target:  2.5rem;     /* min phone hit area (40px) */
+  --control-h:     2rem;       /* dense desktop button (~32px) */
+}
+
+/* ============================================================
+   Semantic element styles — use these directly in mocks.
+   ============================================================ */
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--fg-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  margin: 0;
+}
+
+/* Headings ---------------------------------------------------- */
+h1, .h1 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-strong);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  margin: 0;
+}
+
+h2, .h2 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-strong);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+h3, .h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--slate-800);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* Body + small ------------------------------------------------ */
+p, .body {
+  font-size: var(--text-sm);
+  color: var(--fg-body);
+  margin: 0;
+}
+
+.label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--fg-label);
+  margin-bottom: var(--space-1);
+}
+
+.caption {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}

@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Inter — self-hosted from /public/fonts so the brand face renders consistently
+   regardless of whether the viewer's OS has Inter installed. Static weights are
+   listed first for crispest rendering at canonical weights; the variable font
+   fills the rest of the range. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Inter-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Inter-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Inter-Variable.woff2') format('woff2');
+}
+
 @layer base {
   html {
     font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
