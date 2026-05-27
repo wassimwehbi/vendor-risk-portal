@@ -5,8 +5,8 @@
 - **Location:** `adws/**` (new), `.claude/commands/**` (new), `.claude/hooks/**` (new),
   `.github/workflows/adw-zte.yml` (new), `specs/adw/` (new dir), `playwright.config.ts`
   (env-aware ports), `.gitignore`, `CLAUDE.md`
-- **Related docs:** `README.md`, `specs/0006-ci-cd-pipeline.md`,
-  `specs/0007-r2-usage-monitor.md`
+- **Related docs:** `README.md`, `adws/README.md` (operator-facing map of this
+  layer), `specs/0006-ci-cd-pipeline.md`, `specs/0007-r2-usage-monitor.md`
 
 ## 1. Problem / Objective
 
@@ -137,3 +137,6 @@ observed green, the Copilot loop running, and that it **stops before merge** (dr
 - CI-failure auto-fix covers `quality`/`e2e`; `docker`/CodeQL failures abort to a human.
 - Big single PR (per request); the layer is self-contained under `adws/` + `.claude/` and
   invisible to the existing CI gate (Biome excludes `adws/` and Markdown).
+- Discoverability follow-up: `adws/README.md` was added as an in-directory operator
+  map (phase scripts, ship loop, triggers, layout, kill-switches) so contributors
+  landing in `adws/` are pointed here without having to find this spec first.
