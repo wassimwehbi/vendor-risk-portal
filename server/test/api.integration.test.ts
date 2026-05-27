@@ -124,6 +124,97 @@ test('DELETE /assessments/:id: 404 for non-existent id', async () => {
   assert.equal(res.status, 404);
 });
 
+test('GET /api/assessments/:id/export.json: valid JSON with correct shape', async () => {
+  const { agent, csrf } = await login({ email: 'grc-export@acme.test', role: 'Analyst', tenant: 'GRC Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201, `scenario load failed: ${JSON.stringify(loaded.body)}`);
+  const id = loaded.body.data.id as number;
+
+  const analyzed = await agent.post(`/api/assessments/${id}/analyze`).set('x-csrf-token', csrf);
+  assert.equal(analyzed.status, 200, `analyze failed: ${JSON.stringify(analyzed.body)}`);
+
+  const res = await agent.get(`/api/assessments/${id}/export.json`);
+  assert.equal(res.status, 200);
+  assert.ok(res.headers['content-type'].includes('application/json'), 'content-type must be application/json');
+
+  const body = JSON.parse(res.text as string);
+  for (const key of [
+    'schema_version',
+    'disclaimer',
+    'vendor',
+    'assessment',
+    'summary',
+    'controls',
+    'follow_up_questions',
+  ]) {
+    assert.ok(key in body, `missing top-level key: ${key}`);
+  }
+  assert.equal(body.summary.control_count, body.controls.length, 'control_count must equal controls.length');
+  assert.ok(Array.isArray(body.controls), 'controls must be an array');
+  if (body.controls.length > 0) {
+    const ctrl = body.controls[0];
+    assert.ok('question_id' in ctrl, 'control missing question_id');
+    assert.ok('control_domain' in ctrl, 'control missing control_domain');
+    assert.ok('risk_level' in ctrl, 'control missing risk_level');
+    assert.ok(Array.isArray(ctrl.framework_mappings), 'framework_mappings must be an array');
+  }
+  assert.equal(body.schema_version, '1.0');
+  assert.ok(typeof body.disclaimer === 'string' && body.disclaimer.length > 0);
+});
+
+test('GET /api/assessments/:id/export.json: analyst overrides are reflected via effectiveFinding', async () => {
+  const { agent, csrf } = await login({ email: 'grc-override@acme.test', role: 'Analyst', tenant: 'Override Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201, `scenario load failed: ${JSON.stringify(loaded.body)}`);
+  const id = loaded.body.data.id as number;
+
+  const analyzed = await agent.post(`/api/assessments/${id}/analyze`).set('x-csrf-token', csrf);
+  assert.equal(analyzed.status, 200, `analyze failed: ${JSON.stringify(analyzed.body)}`);
+  const findings = analyzed.body.data.findings as Array<{ id: number; risk_level: string }>;
+  assert.ok(findings.length > 0, 'need at least one finding to override');
+
+  const target = findings[0];
+  const overriddenRisk = target.risk_level === 'Critical' ? 'Low' : 'Critical';
+  const overrideFuq = 'Analyst override follow-up question';
+
+  const patched = await agent
+    .patch(`/api/findings/${target.id}`)
+    .set('x-csrf-token', csrf)
+    .send({ risk_level: overriddenRisk, follow_up_questions: [overrideFuq], analyst_status: 'overridden' });
+  assert.equal(patched.status, 200, `PATCH finding failed: ${JSON.stringify(patched.body)}`);
+
+  const res = await agent.get(`/api/assessments/${id}/export.json`);
+  assert.equal(res.status, 200);
+  const body = JSON.parse(res.text as string);
+
+  const overriddenControl = body.controls.find((c: { follow_up_questions: string[] }) =>
+    c.follow_up_questions.includes(overrideFuq),
+  );
+  assert.ok(overriddenControl, 'export must contain the control with the overridden follow-up question');
+  assert.equal(overriddenControl.risk_level, overriddenRisk, 'export control must use analyst-overridden risk_level');
+
+  assert.ok(
+    (body.follow_up_questions as string[]).includes(overrideFuq),
+    'top-level follow_up_questions must include the analyst-overridden question',
+  );
+
+  const dist: Record<string, number> = body.summary.risk_distribution;
+  assert.ok((dist[overriddenRisk] ?? 0) >= 1, `risk_distribution must count at least one ${overriddenRisk}`);
+});
+
+test('GET /api/assessments/:id/export.json: 404 for nonexistent assessment', async () => {
+  const { agent } = await login({ email: 'grc-404@acme.test', role: 'Analyst', tenant: 'Acme' });
+  const res = await agent.get('/api/assessments/999999/export.json');
+  assert.equal(res.status, 404);
+});
+
+test('GET /api/assessments/:id/export.json: unauthenticated request returns 401', async () => {
+  const res = await request(app).get('/api/assessments/1/export.json');
+  assert.equal(res.status, 401);
+});
+
 test('tenant isolation: one tenant cannot read another tenant’s assessment', async () => {
   const a = await login({ email: 'analyst@tenant-a.test', role: 'Analyst', tenant: 'Tenant A' });
   const b = await login({ email: 'analyst@tenant-b.test', role: 'Analyst', tenant: 'Tenant B' });
