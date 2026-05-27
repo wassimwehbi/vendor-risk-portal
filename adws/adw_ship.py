@@ -39,7 +39,6 @@ from adw_modules.github import (
     get_repo_url,
     extract_repo_path,
     get_pr_head_sha,
-    update_pr_branch,
     request_copilot_review,
     fetch_copilot_comments,
     add_pr_label,
@@ -48,6 +47,7 @@ from adw_modules.workflow_ops import create_commit
 from adw_modules.utils import setup_logger, check_env_vars
 from adw_modules.phase import load_state_or_exit, working_dir_for, post
 from adw_modules.ship_ops import wait_for_required_checks
+from adw_modules import merge_ops
 from adw_modules import ux_detection
 from adw_modules.test_ops import run_tests_with_resolution, run_e2e_tests_with_resolution
 from adw_modules import copilot_ops
@@ -163,12 +163,24 @@ def main():
             logger.info("PR already merged; nothing to do")
             post(issue_number, adw_id, AGENT_SHIPPER, "✅ PR already merged")
             return
-        if pr_state.get("mergeable") == "CONFLICTING":
-            abort_to_human(pr_number, issue_number, adw_id, logger, "PR has merge conflicts")
-        if pr_state.get("mergeStateStatus") == "BEHIND":
-            logger.info("Branch behind base; updating")
-            update_pr_branch(pr_number)
-            # Updating creates a new head commit → CI re-runs; re-evaluate next loop.
+        # Bring the branch current with main (spec 0013): handles behind-clean, true
+        # conflicts (auto-resolved via /resolve_conflicts), and branches missing a
+        # newly-required check. The push creates a fresh head SHA, so all PR workflows
+        # re-run and we re-gate on the full required-check suite below.
+        mergeable = pr_state.get("mergeable")
+        merge_status = pr_state.get("mergeStateStatus")
+        if mergeable == "CONFLICTING" or merge_status in ("BEHIND", "DIRTY"):
+            logger.info(f"Branch not current with main (mergeable={mergeable}, status={merge_status}); syncing")
+            outcome = merge_ops.sync_pr_branch(adw_id, issue_number, branch_name, working_dir, logger)
+            if outcome in ("unresolvable", "error"):
+                abort_to_human(
+                    pr_number, issue_number, adw_id, logger,
+                    f"could not bring branch current with main ({outcome})",
+                )
+            if outcome == "synced":
+                post(issue_number, adw_id, AGENT_SHIPPER, "🔀 Synced branch with main; re-running checks")
+                continue  # new head SHA → CI (incl. any newly-required check) re-runs
+            # outcome == "current" → already up to date; fall through to checks.
 
         # 1) Wait for required checks.
         result, failing = wait_for_required_checks(pr_number, logger, timeout_min=checks_timeout, is_ux_work=is_ux_work)
