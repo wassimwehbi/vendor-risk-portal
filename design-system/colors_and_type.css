@@ -4,7 +4,8 @@
    Neutral slate UI with a single muted "steel" brand accent.
    ============================================================ */
 
-@import url("./fonts.css");
+/* This is a reference token sheet, not wired into the build. Inter is self-hosted
+   in the app via @font-face in client/src/index.css (files in client/public/fonts/). */
 
 :root {
   /* --------- Brand: muted steel-blue accent (mirrors tailwind.config.js) --------- */

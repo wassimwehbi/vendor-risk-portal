@@ -5,9 +5,21 @@ privacy analysts review vendor SIG questionnaires against **ISO 27001 / ISO 2700
 NIST** (with HIPAA flags when PHI is processed). A human analyst always makes the final risk
 decision — the AI only assists.
 
-This folder is the **source of truth** for the product's visual language: tokens, components, voice,
-and a click-through UI kit. Treat it as a kit-of-parts for any new screen, mock, deck or
-prototype that needs to look like Vendor Risk Portal.
+This document is the **source of truth** for the product's visual language: tokens, components,
+voice, and the design rules every new screen must follow.
+
+> **What's committed in this repo.** Only this guide (`DESIGN_SYSTEM.md`) and the token
+> reference (`colors_and_type.css`) are committed under `design-system/`. The original Claude
+> Design bundle also shipped a cosmetic prototype kit — `preview/`, `ui_kits/`, `assets/`,
+> `fonts.css`, and the `*.jsx` mock components referenced throughout this doc — which is **not**
+> committed here, because the live codebase is the authoritative implementation. Where this doc
+> points at those bundle paths, read them as descriptions of the source kit and use the live
+> files instead:
+> - **Tokens / theme:** `client/tailwind.config.js`
+> - **Component recipes:** `client/src/index.css` (`.card`, `.btn-*`, `.input`, `.label`)
+> - **Brand mark:** `client/src/components/BrandMark.tsx`
+> - **Self-hosted Inter:** `client/public/fonts/` + `@font-face` in `client/src/index.css`
+> - **Agent Skill:** `.claude/skills/design-system/SKILL.md`
 
 ## Source material this was built from
 
@@ -20,70 +32,22 @@ If you want to do design work on this product, **clone or open that repo alongsi
 
 ## Index
 
+What's committed under `design-system/`:
+
 ```
-.
-├── README.md                  ← you are here
-├── SKILL.md                   ← Agent Skills entry point
-├── colors_and_type.css        ← CSS variables for the entire system
-├── fonts.css                  ← @font-face for self-hosted Inter
-├── fonts/                     ← Inter-Regular / Medium / SemiBold / Bold / Variable (.woff2)
-├── assets/                    ← Logo + icon SVGs lifted from the codebase
-│   ├── logo-vr.svg
-│   ├── icon-google.svg
-│   ├── icon-microsoft.svg
-│   ├── icon-menu.svg
-│   └── README.md
-├── preview/                   ← Design-system review cards (one HTML per token cluster)
-│   ├── _card.css
-│   ├── colors-brand.html
-│   ├── colors-neutrals.html
-│   ├── colors-risk.html
-│   ├── colors-evidence.html
-│   ├── colors-status.html
-│   ├── colors-roles.html
-│   ├── type-family.html
-│   ├── type-scale.html
-│   ├── type-context.html
-│   ├── spacing-radii.html
-│   ├── spacing-elevation.html
-│   ├── spacing-tokens.html
-│   ├── spacing-shell.html
-│   ├── comp-buttons.html
-│   ├── comp-inputs.html
-│   ├── comp-card.html
-│   ├── comp-risk-badge.html
-│   ├── comp-chips.html
-│   ├── comp-ai-attribution.html
-│   ├── comp-banners.html
-│   ├── comp-feedback.html
-│   ├── comp-table.html
-│   ├── brand-logo.html
-│   ├── brand-voice.html
-│   ├── brand-iconography.html
-│   └── brand-compliance.html
-└── ui_kits/
-    └── vendor-risk-portal/    ← Click-through UI recreation
-        ├── README.md
-        ├── index.html         ← Full prototype
-        ├── login.html
-        ├── dashboard.html
-        ├── review.html
-        ├── new-assessment.html
-        ├── audit.html
-        ├── admin.html
-        ├── report.html
-        ├── styles.css
-        ├── Icon.jsx           ← Lucide icon component + 22-icon set
-        ├── Atoms.jsx          ← RiskBadge, StatusChip, AIChip, FieldAttribution, …
-        ├── AppShell.jsx
-        ├── LoginScreen.jsx
-        ├── Dashboard.jsx
-        ├── ReviewWorkspace.jsx
-        ├── NewAssessment.jsx
-        ├── AuditTrail.jsx
-        ├── Admin.jsx
-        ├── ReportView.jsx
-        └── data.jsx
+design-system/
+├── DESIGN_SYSTEM.md      ← this guide (the visual-language source of truth)
+└── colors_and_type.css   ← token reference (values mirror client/tailwind.config.js)
+```
+
+The live implementation these describe lives in the app:
+
+```
+client/tailwind.config.js              ← brand scale, Inter, shadow-card
+client/src/index.css                   ← @font-face + .card / .btn-* / .input / .label
+client/src/components/BrandMark.tsx     ← shield + check logo
+client/public/fonts/Inter-*.woff2       ← self-hosted Inter (5 files)
+.claude/skills/design-system/SKILL.md   ← Agent Skill (auto-loads for UI work)
 ```
 
 ---
@@ -295,16 +259,18 @@ The product's most important promise — *"a human analyst always makes the fina
 
 ---
 
-## SKILL.md
+## Agent Skill
 
-There is a sibling `SKILL.md` next to this README that adapts this folder for use as an Agent Skill (e.g. when downloaded into a Claude Code project). It just tells the agent to read this README first and use the assets / kit components when building.
+This design system is installed as a Claude Code Agent Skill at
+`.claude/skills/design-system/SKILL.md`. It auto-loads for any UI work and tells the agent to
+read this guide first and build from the live tokens/components listed in the note at the top.
 
 ---
 
 ## Caveats
 
-- **Logo:** the product has no image-format logo. The VR monogram is CSS-rendered in `Layout.tsx`/`Login.tsx`. `assets/logo-vr.svg` is a small SVG recreation; the CSS recipe is the canonical version.
+- **Logo:** the brand mark is the shield + checkmark SVG in `client/src/components/BrandMark.tsx` (it replaced the former CSS-rendered "VR" text monogram). It's an inline SVG — there is no image-format logo file.
 - **Icons:** the design system has now committed to **Lucide v0**. The live codebase has not yet adopted it — when contributing back to `wassimwehbi/vendor-risk-portal`, propose Lucide adoption and reuse `Icon.jsx` from this kit as the starting point.
 - **Steel accent:** mirrors `client/tailwind.config.js` exactly — `brand-600 #44546a`, hover `#374459`. An exploratory cooler/deeper variant (`#3d4c63`) was tried during iteration and then rolled back; the system stays on the canonical codebase values.
-- **Fonts:** Inter is self-hosted from `/fonts/Inter-{Regular,Medium,SemiBold,Bold,Variable}.woff2` — the user uploaded these and they're wired in via `fonts.css`.
+- **Fonts:** Inter is self-hosted from `client/public/fonts/Inter-{Regular,Medium,SemiBold,Bold,Variable}.woff2`, wired in via `@font-face` in `client/src/index.css`.
 - The UI kit is **cosmetic** — there's no real router, real API, or production-grade behavior. Lift components for mocks; for production-quality copies, port directly from `client/src/components/*`.
