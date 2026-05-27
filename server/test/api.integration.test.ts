@@ -163,6 +163,47 @@ test('GET /api/assessments/:id/export.json: valid JSON with correct shape', asyn
   assert.ok(typeof body.disclaimer === 'string' && body.disclaimer.length > 0);
 });
 
+test('GET /api/assessments/:id/export.json: analyst overrides are reflected via effectiveFinding', async () => {
+  const { agent, csrf } = await login({ email: 'grc-override@acme.test', role: 'Analyst', tenant: 'Override Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201, `scenario load failed: ${JSON.stringify(loaded.body)}`);
+  const id = loaded.body.data.id as number;
+
+  const analyzed = await agent.post(`/api/assessments/${id}/analyze`).set('x-csrf-token', csrf);
+  assert.equal(analyzed.status, 200, `analyze failed: ${JSON.stringify(analyzed.body)}`);
+  const findings = analyzed.body.data.findings as Array<{ id: number; risk_level: string }>;
+  assert.ok(findings.length > 0, 'need at least one finding to override');
+
+  const target = findings[0];
+  const overriddenRisk = target.risk_level === 'Critical' ? 'Low' : 'Critical';
+  const overrideFuq = 'Analyst override follow-up question';
+
+  const patched = await agent
+    .patch(`/api/findings/${target.id}`)
+    .set('x-csrf-token', csrf)
+    .send({ risk_level: overriddenRisk, follow_up_questions: [overrideFuq], analyst_status: 'overridden' });
+  assert.equal(patched.status, 200, `PATCH finding failed: ${JSON.stringify(patched.body)}`);
+
+  const res = await agent.get(`/api/assessments/${id}/export.json`);
+  assert.equal(res.status, 200);
+  const body = JSON.parse(res.text as string);
+
+  const overriddenControl = body.controls.find((c: { follow_up_questions: string[] }) =>
+    c.follow_up_questions.includes(overrideFuq),
+  );
+  assert.ok(overriddenControl, 'export must contain the control with the overridden follow-up question');
+  assert.equal(overriddenControl.risk_level, overriddenRisk, 'export control must use analyst-overridden risk_level');
+
+  assert.ok(
+    (body.follow_up_questions as string[]).includes(overrideFuq),
+    'top-level follow_up_questions must include the analyst-overridden question',
+  );
+
+  const dist: Record<string, number> = body.summary.risk_distribution;
+  assert.ok((dist[overriddenRisk] ?? 0) >= 1, `risk_distribution must count at least one ${overriddenRisk}`);
+});
+
 test('GET /api/assessments/:id/export.json: 404 for nonexistent assessment', async () => {
   const { agent } = await login({ email: 'grc-404@acme.test', role: 'Analyst', tenant: 'Acme' });
   const res = await agent.get('/api/assessments/999999/export.json');

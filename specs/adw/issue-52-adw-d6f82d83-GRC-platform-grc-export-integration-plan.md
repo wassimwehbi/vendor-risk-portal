@@ -2,7 +2,7 @@
 
 - **Status:** Draft
 - **Branch:** d6f82d83-issue-52-adw-GRC-platform-grc-export-integration
-- **Location:** `server/src/services/exporter.ts`, `server/src/routes/reports.ts`, `client/src/api/client.ts`, `client/src/pages/ReportView.tsx`, `server/test/api.integration.test.ts`, `.claude/commands/e2e/test_grc_export.md`
+- **Location:** `server/src/services/exporter.ts`, `server/src/routes/reports.ts`, `client/src/api/client.ts`, `client/src/pages/ReportView.tsx`, `server/test/api.integration.test.ts`, `.claude/commands/e2e/test_grc_export.md`, `API_CONTRACT.md`
 - **Related docs:** `specs/0001-vendor-risk-questionnaire-portal.md`, `API_CONTRACT.md`, `specs/0012-ux-tasks-harness.md`
 
 ## Problem / Objective
@@ -34,6 +34,7 @@ No new npm dependencies are required. `JSON.stringify` is sufficient.
 ### New Files
 
 - `.claude/commands/e2e/test_grc_export.md` — E2E test definition for the GRC JSON export button
+- `API_CONTRACT.md` — add `GET /assessments/:id/export.json` row so the public API contract stays current
 
 ### Implementation Plan
 
