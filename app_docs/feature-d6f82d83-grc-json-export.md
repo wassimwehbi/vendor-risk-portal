@@ -60,7 +60,7 @@ The downloaded JSON follows this top-level schema:
 
 ## Configuration
 
-No configuration required. The endpoint is authenticated (session cookie + CSRF token) and scoped to the requesting user's tenant. No new npm dependencies were added.
+No configuration required. The endpoint is authenticated (session cookie only — CSRF token is not required for GET requests; CSRF remains enforced for all state-changing methods) and scoped to the requesting user's tenant. No new npm dependencies were added.
 
 ## Testing
 
