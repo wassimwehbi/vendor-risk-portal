@@ -13,6 +13,11 @@ analyst, never automatically by the AI.
   and **`README.md`**. Read the relevant spec before changing an area.
 - Frontend design language: slate / `brand` palette, Inter, shared `card` / `btn-*` /
   `input` / `label` utilities in `client/src/index.css`. Mobile-first Tailwind.
+- **Design system:** the full visual language (tokens, component recipes, the
+  AI-attribution provenance pattern, iconography, voice/copy) lives in
+  **`design-system/DESIGN_SYSTEM.md`** and is the source of truth for all UI work. The
+  `design-system` Agent Skill (`.claude/skills/design-system/`) loads it automatically —
+  **read it before building or restyling any client UI.** See `specs/0014-design-system.md`.
 
 ## Pull requests — a spec is required
 

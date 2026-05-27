@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { api } from '../api/client';
 import type { Tenant } from '../types';
+import { BrandMark } from './BrandMark';
 
 const navLinkClass =
   (variant: 'bar' | 'panel') =>
@@ -237,12 +238,7 @@ export function Layout() {
           <div className="flex items-center justify-between gap-4 py-2.5">
             <div className="flex min-w-0 items-center gap-6">
               <NavLink to="/" className="flex items-center gap-2.5">
-                <span
-                  aria-hidden="true"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded bg-slate-800 text-[11px] font-bold tracking-tight text-white"
-                >
-                  VR
-                </span>
+                <BrandMark size={28} className="shrink-0" />
                 <span className="truncate text-sm font-semibold tracking-tight text-slate-800">Vendor Risk Portal</span>
               </NavLink>
               <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
