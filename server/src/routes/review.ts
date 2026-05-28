@@ -39,6 +39,8 @@ const assessmentSchema = z.object({
   overall_risk: riskEnum.optional(),
   analyst_notes: z.string().optional(),
   validation_status: z.enum(['pending', 'approved']).optional(),
+  internet_facing: z.boolean().optional(),
+  personal_data_volume: z.enum(['low', 'medium', 'high']).nullish(),
 });
 
 router.patch('/assessments/:id', requireTenantRole('Analyst'), (req, res) => {

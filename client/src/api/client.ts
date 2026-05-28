@@ -9,6 +9,7 @@ import type {
   Finding,
   Invite,
   MembershipRole,
+  PersonalDataVolume,
   ReportData,
   RiskLevel,
   ScenarioSummary,
@@ -137,8 +138,13 @@ export const api = {
   loadScenario: (key: string) => post<Assessment>(`/demo/scenarios/${key}/load`),
 
   listAssessments: () => get<Assessment[]>('/assessments'),
-  createAssessment: (input: { vendor_name: string; questionnaire_type: string; date_submitted: string }) =>
-    post<Assessment>('/assessments', input),
+  createAssessment: (input: {
+    vendor_name: string;
+    questionnaire_type: string;
+    date_submitted: string;
+    internet_facing?: boolean;
+    personal_data_volume?: PersonalDataVolume;
+  }) => post<Assessment>('/assessments', input),
   getAssessment: (id: number) => get<AssessmentDetail>(`/assessments/${id}`),
   deleteAssessment: (id: number) => del<{ deleted: boolean }>(`/assessments/${id}`),
 
@@ -189,7 +195,13 @@ export const api = {
 
   patchAssessment: (
     id: number,
-    body: { overall_risk?: RiskLevel; analyst_notes?: string; validation_status?: 'pending' | 'approved' },
+    body: {
+      overall_risk?: RiskLevel;
+      analyst_notes?: string;
+      validation_status?: 'pending' | 'approved';
+      internet_facing?: boolean;
+      personal_data_volume?: PersonalDataVolume | null;
+    },
   ) => patch<Assessment>(`/assessments/${id}`, body),
 
   getReport: (id: number) => get<ReportData>(`/assessments/${id}/report`),

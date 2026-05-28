@@ -1,4 +1,11 @@
-import type { Completeness, ControlStrength, DataCategory, EvidenceSufficiency, RiskLevel } from '../types';
+import type {
+  Completeness,
+  ControlStrength,
+  DataCategory,
+  EvidenceSufficiency,
+  PersonalDataVolume,
+  RiskLevel,
+} from '../types';
 
 /**
  * Preliminary risk scoring (weighted-factor model, per spec section 5).
@@ -11,6 +18,8 @@ import type { Completeness, ControlStrength, DataCategory, EvidenceSufficiency, 
  *     business continuity / DR) when the control is None or Weak: +2
  *   - Data sensitivity:   PHI / sensitive / financial / children +2;
  *                         personal / cross-border +1; otherwise 0
+ *   - Internet-facing system:  true +2; false 0
+ *   - Personal data volume:   high +3; medium +1; low/null 0
  *
  * Thresholds -> Low (<3), Medium (3-4), High (5-7), Critical (>=8).
  *
@@ -59,12 +68,24 @@ function dataSensitivityPoints(categories: DataCategory[]): number {
   return 0;
 }
 
+function internetFacingPoints(internet_facing?: boolean): number {
+  return internet_facing ? 2 : 0;
+}
+
+function personalDataVolumePoints(volume?: PersonalDataVolume | null): number {
+  if (volume === 'high') return 3;
+  if (volume === 'medium') return 1;
+  return 0;
+}
+
 export interface ScoreInput {
   control_strength: ControlStrength;
   evidence_sufficiency: EvidenceSufficiency;
   completeness: Completeness;
   data_categories: DataCategory[];
   control_domain: string;
+  internet_facing?: boolean;
+  personal_data_volume?: PersonalDataVolume | null;
 }
 
 export function scoreItemPoints(input: ScoreInput): number {
@@ -79,6 +100,8 @@ export function scoreItemPoints(input: ScoreInput): number {
     points += 2;
   }
   points += dataSensitivityPoints(input.data_categories);
+  points += internetFacingPoints(input.internet_facing);
+  points += personalDataVolumePoints(input.personal_data_volume);
   return points;
 }
 

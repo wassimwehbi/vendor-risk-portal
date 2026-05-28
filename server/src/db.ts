@@ -1,7 +1,15 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import type { Assessment, AuditEntry, EvidenceFile, Finding, QuestionnaireItem, Vendor } from './types';
+import type {
+  Assessment,
+  AuditEntry,
+  EvidenceFile,
+  Finding,
+  PersonalDataVolume,
+  QuestionnaireItem,
+  Vendor,
+} from './types';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // DB lives in the server directory (src/..). Overridable via VRP_DB_PATH (used by tests).
@@ -207,6 +215,9 @@ export function initDb(): void {
   ensureColumn('audit_log', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
   // experiment_events gained exp_key (spec 0015 review): bind conversions to a specific experiment.
   ensureColumn('experiment_events', 'exp_key', 'TEXT');
+  // Risk-scoring factors (issue #47): internet exposure + personal data volume.
+  ensureColumn('assessments', 'internet_facing', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn('assessments', 'personal_data_volume', 'TEXT');
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
@@ -252,6 +263,8 @@ export function mapAssessment(row: any): Assessment {
     date_submitted: row.date_submitted,
     status: row.status,
     data_categories: parseJson(row.data_categories, []),
+    internet_facing: row.internet_facing === 1 || row.internet_facing === true,
+    personal_data_volume: (row.personal_data_volume ?? null) as PersonalDataVolume | null,
     applicable_frameworks: parseJson(row.applicable_frameworks, []),
     overall_risk: row.overall_risk ?? null,
     ai_engine_used: row.ai_engine_used ?? null,

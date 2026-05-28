@@ -1,6 +1,7 @@
 // Client copy of the shared server contract (server/src/types.ts).
 
 export type RiskLevel = 'Low' | 'Medium' | 'High' | 'Critical';
+export type PersonalDataVolume = 'low' | 'medium' | 'high';
 export type ResponseType = 'Yes' | 'No' | 'Partial' | 'N/A' | 'FreeText';
 export type ControlStrength = 'Strong' | 'Medium' | 'Weak' | 'None';
 export type EvidenceSufficiency = 'Sufficient' | 'Insufficient' | 'None' | 'Expired' | 'Misaligned';
@@ -169,6 +170,8 @@ export interface Assessment {
   date_submitted: string;
   status: AssessmentStatus;
   data_categories: DataCategory[];
+  internet_facing: boolean;
+  personal_data_volume: PersonalDataVolume | null;
   applicable_frameworks: string[];
   overall_risk: RiskLevel | null;
   ai_engine_used: AiEngine | null;

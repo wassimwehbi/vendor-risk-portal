@@ -9,6 +9,8 @@ export interface Scenario {
   summary: string;
   data_categories: DataCategory[];
   items: NewQuestionnaireItem[];
+  internet_facing?: boolean;
+  personal_data_volume?: 'low' | 'medium' | 'high';
 }
 
 interface ItemOpts {
@@ -271,6 +273,8 @@ const cloudPay: Scenario = {
   summary:
     'Internet-facing payments platform processing financial and health data with major control gaps and expired evidence.',
   data_categories: ['financial', 'phi', 'cross_border', 'personal'],
+  internet_facing: true,
+  personal_data_volume: 'high',
   items: [
     mk('Q1', 'Do you enforce MFA for privileged users?', 'No.', 'No', {}),
     mk('Q2', 'How is data encrypted?', 'We encrypt data in transit but not at rest.', 'FreeText', {}),

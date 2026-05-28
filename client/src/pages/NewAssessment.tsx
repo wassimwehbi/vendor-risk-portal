@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import type { PersonalDataVolume } from '../types';
 import { ErrorNote, PageHeader } from '../components/ui';
 import { useAuth } from '../lib/AuthContext';
 
@@ -29,6 +30,8 @@ export function NewAssessment() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [questionnaire, setQuestionnaire] = useState<File | null>(null);
   const [evidence, setEvidence] = useState<File[]>([]);
+  const [internetFacing, setInternetFacing] = useState(false);
+  const [dataVolume, setDataVolume] = useState<PersonalDataVolume | ''>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,6 +50,8 @@ export function NewAssessment() {
         vendor_name: vendorName.trim(),
         questionnaire_type: type,
         date_submitted: date,
+        internet_facing: internetFacing || undefined,
+        personal_data_volume: dataVolume || undefined,
       });
       // A/B conversion signal for the `dashboard-cta` experiment (spec 0015). Fire-and-forget.
       api.trackEvent('assessment_created').catch(() => undefined);
@@ -104,6 +109,40 @@ export function NewAssessment() {
             <input id="na-date" type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
         </div>
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-slate-200 px-4 pb-4 pt-3">
+          <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Exposure context (optional)
+          </legend>
+          <label className="flex items-center gap-3">
+            <input
+              id="na-internet-facing"
+              type="checkbox"
+              className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              checked={internetFacing}
+              onChange={(e) => setInternetFacing(e.target.checked)}
+            />
+            <span className="text-sm text-slate-700">
+              Internet-facing system
+              <span className="ml-1 text-slate-400">(vendor's service is accessible from the public internet)</span>
+            </span>
+          </label>
+          <div>
+            <label htmlFor="na-data-volume" className="label">
+              Volume of personal data processed
+            </label>
+            <select
+              id="na-data-volume"
+              className="input"
+              value={dataVolume}
+              onChange={(e) => setDataVolume(e.target.value as PersonalDataVolume | '')}
+            >
+              <option value="">— unknown —</option>
+              <option value="low">Low (&lt; 10 k records)</option>
+              <option value="medium">Medium (10 k – 1 M records)</option>
+              <option value="high">High (&gt; 1 M records)</option>
+            </select>
+          </div>
+        </fieldset>
         <div>
           <label htmlFor="na-questionnaire" className="label">
             SIG questionnaire (.xlsx, .xls, .csv, .docx, .pdf)
