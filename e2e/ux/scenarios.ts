@@ -116,6 +116,17 @@ export const SCENARIOS: UxScenario[] = [
     snapshot: true,
   },
   {
+    id: 'new-assessment-file-formats',
+    title: 'New assessment form — questionnaire label lists .docx and .pdf (#44)',
+    role: 'Analyst',
+    viewports: ALL,
+    steps: [
+      { kind: 'goto', path: '/assessments/new' },
+      { kind: 'expectVisibleText', text: 'SIG questionnaire (.xlsx, .xls, .csv, .docx, .pdf)' },
+    ],
+    invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors', 'focusVisibleRing'],
+  },
+  {
     id: 'review',
     title: 'Review workspace (analyzed assessment)',
     role: 'Analyst',
