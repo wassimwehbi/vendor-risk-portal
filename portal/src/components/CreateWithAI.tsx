@@ -86,6 +86,10 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Picker open/close (combobox-style summary card). Default: closed so the form opens with the
+  // chosen measurement visible as one card, not all six.
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   // ---- Derived data the PM doesn't see (composer inputs) -------------------------------
   const tenants = useMemo(
     () =>
@@ -249,47 +253,60 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
           </h3>
           <p className="section-help">Pick the user action that counts as the goal.</p>
 
-          <div role="radiogroup" aria-labelledby="ai-measure-heading">
-            {orderedActions(instrumentedActions, proposedActions).map((opt) => (
-              <label key={opt.value} className="option-card">
-                <input
-                  type="radio"
-                  className="sr-only"
-                  name="ai-measurement"
-                  value={opt.value}
-                  checked={pickerValue === opt.value}
-                  onChange={() => setPickerValue(opt.value)}
-                />
-                <span className="option-card-body">
-                  <span className="option-card-title">{opt.action.title}</span>
-                  <span className="option-card-desc">{opt.action.description}</span>
-                </span>
-                <span className={`pill ${opt.action.metric?.status === 'instrumented' ? 'pill-running' : 'pill-draft'}`} aria-hidden="true">
-                  {opt.action.metric?.status === 'instrumented' ? 'Live' : 'Not live yet'}
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <div style={{ marginTop: '0.7rem' }}>
-            {pickerValue === PROPOSE_NEW_VALUE ? (
-              <ProposeNewSubForm
-                pages={experimentablePages}
-                pageId={freePageId}
-                setPageId={setFreePageId}
-                title={freeTitle}
-                setTitle={setFreeTitle}
-                description={freeDesc}
-                setDescription={setFreeDesc}
-                duplicate={freeMetricDuplicate}
-                onCancel={() => setPickerValue(instrumentedActions[0]?.value ?? allActions[0]?.value ?? PROPOSE_NEW_VALUE)}
-              />
-            ) : (
-              <button type="button" className="btn-link" onClick={() => setPickerValue(PROPOSE_NEW_VALUE)}>
-                Don't see what you want? Suggest a new measurement →
-              </button>
-            )}
-          </div>
+          {pickerValue === PROPOSE_NEW_VALUE ? (
+            <ProposeNewSubForm
+              pages={experimentablePages}
+              pageId={freePageId}
+              setPageId={setFreePageId}
+              title={freeTitle}
+              setTitle={setFreeTitle}
+              description={freeDesc}
+              setDescription={setFreeDesc}
+              duplicate={freeMetricDuplicate}
+              onCancel={() => {
+                setPickerValue(instrumentedActions[0]?.value ?? allActions[0]?.value ?? PROPOSE_NEW_VALUE);
+                setPickerOpen(true);
+              }}
+            />
+          ) : (
+            <>
+              <details open={pickerOpen} onToggle={(e) => setPickerOpen((e.currentTarget as HTMLDetailsElement).open)}>
+                <summary className="option-card option-card-summary" aria-label="Selected measurement — click to change">
+                  <SelectedSummary selected={allActions.find((a) => a.value === pickerValue) ?? null} />
+                  <span className="option-card-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <div className="option-card-panel" role="radiogroup" aria-labelledby="ai-measure-heading">
+                  {orderedActions(instrumentedActions, proposedActions).map((opt) => (
+                    <label key={opt.value} className="option-card">
+                      <input
+                        type="radio"
+                        className="sr-only"
+                        name="ai-measurement"
+                        value={opt.value}
+                        checked={pickerValue === opt.value}
+                        onChange={() => {
+                          setPickerValue(opt.value);
+                          setPickerOpen(false);
+                        }}
+                      />
+                      <span className="option-card-body">
+                        <span className="option-card-title">{opt.action.title}</span>
+                        <span className="option-card-desc">{opt.action.description}</span>
+                      </span>
+                      <span className={`pill ${opt.action.metric?.status === 'instrumented' ? 'pill-running' : 'pill-draft'}`} aria-hidden="true">
+                        {opt.action.metric?.status === 'instrumented' ? 'Live' : 'Not live yet'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <div style={{ marginTop: '0.7rem' }}>
+                <button type="button" className="btn-link" onClick={() => setPickerValue(PROPOSE_NEW_VALUE)}>
+                  Don't see what you want? Suggest a new measurement →
+                </button>
+              </div>
+            </>
+          )}
         </section>
 
         {/* ─── 4. Audience ─────────────────────────────────────────────────────────── */}
@@ -419,6 +436,31 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
         </button>
       </div>
     </div>
+  );
+}
+
+// ---- Selected-summary card content (rendered inside the picker <summary>) ------------------
+
+function SelectedSummary({ selected }: { selected: ActionRef | null }) {
+  if (!selected) {
+    return (
+      <span className="option-card-body">
+        <span className="option-card-title">Pick a measurement</span>
+        <span className="option-card-desc">Click to see the user actions you can use.</span>
+      </span>
+    );
+  }
+  const isLive = selected.action.metric?.status === 'instrumented';
+  return (
+    <>
+      <span className="option-card-body">
+        <span className="option-card-title">{selected.action.title}</span>
+        <span className="option-card-desc">{selected.action.description}</span>
+      </span>
+      <span className={`pill ${isLive ? 'pill-running' : 'pill-draft'}`} aria-hidden="true">
+        {isLive ? 'Live' : 'Not live yet'}
+      </span>
+    </>
   );
 }
 

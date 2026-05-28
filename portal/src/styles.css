@@ -351,6 +351,30 @@ a {
   line-height: 1.45;
 }
 
+/* Combobox-style summary card. The selected .option-card-summary IS the <summary> of an
+   inline <details>; clicking it opens a panel of choices below, native marker is hidden, and
+   a small ▾ chevron rotates 180° when open. Inherits the .option-card shell for visual
+   consistency with the choices it reveals. */
+.option-card-summary {
+  list-style: none;
+}
+.option-card-summary::-webkit-details-marker { display: none; }
+.option-card-chevron {
+  align-self: center;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+details[open] > .option-card-summary .option-card-chevron {
+  transform: rotate(180deg);
+}
+/* When open, the panel of choices sits flush below the summary with a slight visual gap
+   and a left rail to read as a single grouped picker. */
+.option-card-panel {
+  margin-top: 0.5rem;
+}
+
 /* Vertical-rhythm section block. Each major form section sits in one of these so the
    visible whitespace breathes the way a non-technical PM expects (one task per scroll-glance,
    not one density-row per task). */
