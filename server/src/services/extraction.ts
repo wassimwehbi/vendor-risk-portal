@@ -98,10 +98,10 @@ function parseCellsFromHtml(rowHtml: string): string[] {
   for (const m of rowHtml.matchAll(cellRe)) {
     const text = m[1]
       .replace(/<[^>]+>/g, ' ')
-      .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
       .replace(/\s+/g, ' ')
       .trim();
     cells.push(text);
