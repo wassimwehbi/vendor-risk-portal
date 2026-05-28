@@ -198,6 +198,7 @@ export const api = {
     body: {
       overall_risk?: RiskLevel;
       analyst_notes?: string;
+      business_context?: string;
       validation_status?: 'pending' | 'approved';
       internet_facing?: boolean;
       personal_data_volume?: PersonalDataVolume | null;

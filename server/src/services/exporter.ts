@@ -57,6 +57,7 @@ export function toCsv(report: ReportData): string {
     ['Validation status', report.validation_status],
     ['Validated by', report.validated_by ?? ''],
     ['Analyst notes', report.analyst_notes ?? ''],
+    ['Business context', report.business_context ?? ''],
     ['NOTE', 'AI output is preliminary. Final decision is made by a human analyst.'],
     [],
   ];
@@ -102,6 +103,7 @@ export function toGrcJson(report: ReportData): string {
       applicable_frameworks: report.applicable_frameworks,
       data_categories: report.data_categories,
       analyst_notes: report.analyst_notes,
+      business_context: report.business_context,
       ai_engine: report.ai_engine_used,
       mapping_version: report.mapping_version,
       generated_at: report.generated_at,
@@ -136,6 +138,7 @@ export function toXlsx(report: ReportData): Buffer {
     ['Validated by', report.validated_by ?? ''],
     ['Validated at', report.validated_at ?? ''],
     ['Analyst notes', report.analyst_notes ?? ''],
+    ['Business context', report.business_context ?? ''],
     ['Disclaimer', 'AI output is preliminary. Final vendor-risk decisions are made by a human analyst.'],
   ];
   const summarySheet = XLSX.utils.aoa_to_sheet(summary);

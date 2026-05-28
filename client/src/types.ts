@@ -176,6 +176,7 @@ export interface Assessment {
   overall_risk: RiskLevel | null;
   ai_engine_used: AiEngine | null;
   analyst_notes: string | null;
+  business_context: string | null;
   validation_status: ValidationStatus;
   validated_by: string | null;
   validated_at: string | null;
@@ -223,6 +224,7 @@ export interface ReportData {
   overall_risk: RiskLevel | null;
   follow_ups: string[];
   analyst_notes: string | null;
+  business_context: string | null;
   validation_status: ValidationStatus;
   validated_by: string | null;
   validated_at: string | null;

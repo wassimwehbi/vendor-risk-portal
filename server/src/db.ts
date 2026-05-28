@@ -38,6 +38,7 @@ export function initDb(): void {
       overall_risk TEXT,
       ai_engine_used TEXT,
       analyst_notes TEXT,
+      business_context TEXT,
       validation_status TEXT NOT NULL DEFAULT 'pending',
       validated_by TEXT,
       validated_at TEXT,
@@ -218,6 +219,7 @@ export function initDb(): void {
   // Risk-scoring factors (issue #47): internet exposure + personal data volume.
   ensureColumn('assessments', 'internet_facing', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn('assessments', 'personal_data_volume', 'TEXT');
+  ensureColumn('assessments', 'business_context', 'TEXT');
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
@@ -269,6 +271,7 @@ export function mapAssessment(row: any): Assessment {
     overall_risk: row.overall_risk ?? null,
     ai_engine_used: row.ai_engine_used ?? null,
     analyst_notes: row.analyst_notes ?? null,
+    business_context: row.business_context ?? null,
     validation_status: row.validation_status,
     validated_by: row.validated_by ?? null,
     validated_at: row.validated_at ?? null,

@@ -366,6 +366,7 @@ export function patchFinding(id: number, patch: FindingPatch, scope: AccessScope
 export interface AssessmentPatch {
   overall_risk?: RiskLevel;
   analyst_notes?: string;
+  business_context?: string;
   validation_status?: 'pending' | 'approved';
   internet_facing?: boolean;
   personal_data_volume?: PersonalDataVolume | null;
@@ -388,6 +389,10 @@ export function patchAssessment(id: number, patch: AssessmentPatch, scope: Acces
   if (patch.analyst_notes !== undefined) {
     sets.push('analyst_notes = @analyst_notes');
     params.analyst_notes = patch.analyst_notes;
+  }
+  if (patch.business_context !== undefined) {
+    sets.push('business_context = @business_context');
+    params.business_context = patch.business_context;
   }
   if (patch.validation_status !== undefined) {
     sets.push('validation_status = @validation_status');
@@ -476,6 +481,7 @@ export function buildReport(id: number, scope: AccessScope): ReportData | undefi
     overall_risk: assessment.overall_risk,
     follow_ups: followUpSet,
     analyst_notes: assessment.analyst_notes,
+    business_context: assessment.business_context,
     validation_status: assessment.validation_status,
     validated_by: assessment.validated_by,
     validated_at: assessment.validated_at,

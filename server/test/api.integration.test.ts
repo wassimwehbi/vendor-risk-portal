@@ -215,7 +215,108 @@ test('GET /api/assessments/:id/export.json: unauthenticated request returns 401'
   assert.equal(res.status, 401);
 });
 
-test('tenant isolation: one tenant cannot read another tenant’s assessment', async () => {
+test('business_context: PATCH stores and returns the field', async () => {
+  const { agent, csrf } = await login({ email: 'bc-patch@acme.test', role: 'Analyst', tenant: 'BC Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201, `scenario load failed: ${JSON.stringify(loaded.body)}`);
+  const id = loaded.body.data.id as number;
+
+  const patched = await agent
+    .patch(`/api/assessments/${id}`)
+    .set('x-csrf-token', csrf)
+    .send({ business_context: 'Test business context' });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.data.business_context, 'Test business context');
+});
+
+test('business_context: PATCH is independent of analyst_notes', async () => {
+  const { agent, csrf } = await login({ email: 'bc-independent@acme.test', role: 'Analyst', tenant: 'BC Ind Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201);
+  const id = loaded.body.data.id as number;
+
+  // Set analyst_notes first
+  await agent.patch(`/api/assessments/${id}`).set('x-csrf-token', csrf).send({ analyst_notes: 'My analyst notes' });
+
+  // Patch only business_context — analyst_notes must remain unchanged
+  const patched = await agent
+    .patch(`/api/assessments/${id}`)
+    .set('x-csrf-token', csrf)
+    .send({ business_context: 'Business rationale here' });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.data.business_context, 'Business rationale here');
+  assert.equal(patched.body.data.analyst_notes, 'My analyst notes');
+});
+
+test('business_context: PATCH with empty string clears the field', async () => {
+  const { agent, csrf } = await login({ email: 'bc-clear@acme.test', role: 'Analyst', tenant: 'BC Clear Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201);
+  const id = loaded.body.data.id as number;
+
+  await agent.patch(`/api/assessments/${id}`).set('x-csrf-token', csrf).send({ business_context: 'Some context' });
+
+  const cleared = await agent.patch(`/api/assessments/${id}`).set('x-csrf-token', csrf).send({ business_context: '' });
+  assert.equal(cleared.status, 200);
+  assert.equal(cleared.body.data.business_context, '');
+});
+
+test('business_context: PATCH without field leaves existing value unchanged', async () => {
+  const { agent, csrf } = await login({ email: 'bc-absent@acme.test', role: 'Analyst', tenant: 'BC Absent Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201);
+  const id = loaded.body.data.id as number;
+
+  await agent.patch(`/api/assessments/${id}`).set('x-csrf-token', csrf).send({ business_context: 'Preserved context' });
+
+  // Patch with analyst_notes only — business_context must stay
+  const patched = await agent
+    .patch(`/api/assessments/${id}`)
+    .set('x-csrf-token', csrf)
+    .send({ analyst_notes: 'New notes only' });
+  assert.equal(patched.status, 200);
+  assert.equal(patched.body.data.business_context, 'Preserved context');
+});
+
+test('business_context: GET /report includes the field', async () => {
+  const { agent, csrf } = await login({ email: 'bc-report@acme.test', role: 'Analyst', tenant: 'BC Report Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201);
+  const id = loaded.body.data.id as number;
+
+  await agent.post(`/api/assessments/${id}/analyze`).set('x-csrf-token', csrf);
+  await agent
+    .patch(`/api/assessments/${id}`)
+    .set('x-csrf-token', csrf)
+    .send({ business_context: 'Regulatory compliance driver' });
+
+  const report = await agent.get(`/api/assessments/${id}/report`);
+  assert.equal(report.status, 200);
+  assert.equal(report.body.data.business_context, 'Regulatory compliance driver');
+});
+
+test('business_context: GET /export.json includes the field', async () => {
+  const { agent, csrf } = await login({ email: 'bc-json@acme.test', role: 'Analyst', tenant: 'BC JSON Co' });
+
+  const loaded = await agent.post('/api/demo/scenarios/securehealth/load').set('x-csrf-token', csrf);
+  assert.equal(loaded.status, 201);
+  const id = loaded.body.data.id as number;
+
+  await agent.post(`/api/assessments/${id}/analyze`).set('x-csrf-token', csrf);
+  await agent.patch(`/api/assessments/${id}`).set('x-csrf-token', csrf).send({ business_context: 'GRC context value' });
+
+  const res = await agent.get(`/api/assessments/${id}/export.json`);
+  assert.equal(res.status, 200);
+  const body = JSON.parse(res.text as string);
+  assert.equal(body.assessment.business_context, 'GRC context value');
+});
+
+test("tenant isolation: one tenant cannot read another tenant's assessment", async () => {
   const a = await login({ email: 'analyst@tenant-a.test', role: 'Analyst', tenant: 'Tenant A' });
   const b = await login({ email: 'analyst@tenant-b.test', role: 'Analyst', tenant: 'Tenant B' });
 
