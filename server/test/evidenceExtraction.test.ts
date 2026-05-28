@@ -60,18 +60,53 @@ test('extracts text from an Excel evidence file', async () => {
   assert.ok(r.text.includes('AES-256 enabled'));
 });
 
-test('recognises an image but performs no text extraction (no_text)', async () => {
-  // 1x1 PNG
-  const png = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    'base64',
-  );
-  const p = tmp('shot.png', png);
+// 1x1 PNG used across image tests
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('image falls back to no_text when ANTHROPIC_API_KEY is absent', async () => {
+  const saved = process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
+  const p = tmp('shot.png', PNG_1X1);
   const r = await extractEvidence(p, 'shot.png', 'image/png');
   assert.equal(r.kind, 'image');
   assert.equal(r.status, 'no_text');
   assert.equal(r.text, '');
   assert.ok(r.note && /1×1|image/i.test(r.note));
+  if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
+});
+
+test('BMP image falls back to no_text (unsupported MIME for vision)', async () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  const p = tmp('shot.bmp', PNG_1X1);
+  const r = await extractEvidence(p, 'shot.bmp', 'image/bmp');
+  assert.equal(r.kind, 'image');
+  assert.equal(r.status, 'no_text');
+});
+
+test('image vision skips oversized images and falls back to no_text', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  // Buffer just over the 3.75 MB cap
+  const big = Buffer.alloc(3_750_001, 0);
+  const p = tmp('big.png', big);
+  const r = await extractEvidence(p, 'big.png', 'image/png');
+  assert.equal(r.kind, 'image');
+  assert.equal(r.status, 'no_text');
+  delete process.env.ANTHROPIC_API_KEY;
+});
+
+test('SVG image yields extracted SVG markup', async () => {
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>',
+  );
+  const p = tmp('diagram.svg', svg);
+  const r = await extractEvidence(p, 'diagram.svg', 'image/svg+xml');
+  assert.equal(r.kind, 'image');
+  assert.equal(r.status, 'extracted');
+  assert.ok(r.text.includes('<svg'));
+  assert.ok(r.chars > 0);
 });
 
 test('legacy .doc is accepted as a type but reported unsupported for extraction', async () => {

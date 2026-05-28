@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import Anthropic from '@anthropic-ai/sdk';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import imageSize from 'image-size';
@@ -160,6 +161,77 @@ function extractSpreadsheet(buf: Buffer, kind: 'excel' | 'csv'): EvidenceExtract
   };
 }
 
+const VISION_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const VISION_MAX_BYTES = 3_750_000;
+const VISION_MODEL = process.env.VISION_MODEL ?? 'claude-haiku-4-5-20251001';
+
+// Test seam — lets unit tests inject a mock Anthropic client without module mocking.
+// In production this is always null and `new Anthropic({ apiKey })` is used directly.
+export const _testHooks: {
+  createAnthropicClient: ((apiKey: string) => Pick<Anthropic, 'messages'>) | null;
+} = { createAnthropicClient: null };
+
+const VISION_PROMPT =
+  'This image is a vendor security evidence document. Please: (1) Extract all readable text verbatim. (2) Describe any charts or tables with their values and structure. (3) Describe any architecture components and their relationships. (4) Note any security certifications, compliance indicators, dates, version numbers, or policy statements.';
+
+async function describeImageWithVision(buf: Buffer, mimeType: string): Promise<EvidenceExtractionResult | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  if (!VISION_MIMES.has(mimeType)) return null;
+  if (buf.length > VISION_MAX_BYTES) return null;
+  try {
+    const client: Pick<Anthropic, 'messages'> = _testHooks.createAnthropicClient
+      ? _testHooks.createAnthropicClient(apiKey)
+      : new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model: VISION_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+                data: buf.toString('base64'),
+              },
+            },
+            { type: 'text', text: VISION_PROMPT },
+          ],
+        },
+      ],
+    });
+    const rawText = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => (b as Anthropic.TextBlock).text)
+      .join('\n');
+    const { text, chars, truncated } = clip(rawText);
+    return {
+      kind: 'image',
+      status: 'extracted',
+      text,
+      chars,
+      note: `Vision description${truncated ? `; truncated to ${MAX_TEXT} chars` : ''}`,
+    };
+  } catch (err) {
+    console.error('[evidenceExtraction] vision failed:', (err as Error).message);
+    return null;
+  }
+}
+
+function extractSvg(buf: Buffer): EvidenceExtractionResult {
+  const { text, chars, truncated } = clip(buf.toString('utf-8'));
+  return {
+    kind: 'image',
+    status: text ? 'extracted' : 'empty',
+    text,
+    chars,
+    note: `SVG markup extracted${truncated ? `; truncated to ${MAX_TEXT} chars` : ''}.`,
+  };
+}
+
 function describeImage(buf: Buffer): EvidenceExtractionResult {
   let note = 'Image stored; text/OCR extraction is not performed in this version.';
   try {
@@ -204,7 +276,8 @@ export async function extractEvidence(
       case 'csv':
         return extractSpreadsheet(buf, 'csv');
       case 'image':
-        return describeImage(buf);
+        if (mimeType === 'image/svg+xml' || ext === '.svg') return extractSvg(buf);
+        return (await describeImageWithVision(buf, mimeType)) ?? describeImage(buf);
     }
   } catch (err) {
     return { kind, status: 'error', text: '', chars: 0, note: `Could not parse file: ${(err as Error).message}` };

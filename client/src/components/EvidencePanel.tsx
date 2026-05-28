@@ -36,6 +36,7 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
   const [open, setOpen] = useState(false);
   const textId = useId();
   const hasText = Boolean(ev.extracted_text && ev.extracted_text.length > 0);
+  const isAiDescription = ev.kind === 'image' && ev.parse_status === 'extracted';
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -52,6 +53,14 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
             ? ` · ${ev.extracted_chars.toLocaleString()} chars`
             : ''}
         </span>
+        {isAiDescription && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
+            <svg aria-hidden="true" className="h-3 w-3 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1a.5.5 0 0 1 .447.276l1.405 2.848 3.144.457a.5.5 0 0 1 .277.853L10.99 7.56l.537 3.132a.5.5 0 0 1-.726.527L8 9.773l-2.801 1.446a.5.5 0 0 1-.726-.527l.537-3.132-2.283-2.126a.5.5 0 0 1 .277-.853l3.144-.457L7.553 1.276A.5.5 0 0 1 8 1z" />
+            </svg>
+            AI described
+          </span>
+        )}
         {hasText && (
           <button
             type="button"
@@ -60,7 +69,13 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
             aria-controls={textId}
             onClick={() => setOpen((o) => !o)}
           >
-            {open ? 'Hide extracted text' : 'Show extracted text'}
+            {open
+              ? isAiDescription
+                ? 'Hide AI description'
+                : 'Hide extracted text'
+              : isAiDescription
+                ? 'Show AI description'
+                : 'Show extracted text'}
             <span className="sr-only"> for {ev.original_name}</span>
           </button>
         )}
