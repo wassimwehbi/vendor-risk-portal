@@ -1,8 +1,8 @@
 # Spec — Add "Data subject requests" as a detectable data category
 
-- **Status:** Draft
+- **Status:** Implemented
 - **Branch:** feat-issue-50-adw-27acf3a7-add-data-subject-requests-category
-- **Location:** `server/src/types.ts`, `server/src/services/ruleEngine.ts`, `server/src/services/riskScoring.ts`, `server/src/services/aiEngine.ts`, `client/src/types.ts`, `server/test/ruleEngineEvidence.test.ts`, `server/test/riskScoring.test.ts`, `server/test/scenarios.test.ts`
+- **Location:** `server/src/types.ts`, `server/src/services/ruleEngine.ts`, `server/src/services/riskScoring.ts`, `server/src/services/aiEngine.ts`, `server/src/services/claudeProvider.ts`, `client/src/types.ts`, `server/test/ruleEngineEvidence.test.ts`, `server/test/riskScoring.test.ts`, `server/test/scenarios.test.ts`
 - **Related docs:** `specs/0005-rule-engine.md` (if present), `README.md`, `API_CONTRACT.md`
 
 ## Problem / Objective
