@@ -39,7 +39,7 @@ export function NewAssessment() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!vendorName.trim()) return setError('Vendor name is required.');
-    if (!questionnaire) return setError('Please choose a SIG questionnaire file (.xlsx, .xls or .csv).');
+    if (!questionnaire) return setError('Please choose a SIG questionnaire file (.xlsx, .xls, .csv, .docx, or .pdf).');
     setBusy(true);
     setError('');
     try {
@@ -106,12 +106,12 @@ export function NewAssessment() {
         </div>
         <div>
           <label htmlFor="na-questionnaire" className="label">
-            SIG questionnaire (.xlsx, .xls, .csv)
+            SIG questionnaire (.xlsx, .xls, .csv, .docx, .pdf)
           </label>
           <input
             id="na-questionnaire"
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls,.csv,.docx,.pdf"
             className="input"
             onChange={(e) => setQuestionnaire(e.target.files?.[0] ?? null)}
           />

@@ -97,7 +97,7 @@ router.post('/assessments/:id/upload', requireTenantRole('Analyst', 'Submitter')
   // Parse the questionnaire into structured items.
   let items;
   try {
-    const parsed = parseQuestionnaire(questionnaire.path, questionnaire.originalname);
+    const parsed = await parseQuestionnaire(questionnaire.path, questionnaire.originalname);
     if (parsed.length === 0) {
       cleanup();
       return fail(
