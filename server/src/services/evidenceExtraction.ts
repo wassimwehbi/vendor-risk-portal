@@ -165,10 +165,19 @@ const VISION_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/web
 const VISION_MAX_BYTES = 3_750_000;
 const VISION_MODEL = process.env.VISION_MODEL ?? 'claude-haiku-4-5-20251001';
 
+// Minimal client interface — only messages.create is used in this module.
+type _VisionClient = {
+  messages: {
+    create(
+      params: Anthropic.MessageCreateParamsNonStreaming,
+    ): Promise<{ content: Array<{ type: string; text?: string }> }>;
+  };
+};
+
 // Test seam — lets unit tests inject a mock Anthropic client without module mocking.
 // In production this is always null and `new Anthropic({ apiKey })` is used directly.
 export const _testHooks: {
-  createAnthropicClient: ((apiKey: string) => Pick<Anthropic, 'messages'>) | null;
+  createAnthropicClient: ((apiKey: string) => _VisionClient) | null;
 } = { createAnthropicClient: null };
 
 const VISION_PROMPT =
@@ -180,9 +189,9 @@ async function describeImageWithVision(buf: Buffer, mimeType: string): Promise<E
   if (!VISION_MIMES.has(mimeType)) return null;
   if (buf.length > VISION_MAX_BYTES) return null;
   try {
-    const client: Pick<Anthropic, 'messages'> = _testHooks.createAnthropicClient
+    const client: _VisionClient = _testHooks.createAnthropicClient
       ? _testHooks.createAnthropicClient(apiKey)
-      : new Anthropic({ apiKey });
+      : (new Anthropic({ apiKey }) as unknown as _VisionClient);
     const response = await client.messages.create({
       model: VISION_MODEL,
       max_tokens: 1024,
