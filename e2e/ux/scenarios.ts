@@ -35,7 +35,9 @@ export type Step =
   // Click a control by accessible role + name.
   | { kind: 'click'; role: 'button' | 'link'; name: string }
   // Assert text is visible — a cheap "the SPA actually rendered this surface" sync point.
-  | { kind: 'expectVisibleText'; text: string | RegExp };
+  | { kind: 'expectVisibleText'; text: string | RegExp }
+  // Assert an element matching a CSS selector is visible.
+  | { kind: 'expectVisible'; selector: string };
 
 export type Invariant =
   | 'noHorizontalOverflow' // page-level scrollWidth ≤ innerWidth + ε at the viewport
@@ -123,6 +125,7 @@ export const SCENARIOS: UxScenario[] = [
     steps: [
       { kind: 'loadScenario', index: 0 },
       { kind: 'expectVisibleText', text: /\b(Low|Medium|High|Critical)\b/ },
+      { kind: 'expectVisible', selector: '#business-context' },
     ],
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
     snapshot: true,
@@ -144,6 +147,7 @@ export const SCENARIOS: UxScenario[] = [
       { kind: 'loadScenario', index: 0 },
       { kind: 'gotoAssessmentSub', sub: 'report' },
       { kind: 'expectVisibleText', text: 'Export GRC JSON' },
+      { kind: 'expectVisibleText', text: 'Business context' },
     ],
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
     snapshot: true,

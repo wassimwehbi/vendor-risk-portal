@@ -32,8 +32,8 @@ only Analyst/Admin can approve.
 | POST | `/assessments/:id/upload` | multipart: `questionnaire` (1 file: xlsx/xls/csv), `evidence` (0..20 files: PDF/Word/CSV/Excel/image — others ⇒ `422`; 25 MB each) | `{ assessment, items, evidence }` |
 | POST | `/assessments/:id/analyze` | — | `AnalyzeResult` `{ engine, overall_risk, data_categories, applicable_frameworks, findings }` |
 | PATCH | `/findings/:id` | `{ control_domain?, framework_mappings?, risk_level?, evidence_sufficiency?, follow_up_questions?, analyst_status? }` | `Finding` |
-| PATCH | `/assessments/:id` | `{ overall_risk?, analyst_notes?, validation_status? }` (`approved` ⇒ role Analyst/Admin) | `Assessment` |
-| GET  | `/assessments/:id/report` | — | `ReportData` (12-field analyst report) |
+| PATCH | `/assessments/:id` | `{ overall_risk?, analyst_notes?, business_context?, validation_status? }` (`approved` ⇒ role Analyst/Admin) | `Assessment` |
+| GET  | `/assessments/:id/report` | — | `ReportData` (13-field analyst report including `business_context`) |
 | GET  | `/assessments/:id/export.csv` | — | CSV download |
 | GET  | `/assessments/:id/export.xlsx` | — | Excel download |
 | GET  | `/assessments/:id/export.json` | — | GRC-consumable JSON download (`Content-Disposition: attachment`). Body: `{ schema_version, disclaimer, vendor, assessment, summary, controls[], follow_up_questions[] }`. Analyst overrides applied via `effectiveFinding`. |

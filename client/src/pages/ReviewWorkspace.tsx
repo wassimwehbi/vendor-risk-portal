@@ -96,6 +96,8 @@ export function ReviewWorkspace() {
   const [analyzing, setAnalyzing] = useState(false);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [businessContext, setBusinessContext] = useState('');
+  const [savingBusinessContext, setSavingBusinessContext] = useState(false);
   const [approving, setApproving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { widths, startResize, resetColumn, updateWidth } = useResizableColumns();
@@ -109,6 +111,7 @@ export function ReviewWorkspace() {
       .then((d) => {
         setDetail(d);
         setNotes(d.assessment.analyst_notes ?? '');
+        setBusinessContext(d.assessment.business_context ?? '');
       })
       .catch((e) => setError(e.message));
   }, [assessmentId]);
@@ -146,6 +149,16 @@ export function ReviewWorkspace() {
       setDetail((d) => (d ? { ...d, assessment: updated } : d));
     } finally {
       setSavingNotes(false);
+    }
+  }
+
+  async function saveBusinessContext() {
+    setSavingBusinessContext(true);
+    try {
+      const updated = await api.patchAssessment(assessmentId, { business_context: businessContext });
+      setDetail((d) => (d ? { ...d, assessment: updated } : d));
+    } finally {
+      setSavingBusinessContext(false);
     }
   }
 
@@ -457,17 +470,33 @@ export function ReviewWorkspace() {
         </div>
       )}
 
-      {/* Analyst notes + approval (analysts/admins only; submitters & viewers see a read-only outcome) */}
+      {/* Business context + analyst notes + approval (analysts/admins only; submitters & viewers see a read-only outcome) */}
       {analyzed && canEdit && (
         <div className="card space-y-3 p-4 sm:p-5">
           <h3 className="text-sm font-semibold text-slate-800">Analyst decision</h3>
+          <label htmlFor="business-context" className="label">
+            Business context
+          </label>
+          <textarea
+            id="business-context"
+            className="input h-24"
+            placeholder="Describe the business rationale and risk appetite context for this assessment…"
+            value={businessContext}
+            onChange={(e) => setBusinessContext(e.target.value)}
+            disabled={!canEdit || savingBusinessContext}
+          />
+          <div className="flex justify-end">
+            <button className="btn-primary" onClick={saveBusinessContext} disabled={savingBusinessContext}>
+              {savingBusinessContext ? 'Saving…' : 'Save business context'}
+            </button>
+          </div>
           <label htmlFor="analyst-notes" className="label">
             Analyst notes
           </label>
           <textarea
             id="analyst-notes"
             className="input h-24"
-            placeholder="Add business context, rationale, and your recommendation…"
+            placeholder="Add rationale and your recommendation…"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             disabled={!canEdit}
