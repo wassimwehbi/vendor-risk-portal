@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, extname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { parseQuestionnaire } from '../services/extraction';
 import { ALLOWED_EVIDENCE_LABEL, classifyEvidence, extractEvidence } from '../services/evidenceExtraction';
 import { addEvidenceFiles, getAssessment, replaceItems } from '../services/store';
@@ -60,7 +60,9 @@ router.post('/assessments/:id/upload', requireTenantRole('Analyst', 'Submitter')
   const cleanup = () => {
     for (const p of allPaths) {
       try {
-        unlinkSync(p);
+        // Re-root under UPLOAD_DIR via basename (a path-traversal barrier) — multer stores
+        // uploads flat here, so this targets the same file without a tainted path.
+        unlinkSync(join(UPLOAD_DIR, basename(p)));
       } catch {
         /* best effort */
       }
@@ -97,7 +99,7 @@ router.post('/assessments/:id/upload', requireTenantRole('Analyst', 'Submitter')
   // Parse the questionnaire into structured items.
   let items;
   try {
-    const parsed = parseQuestionnaire(questionnaire.path, questionnaire.originalname);
+    const parsed = await parseQuestionnaire(questionnaire.path, questionnaire.originalname);
     if (parsed.length === 0) {
       cleanup();
       return fail(

@@ -6,13 +6,12 @@ type ResultState = ExperimentResults | { error: string } | undefined;
 interface Props {
   experiments: LoadedExperiment[];
   results: Record<string, ResultState>;
-  hasReadToken: boolean;
   onNew: () => void;
   onEdit: (e: LoadedExperiment) => void;
   onPause: (e: LoadedExperiment) => void;
 }
 
-export function Dashboard({ experiments, results, hasReadToken, onNew, onEdit, onPause }: Props) {
+export function Dashboard({ experiments, results, onNew, onEdit, onPause }: Props) {
   return (
     <div className="stack">
       <div className="between">
@@ -80,7 +79,7 @@ export function Dashboard({ experiments, results, hasReadToken, onNew, onEdit, o
                       {!targeted && <span className="caption">everyone</span>}
                     </td>
                     <td>
-                      <ResultsCell state={results[exp.key]} hasReadToken={hasReadToken} />
+                      <ResultsCell state={results[exp.key]} />
                     </td>
                     <td>
                       <div className="row">
@@ -105,8 +104,7 @@ export function Dashboard({ experiments, results, hasReadToken, onNew, onEdit, o
   );
 }
 
-function ResultsCell({ state, hasReadToken }: { state: ResultState; hasReadToken: boolean }) {
-  if (!hasReadToken) return <span className="caption">set a results token in Settings →</span>;
+function ResultsCell({ state }: { state: ResultState }) {
   if (state === undefined) return <span className="caption">…</span>;
   if ('error' in state) {
     return (

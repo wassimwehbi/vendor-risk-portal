@@ -29,7 +29,7 @@ only Analyst/Admin can approve.
 | GET  | `/assessments` | — | `Assessment[]` (with `item_count`, `finding_count`) |
 | POST | `/assessments` | `{ vendor_name, questionnaire_type, date_submitted }` | `Assessment` (201) |
 | GET  | `/assessments/:id` | — | `{ assessment, items, findings, evidence }` |
-| POST | `/assessments/:id/upload` | multipart: `questionnaire` (1 file: xlsx/xls/csv), `evidence` (0..20 files: PDF/Word/CSV/Excel/image — others ⇒ `422`; 25 MB each) | `{ assessment, items, evidence }` |
+| POST | `/assessments/:id/upload` | multipart: `questionnaire` (1 file: xlsx/xls/csv/docx/pdf), `evidence` (0..20 files: PDF/Word/CSV/Excel/image — others ⇒ `422`; 25 MB each) | `{ assessment, items, evidence }` |
 | POST | `/assessments/:id/analyze` | — | `AnalyzeResult` `{ engine, overall_risk, data_categories, applicable_frameworks, findings }` |
 | PATCH | `/findings/:id` | `{ control_domain?, framework_mappings?, risk_level?, evidence_sufficiency?, follow_up_questions?, analyst_status? }` | `Finding` |
 | PATCH | `/assessments/:id` | `{ overall_risk?, analyst_notes?, business_context?, validation_status? }` (`approved` ⇒ role Analyst/Admin) | `Assessment` |

@@ -1,11 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import type { NewQuestionnaireItem, ResponseType } from '../types';
 
 /**
- * Parses an uploaded SIG questionnaire (.xlsx / .xls / .csv) into structured
- * questionnaire items. Column headers are matched case-insensitively using the
- * alias sets below, so a variety of SIG-style exports are supported.
+ * Parses an uploaded SIG questionnaire (.xlsx / .xls / .csv / .docx / .pdf) into
+ * structured questionnaire items. Column headers are matched case-insensitively using
+ * the alias sets below, so a variety of SIG-style exports are supported.
  *
  * Expected columns (aliases):
  *   question_id      <- Question ID | ID | Q# | Ref | Question Number | #
@@ -89,10 +93,167 @@ export function parseRows(rows: Record<string, unknown>[]): NewQuestionnaireItem
   return items;
 }
 
-export function parseQuestionnaire(filePath: string, _originalName: string): NewQuestionnaireItem[] {
-  // Read into a buffer and use XLSX.read (XLSX.readFile is unavailable under ESM
-  // because it depends on a runtime require('fs')).
-  const buf = readFileSync(filePath);
+function parseCellsFromHtml(rowHtml: string): string[] {
+  const cells: string[] = [];
+  const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+  for (const m of rowHtml.matchAll(cellRe)) {
+    const text = m[1]
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+    cells.push(text);
+  }
+  return cells;
+}
+
+// Exported for unit testing — processes mammoth HTML output without calling mammoth.
+export function parseDocxHtml(html: string): NewQuestionnaireItem[] {
+  // Scope parsing to a single <table> so rows from another table (e.g. a cover-page or
+  // contact table before OR after the questionnaire) are never absorbed as questionnaire
+  // rows. Fall back to the whole document when no <table> wrapper is present.
+  const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+  const tableBlocks = [...html.matchAll(tableRe)].map((m) => m[1]);
+  const blocks = tableBlocks.length > 0 ? tableBlocks : [html];
+
+  const aliasedKeys = new Set<string>();
+  for (const aliases of Object.values(ALIASES)) {
+    for (const a of aliases) aliasedKeys.add(a);
+  }
+
+  for (const tableHtml of blocks) {
+    const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const trBlocks = [...tableHtml.matchAll(trRe)].map((m) => m[0]);
+    if (trBlocks.length === 0) continue;
+
+    let headerIdx = -1;
+    let headers: string[] = [];
+    for (let i = 0; i < trBlocks.length; i++) {
+      const cells = parseCellsFromHtml(trBlocks[i]);
+      if (cells.some((c) => aliasedKeys.has(c.toLowerCase().trim()))) {
+        headerIdx = i;
+        headers = cells;
+        break;
+      }
+    }
+    if (headerIdx === -1) continue;
+
+    const rows: Record<string, unknown>[] = [];
+    for (let i = headerIdx + 1; i < trBlocks.length; i++) {
+      const cells = parseCellsFromHtml(trBlocks[i]);
+      const row: Record<string, unknown> = {};
+      for (let j = 0; j < headers.length; j++) {
+        row[headers[j]] = cells[j] ?? '';
+      }
+      rows.push(row);
+    }
+
+    const items = parseRows(rows);
+    if (items.length > 0) return items;
+  }
+
+  throw new Error(
+    'No parseable table found in Word document. Ensure the questionnaire uses a table with column headers.',
+  );
+}
+
+// Exported for unit testing — applies PDF text heuristics without calling pdf-parse.
+export function parsePdfText(text: string): NewQuestionnaireItem[] {
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Heuristic 1: tab-separated columns
+  const tabLines = lines.filter((l) => l.includes('\t'));
+  if (tabLines.length >= 3) {
+    const headers = tabLines[0].split('\t').map((h) => h.trim());
+    const rows: Record<string, unknown>[] = [];
+    for (const line of tabLines.slice(1)) {
+      const cells = line.split('\t');
+      const row: Record<string, unknown> = {};
+      for (let i = 0; i < headers.length; i++) {
+        row[headers[i]] = (cells[i] ?? '').trim();
+      }
+      rows.push(row);
+    }
+    const items = parseRows(rows);
+    if (items.length > 0) return items;
+  }
+
+  // Heuristic 2: whitespace-aligned columns (2+ consecutive spaces)
+  const splitLines = lines.map((l) => l.split(/\s{2,}/));
+  const multiColLines = splitLines.filter((cols) => cols.length >= 2);
+  if (multiColLines.length >= 3) {
+    const colCount = multiColLines[0].length;
+    const consistent = multiColLines.filter((cols) => cols.length === colCount);
+    if (consistent.length >= 3) {
+      const headers = consistent[0];
+      const rows: Record<string, unknown>[] = [];
+      for (const cols of consistent.slice(1)) {
+        const row: Record<string, unknown> = {};
+        for (let i = 0; i < headers.length; i++) {
+          row[headers[i]] = (cols[i] ?? '').trim();
+        }
+        rows.push(row);
+      }
+      const items = parseRows(rows);
+      if (items.length > 0) return items;
+    }
+  }
+
+  throw new Error(
+    'Could not detect table structure in PDF. For reliable parsing, export the questionnaire as .xlsx or .docx.',
+  );
+}
+
+export async function parseDocxQuestionnaire(buffer: Buffer): Promise<NewQuestionnaireItem[]> {
+  const { value: html } = await mammoth.convertToHtml({ buffer });
+  return parseDocxHtml(html);
+}
+
+export async function parsePdfQuestionnaire(buffer: Buffer): Promise<NewQuestionnaireItem[]> {
+  const { text } = await pdfParse(buffer);
+  return parsePdfText(text);
+}
+
+// Resolve from this module's location (like upload.ts / store.ts) so the guard matches the
+// real upload dir regardless of the process's working directory.
+const SAFE_UPLOAD_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads');
+
+function ensurePathWithinUploads(filePath: string): string {
+  // Drop any directory components from the incoming path (a path-traversal barrier the
+  // js/path-injection query recognizes) and re-root under SAFE_UPLOAD_ROOT, where multer
+  // stores uploads flat. The containment check below stays as defense in depth.
+  const safePath = join(SAFE_UPLOAD_ROOT, basename(filePath));
+  const root = normalize(resolve(SAFE_UPLOAD_ROOT));
+  const resolvedPath = normalize(resolve(safePath));
+  if (resolvedPath !== root && !resolvedPath.startsWith(root + sep)) {
+    throw new Error('Invalid upload file path');
+  }
+  return resolvedPath;
+}
+
+export async function parseQuestionnaire(filePath: string, originalName: string): Promise<NewQuestionnaireItem[]> {
+  const safePath = ensurePathWithinUploads(filePath);
+  const buf = await readFile(safePath);
+  const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
+
+  if (ext === 'pdf') return parsePdfQuestionnaire(buf);
+  if (ext === 'doc') {
+    // mammoth only reads the XML-based .docx; a binary legacy .doc would surface a
+    // cryptic low-level error, so reject it with actionable guidance instead.
+    throw new Error(
+      'Legacy .doc files are not supported. Please re-save the questionnaire as .docx (or export to .xlsx/.csv) and upload again.',
+    );
+  }
+  if (ext === 'docx') return parseDocxQuestionnaire(buf);
+
+  // Default: XLSX / XLS / XLSM / CSV
+  // (XLSX.read is kept sync inside the now-async wrapper — no behaviour change)
   const workbook = XLSX.read(buf, { type: 'buffer', cellDates: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [];
