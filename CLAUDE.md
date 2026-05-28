@@ -11,13 +11,17 @@ analyst, never automatically by the AI.
 
 - Architecture, conventions, and history live in **`specs/`** (numbered design docs)
   and **`README.md`**. Read the relevant spec before changing an area.
-- Frontend design language: slate / `brand` palette, Inter, shared `card` / `btn-*` /
-  `input` / `label` utilities in `client/src/index.css`. Mobile-first Tailwind.
-- **Design system:** the full visual language (tokens, component recipes, the
-  AI-attribution provenance pattern, iconography, voice/copy) lives in
-  **`design-system/DESIGN_SYSTEM.md`** and is the source of truth for all UI work. The
-  `design-system` Agent Skill (`.claude/skills/design-system/`) loads it automatically —
-  **read it before building or restyling any client UI.** See `specs/0014-design-system.md`.
+- **Design system — REQUIRED for ALL UI work (blocking).** Before creating or changing ANY UI —
+  in `client/` **or** the `portal/` experiments app, including React components, pages, Tailwind
+  classes, or CSS — you **MUST** invoke the **`design-system` skill** (`.claude/skills/design-system/`)
+  and follow **`design-system/DESIGN_SYSTEM.md`**, the source of truth for the visual language
+  (slate / `brand` tokens, Inter, the `card` / `btn-*` / `input` / `label` recipes, the
+  AI-attribution provenance pattern, iconography, and voice/copy). Concretely:
+  - Reuse the shared tokens + recipes; **never re-implement tokens or hardcode palette values**.
+    `client/` uses `client/tailwind.config.js` + `client/src/index.css`; `portal/` imports the
+    canonical tokens from `design-system/colors_and_type.css`.
+  - Use the **`BrandMark`** component for the logo — never a text monogram or an ad-hoc mark.
+  - Mobile-first; sentence-case copy; no new emoji. See `specs/0014-design-system.md`.
 
 ## Pull requests — a spec is required
 
