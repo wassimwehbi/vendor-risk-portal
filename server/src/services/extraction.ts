@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { normalize, resolve, sep } from 'node:path';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
@@ -220,8 +221,20 @@ export async function parsePdfQuestionnaire(buffer: Buffer): Promise<NewQuestion
   return parsePdfText(text);
 }
 
+const SAFE_UPLOAD_ROOT = resolve(process.cwd(), 'server', 'uploads');
+
+function ensurePathWithinUploads(filePath: string): string {
+  const root = normalize(resolve(SAFE_UPLOAD_ROOT));
+  const resolvedPath = normalize(resolve(filePath));
+  if (resolvedPath !== root && !resolvedPath.startsWith(root + sep)) {
+    throw new Error('Invalid upload file path');
+  }
+  return resolvedPath;
+}
+
 export async function parseQuestionnaire(filePath: string, originalName: string): Promise<NewQuestionnaireItem[]> {
-  const buf = await readFile(filePath);
+  const safePath = ensurePathWithinUploads(filePath);
+  const buf = await readFile(safePath);
   const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
 
   if (ext === 'pdf') return parsePdfQuestionnaire(buf);
