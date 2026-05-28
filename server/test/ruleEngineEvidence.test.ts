@@ -181,7 +181,7 @@ test('evidence document containing domain keywords does not emit Misaligned', ()
     {
       name: 'MFA-Configuration.pdf',
       kind: 'pdf',
-      text: 'Multi-factor authentication (MFA) is enforced for all user accounts. OTP via authenticator app is required. Two-factor authentication cannot be bypassed.',
+      text: 'Multi-factor authentication (MFA) is enforced for all user accounts. OTP via authenticator app is required. Two-factor authentication (2FA) cannot be bypassed. All privileged and standard user accounts must complete MFA enrollment before accessing any company systems or cloud services.',
     },
   ];
   const item = makeItem({
@@ -197,6 +197,21 @@ test('Uncategorized domain skips misalignment check', () => {
   const item = makeItem({ evidence_text: 'attached', evidence_location: null });
   const result = assessEvidence(item, 'yes', 'Strong', 'Uncategorized', HR_POLICY_EVIDENCE);
   assert.notEqual(result, 'Misaligned');
+});
+
+test('item with no evidence metadata is not flagged Misaligned by assessment-level uploads', () => {
+  // hasEvidence is false — the item itself carries no evidence_text / evidence_location.
+  // Assessment-level HR docs should not cause Misaligned; expect None instead.
+  const item = makeItem({ evidence_text: null, evidence_location: null });
+  const result = assessEvidence(item, 'yes', 'Strong', 'MFA', HR_POLICY_EVIDENCE);
+  assert.notEqual(result, 'Misaligned');
+});
+
+test('item with no evidence metadata is not flagged Insufficient by undated screenshot', () => {
+  const screenshotEvidence: EvidenceContext[] = [{ name: 'screenshot.png', kind: 'image', text: '' }];
+  const item = makeItem({ evidence_text: null, evidence_location: null });
+  const result = assessEvidence(item, 'yes', 'Strong', 'MFA', screenshotEvidence);
+  assert.notEqual(result, 'Insufficient');
 });
 
 // --- screenshot context tests ---

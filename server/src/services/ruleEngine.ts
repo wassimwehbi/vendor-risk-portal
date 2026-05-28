@@ -280,10 +280,11 @@ export function assessEvidence(
   if (docHasConcrete && hasEvidence) return 'Sufficient';
 
   // Evidence text exists but has no keywords from the classified domain → Misaligned.
-  if (evidence && isEvidenceMisaligned(domain, evidence)) return 'Misaligned';
+  // Gate on hasEvidence: only flag if this item actually claimed to provide evidence.
+  if (hasEvidence && evidence && isEvidenceMisaligned(domain, evidence)) return 'Misaligned';
 
   // Screenshot evidence with no date or scope in filename → not auditable.
-  if (evidence && screenshotLacksContext(evidence)) return 'Insufficient';
+  if (hasEvidence && evidence && screenshotLacksContext(evidence)) return 'Insufficient';
 
   // Document present but carries only generic policy text.
   if (docGenericOnly) return 'Insufficient';
