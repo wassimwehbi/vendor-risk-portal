@@ -179,7 +179,11 @@ export function ReviewWorkspace() {
     setApproving(true);
     setError('');
     try {
-      const updated = await api.patchAssessment(assessmentId, { validation_status: 'approved', analyst_notes: notes });
+      const updated = await api.patchAssessment(assessmentId, {
+        validation_status: 'approved',
+        analyst_notes: notes,
+        business_context: businessContext,
+      });
       setDetail((d) => (d ? { ...d, assessment: updated } : d));
     } catch (e) {
       setError((e as Error).message);
