@@ -8,7 +8,7 @@ import type {
   ItemAnalysis,
   QuestionnaireItem,
 } from '../types';
-import { classifyByKeywords } from '../data/controlDomains';
+import { classifyByKeywords, CONTROL_DOMAINS } from '../data/controlDomains';
 import { getMapping } from './frameworkMapping';
 import { scoreItem } from './riskScoring';
 
@@ -170,11 +170,39 @@ export function detectDataCategories(text: string): DataCategory[] {
   return [...found];
 }
 
-function isExpired(dateStr: string | null): boolean {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return false;
-  return d.getTime() < Date.now();
+function isExpiredAtDate(expirationDateStr: string | null, referenceDateStr?: string | null): boolean {
+  if (!expirationDateStr) return false;
+  const expiry = new Date(expirationDateStr);
+  if (isNaN(expiry.getTime())) return false;
+  const ref = referenceDateStr ? new Date(referenceDateStr) : new Date();
+  if (isNaN(ref.getTime())) return expiry.getTime() < Date.now();
+  return expiry.getTime() < ref.getTime();
+}
+
+function isEvidenceMisaligned(domain: string, evidence: EvidenceContext[]): boolean {
+  const textualEvidence = evidence?.filter((e) => e.kind !== 'image' && e.text.trim().length > 200) ?? [];
+  if (textualEvidence.length === 0) return false;
+  const domainEntry = CONTROL_DOMAINS.find((d) => d.name === domain);
+  if (!domainEntry || domainEntry.keywords.length === 0) return false;
+  const combinedDocText = textualEvidence
+    .map((e) => e.text)
+    .join('\n')
+    .toLowerCase();
+  return !domainEntry.keywords.some((kw) => combinedDocText.includes(kw.toLowerCase()));
+}
+
+const DATE_PATTERN = /\d{4}[-_]\d{2}|q[1-4][-_ ]\d{4}|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i;
+const GENERIC_SCREENSHOT_PREFIX = /^(screenshot|screen[-_ ]?shot|img|image|capture|snap)[\s_-]?\d*/i;
+
+function screenshotLacksContext(evidence: EvidenceContext[]): boolean {
+  const images = evidence?.filter((e) => e.kind === 'image') ?? [];
+  if (images.length === 0) return false;
+  return images.every((img) => {
+    const name = img.name;
+    const hasDate = DATE_PATTERN.test(name);
+    const hasScope = !GENERIC_SCREENSHOT_PREFIX.test(name) && name.replace(/\.[^.]+$/, '').length > 12;
+    return !hasDate && !hasScope;
+  });
 }
 
 function assessStrength(item: QuestionnaireItem, text: string): ControlStrength {
@@ -225,10 +253,11 @@ export function assessEvidence(
   item: QuestionnaireItem,
   text: string,
   strength: ControlStrength,
+  domain: string,
   evidence?: EvidenceContext[],
 ): EvidenceSufficiency {
   // Expiration always takes precedence over document content.
-  if (isExpired(item.expiration_date)) return 'Expired';
+  if (isExpiredAtDate(item.expiration_date, item.relevant_date)) return 'Expired';
 
   const hasEvidence = Boolean(
     (item.evidence_text && item.evidence_text.trim()) || (item.evidence_location && item.evidence_location.trim()),
@@ -249,6 +278,12 @@ export function assessEvidence(
 
   // Document with concrete signals corroborates the item's evidence claim.
   if (docHasConcrete && hasEvidence) return 'Sufficient';
+
+  // Evidence text exists but has no keywords from the classified domain → Misaligned.
+  if (evidence && isEvidenceMisaligned(domain, evidence)) return 'Misaligned';
+
+  // Screenshot evidence with no date or scope in filename → not auditable.
+  if (evidence && screenshotLacksContext(evidence)) return 'Insufficient';
 
   // Document present but carries only generic policy text.
   if (docGenericOnly) return 'Insufficient';
@@ -383,7 +418,7 @@ async function analyzeItem(item: QuestionnaireItem, evidence?: EvidenceContext[]
   const data_categories = detectDataCategories(combined);
   const control_strength = assessStrength(item, combined);
   const completeness = assessCompleteness(item, combined);
-  const evidence_sufficiency = assessEvidence(item, combined, control_strength, evidence);
+  const evidence_sufficiency = assessEvidence(item, combined, control_strength, control_domain, evidence);
   const framework_mappings = getMapping(control_domain);
   const risk_level = scoreItem({
     control_strength,
