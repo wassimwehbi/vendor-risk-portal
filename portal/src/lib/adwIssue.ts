@@ -8,7 +8,8 @@
 //   B — proposed action (4 deliverables: card + wiring + new trackEvent at handler_hint anchor
 //       + flip catalog status proposed→instrumented)
 //   C — freeform brand-new measurement (4 deliverables: card + wiring + new trackEvent +
-//       NEW catalog row + handler-choice named in PR description for human review)
+//       NEW catalog row + handler-choice named in PR description for AUDIT/PROVENANCE — the
+//       merge gate is the catalog forward-drift check + draft-first, not a human reviewer)
 //
 // Reliability levers (in priority order):
 //   1. Templates A/B inherit file paths from the CATALOG, not from PM input — eliminates the
@@ -250,7 +251,9 @@ function deliverablesSection(p: AICreatePayload, goalActionFile: string, metricK
   }
   // freeform
   const freeMode = p.mode as FreeformMode;
-  const hint = freeMode.handlerHint ? `The human suggested: **${freeMode.handlerHint}**` : '**No handler hint was provided — choose the most appropriate handler and name it explicitly in the PR description so a human can verify before merge.**';
+  const hint = freeMode.handlerHint
+    ? `The human suggested: **${freeMode.handlerHint}**`
+    : '**Choose the most appropriate handler and name it explicitly in the PR description for traceability — the catalog forward-drift check (per-file) enforces that the literal lands in the named `fires_in` file.**';
   // Build the catalog row as an object and run it through yaml.dump so user-controlled
   // title/description strings are correctly quoted/escaped — guards against the YAML
   // injection where e.g. `title: User: clicks export` would parse as a nested mapping.
@@ -296,11 +299,12 @@ function templateSpecificSection(p: AICreatePayload, goalActionFile: string, met
     ];
   }
   return [
-    '## Template C notes (freeform — human review on the handler choice)',
-    '- This is a brand-new measurement the human asked for in plain language. **In the PR description, name the handler you chose** (file + function/handler + one-line rationale) so a reviewer can sanity-check the placement before the auto-merge fires.',
+    '## Template C notes (freeform — CI gates correctness, PM gates the live flip)',
+    '- This is a brand-new measurement the human asked for in plain language. There is **no engineering review** in the merge path — the safety chain is: (1) the catalog forward-drift check in `scripts/experiments.mjs` (per-file: confirms the literal `trackEvent` lands in the file the catalog row names as `fires_in`), (2) draft-first auto-merge (no live behavior change until a human flips the card to running via the portal), and (3) the PM verifying results before that flip.',
+    '- **In the PR description, name the handler you chose** (file + function/handler + one-line rationale). Not a gate — but it makes the PR auditable, and lets the PM cross-check the wiring against the results before they turn the test on.',
     '- Check for duplicates: `grep -r "trackEvent(\'<metric_key>\')" client/src` BEFORE writing — if it already exists, stop and post a comment on this issue.',
     '- The new catalog row is mandatory: future PMs need this measurement to appear in the picker. Use the human\'s page + action description verbatim; set `status: instrumented`.',
-    `- After writing, run \`node scripts/experiments.mjs validate\` — the catalog cross-check must confirm the new \`trackEvent\` lives in the named file.`,
+    `- After writing, run \`node scripts/experiments.mjs validate\` — the catalog cross-check is the load-bearing CI gate; it MUST confirm the new \`trackEvent\` lives in the named file.`,
   ];
 }
 

@@ -446,7 +446,7 @@ function ProposeNewSubForm(p: SubFormProps) {
         </button>
       </div>
       <Banner kind="warn">
-        Claude will add the new measurement to the code and the catalog. An engineer will review where it fires before this ships.
+        Claude will add the measurement to the code and the catalog. Automated checks confirm the wiring before merge, and the test ships as a draft — no users see it until you turn it on.
       </Banner>
       <div className="grid-2">
         <div className="field">

@@ -106,9 +106,10 @@ schema.
 - **TEMPLATE B** — catalog-declared proposed action (4 deliverables; ADW reads the
   `handler_hint`, inserts the trackEvent at the named anchor, flips status
   `proposed` → `instrumented`).
-- **TEMPLATE C** — freeform brand-new measurement (4 deliverables; ADW names the handler
-  choice in the PR description for human review, runs a duplicate-grep before inserting,
-  adds a new catalog row).
+- **TEMPLATE C** — freeform brand-new measurement (4 deliverables; ADW runs a duplicate-grep
+  before inserting, names the handler choice in the PR description for audit/provenance, and
+  adds a new catalog row with `status: instrumented`. The merge gate is the catalog
+  forward-drift check + draft-first auto-merge — **no engineering review** in the merge path).
 - `buildHumanSummary(payload)` — templated 3-sentence preview the PM sees by default. No
   LLM call; sourced from the picked catalog row + form values.
 
@@ -123,10 +124,12 @@ skill). Concrete recipe mapping:
   action's description plus a `pill` (`pill-running` "Live" or `pill-draft` "Not live yet").
 - **Hybrid propose-new sub-form** — nested `card card-pad` block; mode toggle is two
   `btn-sm` (`btn-primary` active / `btn-secondary` inactive); freeform branch shows
-  `banner banner-warn` (new amber recipe added to `styles.css`) explaining the human-review
-  expectation; existing-proposed branch shows `banner-ok` reassuring the PM Claude will
-  wire it mechanically. Includes a client-side **dedup warning** when the freeform metric
-  key collides verbatim with an existing catalog row.
+  `banner banner-warn` (new amber recipe added to `styles.css`) honestly framing the safety
+  chain (CI catalog forward-drift check + draft-first auto-merge + PM verifies results
+  before flipping running — no engineering review); existing-proposed branch shows
+  `banner-ok` reassuring the PM Claude will wire it mechanically. Includes a client-side
+  **dedup warning** when the freeform metric key collides verbatim with an existing catalog
+  row.
 - **Advanced override** — collapsed by default, `btn-ghost btn-sm` toggle revealing a
   page-picker `<select>`. Defaults to the action's page; only matters for cross-page funnels
   (e.g. Dashboard CTA → NewAssessment conversion).
@@ -204,10 +207,13 @@ the common case.
 - The **proposed** sub-picker keeps PM proposals constrained to what engineers pre-declared
   in the catalog (with handler_hint as the safety pin). This is the *recommended* path.
 - The **freeform** fallback lets PMs propose truly novel measurements without engineer
-  pre-work, at the cost of some PR-review attention on the handler choice. Recipe instructs
-  ADW to name the chosen handler in the PR description; the per-file forward drift check
-  confirms the new trackEvent landed in the named file. The PM sees a clear "engineering
-  reviews this before merge" banner.
+  pre-work. There is **no engineering review in the merge path** — the safety chain is the
+  catalog forward-drift check (per-file: the new `trackEvent` literal MUST appear in the
+  file the new catalog row's `fires_in` names), draft-first auto-merge (no user-visible
+  behavior change on merge), and the PM verifying results look right before flipping the
+  card to `running`. The recipe still instructs ADW to name the chosen handler in the PR
+  description, but only for audit/traceability — it's not a gate. The freeform banner
+  states this honestly.
 
 ### D. First card = `status: draft`, 50/50 (unchanged)
 Reasoning grounded in `scripts/experiments.mjs:97`: the audience-overlap scan is gated on
@@ -294,13 +300,15 @@ the mandatory AI-attribution chip). No hex/rgb literals in components.
 - **A non-technical user could still create an issue outside the portal**; the
   `adw-zte.yml` author gate remains the real control. The portal gate just prevents the
   confusing silent no-op for legitimate users without push access.
-- **Template C handler-choice risk** is mitigated by (a) the recipe's "name it in the PR
-  description" rule, (b) the per-file forward drift check (trackEvent must appear in the
-  named `fires_in` file), and (c) the freeform UI's amber banner setting expectations of
-  review. A semantically-wrong handler in the *right file* can still ship; the auto-merge
-  → human-flips-to-running path is the ultimate safety (a wrong metric won't accrue
-  conversions for the live flip, and the human will notice before flipping
-  `status: running`).
+- **Template C handler-choice is the residual semantic risk.** No engineering review gates
+  the merge; the safety is: (a) the per-file forward drift check (the new `trackEvent`
+  literal MUST land in the file the new catalog row's `fires_in` names — wrong-file
+  insertions fail CI), (b) the recipe instructs ADW to name the handler choice in the PR
+  description for audit/traceability (not a gate, but it lets the PM cross-check against
+  results), (c) draft-first auto-merge means the wrong-handler outcome is conversions that
+  look wrong in the draft results panel — the PM catches that before flipping the test to
+  `running`. A semantically-wrong handler in the *right file* can still pass CI and merge as
+  a draft, but it can't go live without the PM's explicit flip.
 - **No semantic dedup for proposed metric keys.** The portal warns when the suggested key
   collides verbatim with an existing catalog row; near-duplicates
   (`assessment_started` vs `assessment_create`) still slip through.

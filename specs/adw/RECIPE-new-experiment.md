@@ -131,8 +131,10 @@ api.trackEvent('<primary-metric>').catch(() => undefined);
 
 ### 3-C. Template C — freeform brand-new measurement
 
-The human asked for a brand-new measurement that doesn't have a catalog row yet. Extra
-discipline applies:
+The human asked for a brand-new measurement that doesn't have a catalog row yet. **There is no
+engineering review in the merge path** for freeform — the safety chain is the catalog
+forward-drift check + draft-first auto-merge + the PM verifying results before they flip the
+card to `running`. Extra discipline applies:
 
 1. **Duplicate check.** Before writing:
    ```sh
@@ -143,8 +145,10 @@ discipline applies:
 2. **Handler choice.** The issue may or may not include a hint (the `Treatment UI` /
    `handler_hint` lines). Choose the handler that most clearly matches the user-facing action
    in the issue's "Action description". **Name your choice in the PR description** (file +
-   function + one-line rationale) so a human reviewer can verify the placement before the
-   auto-merge fires.
+   function + one-line rationale) — this isn't a gate, but it makes the PR auditable and lets
+   the PM cross-check the wiring against the eventual results before flipping the test on. The
+   catalog forward-drift check (per-file) is the load-bearing gate: it requires the literal to
+   appear in the file the catalog row's `fires_in` names, so a wrong-file insertion fails CI.
 3. **Insertion** uses the same pattern as 3-B (mirror `NewAssessment.tsx` L51–52,
    fire-and-forget, after the primary API call resolves).
 
