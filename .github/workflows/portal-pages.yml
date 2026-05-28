@@ -1,0 +1,57 @@
+name: Portal (Pages)
+
+# Builds the experiments portal (portal/) and deploys it to GitHub Pages (spec 0015, phase 4).
+# PRs that touch portal/ are build-validated; deploy happens only on push to main.
+# Requires repo Settings → Pages → Source: "GitHub Actions".
+on:
+  push:
+    branches: [main]
+    paths: ['portal/**', '.github/workflows/portal-pages.yml']
+  pull_request:
+    branches: [main]
+    paths: ['portal/**', '.github/workflows/portal-pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: portal-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+      - name: Install
+        run: npm --prefix portal ci
+      - name: Build
+        run: npm --prefix portal run build
+        env:
+          # The Render API (device-flow relay + results) and the repo the portal reads/PRs.
+          VITE_API_BASE: https://api.vendor-risk.wehbi.me
+          VITE_REPO: ${{ github.repository }}
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: portal/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
