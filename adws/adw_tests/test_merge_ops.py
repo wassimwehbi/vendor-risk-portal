@@ -30,6 +30,11 @@ def _write(cwd, name, content):
         f.write(content)
 
 
+def _write_bytes(cwd, name, content: bytes):
+    with open(os.path.join(cwd, name), "wb") as f:
+        f.write(content)
+
+
 def _init_repo(cwd):
     _git(cwd, "init", "-b", "main")
     _git(cwd, "config", "user.email", "t@example.test")
@@ -101,6 +106,49 @@ def test_resolve_then_complete():
         assert git_ops.is_up_to_date_with("main", cwd=d) is True
 
 
+def test_is_binary_path():
+    with tempfile.TemporaryDirectory() as d:
+        _write_bytes(d, "img.bin", b"\x89PNG\x00\x00data")
+        _write(d, "text.txt", "plain text\n")
+        assert git_ops.is_binary_path("img.bin", cwd=d) is True
+        assert git_ops.is_binary_path("text.txt", cwd=d) is False
+        assert git_ops.is_binary_path("missing.bin", cwd=d) is False
+
+
+def test_binary_conflict_resolved_in_favor_of_main():
+    """A binary baseline changed on both sides: the text agent is bypassed and main wins."""
+    with tempfile.TemporaryDirectory() as d:
+        _init_repo(d)
+        _write_bytes(d, "shot.png", b"\x89PNG\x00ORIGINAL\x00")
+        _git(d, "add", "-A")
+        _git(d, "commit", "-m", "add baseline")
+        main_bytes = b"\x89PNG\x00MAIN-BASELINE\x00"
+
+        _git(d, "checkout", "-b", "feat")
+        _write_bytes(d, "shot.png", b"\x89PNG\x00FEAT-VERSION\x00")
+        _git(d, "commit", "-am", "feat changes baseline")
+        _git(d, "checkout", "main")
+        _write_bytes(d, "shot.png", main_bytes)
+        _git(d, "commit", "-am", "main changes baseline")
+        _git(d, "checkout", "feat")
+
+        status, conflicts = git_ops.merge_base_into_head("main", cwd=d)
+        assert status == "conflicted", (status, conflicts)
+        assert conflicts == ["shot.png"], conflicts
+        assert git_ops.is_binary_path("shot.png", cwd=d) is True
+        # A binary conflict carries no text markers — the marker check is blind to it.
+        assert git_ops.has_conflict_markers(["shot.png"], cwd=d) is False
+
+        ok, err = git_ops.resolve_take_theirs(["shot.png"], cwd=d)
+        assert ok, err
+        with open(os.path.join(d, "shot.png"), "rb") as fh:
+            assert fh.read() == main_bytes  # took main's version
+
+        ok, err = git_ops.complete_merge(cwd=d)
+        assert ok, err
+        assert git_ops.is_up_to_date_with("main", cwd=d) is True
+
+
 def test_resolve_conflicts_in_model_map():
     assert "/resolve_conflicts" in SLASH_COMMAND_MODEL_MAP
 
@@ -111,6 +159,8 @@ def main():
         test_clean_merge,
         test_conflict_detect_and_abort,
         test_resolve_then_complete,
+        test_is_binary_path,
+        test_binary_conflict_resolved_in_favor_of_main,
         test_resolve_conflicts_in_model_map,
     ]
     failed = 0

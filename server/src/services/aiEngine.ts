@@ -4,6 +4,8 @@ import type {
   AnalysisProvider,
   AnalyzeResult,
   DataCategory,
+  EvidenceContext,
+  EvidenceKind,
   Finding,
   ItemAnalysis,
   QuestionnaireItem,
@@ -24,11 +26,16 @@ const GDPR_TRIGGERS: DataCategory[] = [
   'subprocessors',
 ];
 
-function deriveFrameworks(categories: DataCategory[]): string[] {
-  const frameworks = ['ISO 27001', 'ISO 27002'];
-  if (categories.some((c) => GDPR_TRIGGERS.includes(c))) frameworks.push('GDPR');
-  if (categories.includes('phi')) frameworks.push('HIPAA');
-  return frameworks;
+function deriveFrameworks(analyses: Array<{ analysis: ItemAnalysis }>, categories: DataCategory[]): string[] {
+  const set = new Set<string>();
+  for (const { analysis } of analyses) {
+    for (const { framework } of analysis.framework_mappings) {
+      set.add(framework);
+    }
+  }
+  if (categories.some((c) => GDPR_TRIGGERS.includes(c))) set.add('GDPR');
+  if (categories.includes('phi')) set.add('HIPAA');
+  return [...set];
 }
 
 /**
@@ -60,6 +67,18 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
   const items: QuestionnaireItem[] = itemRows.map(mapItem);
   if (items.length === 0) throw new Error('No questionnaire items to analyze. Upload a questionnaire first.');
 
+  const evidenceRows = db
+    .prepare(
+      `SELECT original_name, kind, extracted_text FROM evidence_files
+       WHERE assessment_id = ? AND parse_status = 'extracted' AND extracted_text IS NOT NULL`,
+    )
+    .all(assessmentId) as Array<{ original_name: string; kind: string; extracted_text: string }>;
+  const evidenceContext: EvidenceContext[] = evidenceRows.map((r) => ({
+    name: r.original_name,
+    kind: r.kind as EvidenceKind,
+    text: r.extracted_text,
+  }));
+
   const wasApproved = assessmentRow.validation_status === 'approved';
 
   const claude = createClaudeProvider();
@@ -69,11 +88,11 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
   const analyses: Array<{ item: QuestionnaireItem; analysis: ItemAnalysis; source: AiEngine }> = [];
   for (const item of items) {
     try {
-      const analysis = await primary.analyzeItem(item);
+      const analysis = await primary.analyzeItem(item, evidenceContext);
       analyses.push({ item, analysis, source: primary.name });
     } catch (err) {
       console.warn(`[aiEngine] ${primary.name} failed for item ${item.id}, falling back to rule engine:`, err);
-      const analysis = await ruleEngine.analyzeItem(item);
+      const analysis = await ruleEngine.analyzeItem(item, evidenceContext);
       analyses.push({ item, analysis, source: 'rule' });
     }
   }
@@ -82,7 +101,7 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
   const allCategories = new Set<DataCategory>();
   for (const { analysis } of analyses) analysis.data_categories.forEach((c) => allCategories.add(c));
   const data_categories = [...allCategories];
-  const applicable_frameworks = deriveFrameworks(data_categories);
+  const applicable_frameworks = deriveFrameworks(analyses, data_categories);
 
   // 3) Recompute risk per item using the assessment-wide sensitivity context.
   for (const a of analyses) {

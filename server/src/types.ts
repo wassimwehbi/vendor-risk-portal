@@ -176,6 +176,12 @@ export interface EvidenceFile {
   parse_note: string | null;
 }
 
+export interface EvidenceContext {
+  name: string;
+  kind: EvidenceKind;
+  text: string;
+}
+
 export interface Assessment {
   id: number;
   vendor_id: number;
@@ -228,7 +234,7 @@ export interface ItemAnalysis {
 
 export interface AnalysisProvider {
   name: AiEngine;
-  analyzeItem(item: QuestionnaireItem): Promise<ItemAnalysis>;
+  analyzeItem(item: QuestionnaireItem, evidence?: EvidenceContext[]): Promise<ItemAnalysis>;
 }
 
 export interface AnalyzeResult {
