@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { dirname, join, normalize, resolve, sep } from 'node:path';
+import { basename, dirname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
@@ -225,8 +225,12 @@ export async function parsePdfQuestionnaire(buffer: Buffer): Promise<NewQuestion
 const SAFE_UPLOAD_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads');
 
 function ensurePathWithinUploads(filePath: string): string {
+  // Drop any directory components from the incoming path (a path-traversal barrier the
+  // js/path-injection query recognizes) and re-root under SAFE_UPLOAD_ROOT, where multer
+  // stores uploads flat. The containment check below stays as defense in depth.
+  const safePath = join(SAFE_UPLOAD_ROOT, basename(filePath));
   const root = normalize(resolve(SAFE_UPLOAD_ROOT));
-  const resolvedPath = normalize(resolve(filePath));
+  const resolvedPath = normalize(resolve(safePath));
   if (resolvedPath !== root && !resolvedPath.startsWith(root + sep)) {
     throw new Error('Invalid upload file path');
   }

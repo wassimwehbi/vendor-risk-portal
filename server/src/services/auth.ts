@@ -59,7 +59,14 @@ export function normalizeEmail(email: string): string {
 }
 
 export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // Linear, ReDoS-free equivalent of /^[^\s@]+@[^\s@]+\.[^\s@]+$/ (the polynomial regex the
+  // js/polynomial-redos query flagged): exactly one '@', no whitespace, a dot inside the domain.
+  if (/\s/.test(email)) return false;
+  const at = email.indexOf('@');
+  if (at < 1 || email.indexOf('@', at + 1) !== -1) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf('.');
+  return dot > 0 && dot < domain.length - 1;
 }
 
 /** Whether an email's domain is permitted (empty allow-list = allow all). */
