@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { safeEqual } from '../middleware/auth';
@@ -46,17 +47,63 @@ experimentsRouter.post('/events', (req, res) => {
 
 // ---- Public routes ---------------------------------------------------------
 // Mounted BEFORE requireAuth: the portal is a separate (GitHub Pages) origin with no app session.
-// Results are token-gated; the device-flow relay is unauthenticated by design (it forwards to
-// GitHub with a PUBLIC client_id and holds no secret). CORS for these is scoped in app.ts.
+// Results are authorized by the visitor's GitHub identity (repo-collaborator check, see below);
+// the device-flow relay is unauthenticated by design (it forwards to GitHub with a PUBLIC
+// client_id and holds no secret). CORS for these is scoped in app.ts.
 export const experimentsPublicRouter = Router();
 
-// Aggregate results for the portal dashboard. Bearer-token gated (low-sensitivity, non-PII counts).
-// Disabled (503) unless EXPERIMENTS_READ_TOKEN is configured. The token check is constant-time.
-experimentsPublicRouter.get('/experiments/:key/results', (req, res) => {
-  if (!experimentsConfig.readToken) return fail(res, 503, 'Results API not configured');
+// Authorize a results read. Two accepted bearer tokens:
+//   1. the optional shared EXPERIMENTS_READ_TOKEN (for automation / curl), or
+//   2. a GitHub user token whose user is a COLLABORATOR (push access) on the experiments repo —
+//      this is what the portal sends (the visitor's signed-in identity), so there's no separate
+//      secret to paste and nothing read-token-shaped baked into the static bundle.
+// Collaborator verification is cached briefly so a dashboard load (N experiments → N fetches)
+// makes at most one GitHub call per token.
+const GH_API = 'https://api.github.com';
+const ACCESS_TTL_MS = 5 * 60 * 1000;
+const accessCache = new Map<string, { allow: boolean; expires: number }>();
+
+type AuthResult = { ok: true } | { ok: false; status: number; msg: string };
+
+async function authorizeResults(token: string): Promise<AuthResult> {
+  if (!token) return { ok: false, status: 401, msg: 'Authentication required' };
+  if (experimentsConfig.readToken && safeEqual(token, experimentsConfig.readToken)) return { ok: true };
+
+  const cacheKey = createHash('sha256').update(token).digest('hex');
+  const cached = accessCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.allow ? { ok: true } : { ok: false, status: 403, msg: 'Repo collaborator access required' };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const gh = await fetch(`${GH_API}/repos/${experimentsConfig.repo}`, {
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: 'application/vnd.github+json',
+        'user-agent': 'vrp-experiments',
+      },
+      signal: controller.signal,
+    });
+    if (gh.status === 401) return { ok: false, status: 401, msg: 'Invalid GitHub token' };
+    if (!gh.ok) return { ok: false, status: 502, msg: 'Could not verify GitHub access' };
+    const data = (await gh.json()) as { permissions?: { push?: boolean } };
+    const allow = data.permissions?.push === true; // collaborator with write (public-repo readers have only pull)
+    accessCache.set(cacheKey, { allow, expires: Date.now() + ACCESS_TTL_MS });
+    return allow ? { ok: true } : { ok: false, status: 403, msg: 'Repo collaborator access required' };
+  } catch {
+    return { ok: false, status: 502, msg: 'Could not verify GitHub access' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Aggregate results for the portal dashboard (low-sensitivity, non-PII counts).
+experimentsPublicRouter.get('/experiments/:key/results', async (req, res) => {
   const header = req.header('authorization') || '';
   const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
-  if (!token || !safeEqual(token, experimentsConfig.readToken)) return fail(res, 401, 'Invalid results token');
+  const auth = await authorizeResults(token);
+  if (!auth.ok) return fail(res, auth.status, auth.msg);
   const exp = getExperiment(req.params.key);
   if (!exp) return fail(res, 404, 'Unknown experiment');
   ok(res, computeResults(exp));

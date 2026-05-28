@@ -20,8 +20,10 @@ const REGISTRY_PATH = process.env.VRP_EXPERIMENTS_PATH || join(__dirname, '..', 
 // Optional env, read once at load. Absent values disable the relevant endpoint.
 export const experimentsConfig = {
   portalOrigin: process.env.EXPERIMENTS_PORTAL_ORIGIN || '',
-  readToken: process.env.EXPERIMENTS_READ_TOKEN || '',
+  readToken: process.env.EXPERIMENTS_READ_TOKEN || '', // optional automation/curl auth for results
   ghClientId: process.env.GH_OAUTH_CLIENT_ID || '',
+  // Repo whose collaborators may read results (the portal authorizes via the signed-in GitHub user).
+  repo: process.env.EXPERIMENTS_REPO || 'wassimwehbi/vendor-risk-portal',
 };
 
 let cache: Experiment[] | null = null;
