@@ -189,7 +189,12 @@ export const api = {
 
   patchAssessment: (
     id: number,
-    body: { overall_risk?: RiskLevel; analyst_notes?: string; validation_status?: 'pending' | 'approved' },
+    body: {
+      overall_risk?: RiskLevel;
+      analyst_notes?: string;
+      business_context?: string;
+      validation_status?: 'pending' | 'approved';
+    },
   ) => patch<Assessment>(`/assessments/${id}`, body),
 
   getReport: (id: number) => get<ReportData>(`/assessments/${id}/report`),

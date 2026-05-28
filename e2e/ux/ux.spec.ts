@@ -50,6 +50,9 @@ for (const s of SCENARIOS) {
             case 'expectVisibleText':
               await expect(page.getByText(step.text).first()).toBeVisible();
               break;
+            case 'expectVisible':
+              await expect(page.locator(step.selector)).toBeVisible();
+              break;
           }
         }
 

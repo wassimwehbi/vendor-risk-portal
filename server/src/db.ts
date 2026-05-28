@@ -30,6 +30,7 @@ export function initDb(): void {
       overall_risk TEXT,
       ai_engine_used TEXT,
       analyst_notes TEXT,
+      business_context TEXT,
       validation_status TEXT NOT NULL DEFAULT 'pending',
       validated_by TEXT,
       validated_at TEXT,
@@ -207,6 +208,7 @@ export function initDb(): void {
   ensureColumn('audit_log', 'tenant_id', 'INTEGER REFERENCES tenants(id)');
   // experiment_events gained exp_key (spec 0015 review): bind conversions to a specific experiment.
   ensureColumn('experiment_events', 'exp_key', 'TEXT');
+  ensureColumn('assessments', 'business_context', 'TEXT');
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vendors_tenant ON vendors(tenant_id);
@@ -256,6 +258,7 @@ export function mapAssessment(row: any): Assessment {
     overall_risk: row.overall_risk ?? null,
     ai_engine_used: row.ai_engine_used ?? null,
     analyst_notes: row.analyst_notes ?? null,
+    business_context: row.business_context ?? null,
     validation_status: row.validation_status,
     validated_by: row.validated_by ?? null,
     validated_at: row.validated_at ?? null,
