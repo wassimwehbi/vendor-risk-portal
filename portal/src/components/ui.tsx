@@ -6,7 +6,7 @@ export function StatusPill({ status }: { status: ExperimentStatus }) {
 }
 
 export function Spinner() {
-  return <span className="spinner" aria-label="Loading" />;
+  return <span className="spinner" role="status" aria-label="Loading" />;
 }
 
 export function Banner({ kind, children }: { kind: 'error' | 'ok'; children: ReactNode }) {

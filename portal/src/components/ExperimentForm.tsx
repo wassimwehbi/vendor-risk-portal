@@ -52,10 +52,15 @@ export function ExperimentForm({
   }
 
   function build(): Experiment {
-    const tenants = tenantsCsv
-      .split(',')
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n) && n > 0);
+    // De-duplicate: the schema requires targeting.tenants to have uniqueItems.
+    const tenants = Array.from(
+      new Set(
+        tenantsCsv
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => Number.isInteger(n) && n > 0),
+      ),
+    );
     const secondary = secondaryCsv
       .split(',')
       .map((s) => s.trim())
@@ -78,7 +83,10 @@ export function ExperimentForm({
     if (!e.name) return 'Name is required.';
     if (e.variants.length < 2) return 'At least two variants are required.';
     if (e.variants.some((v) => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(v.key))) return 'Variant keys must be kebab-case.';
-    if (weightSum !== 100) return `Variant weights must sum to 100 (currently ${weightSum}).`;
+    if (e.variants.some((v) => !Number.isInteger(v.weight) || v.weight < 0))
+      return 'Variant weights must be whole numbers ≥ 0.';
+    const sum = e.variants.reduce((acc, v) => acc + v.weight, 0); // sum from the built/normalized list
+    if (sum !== 100) return `Variant weights must sum to 100 (currently ${sum}).`;
     return null;
   }
 

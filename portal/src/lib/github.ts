@@ -66,7 +66,11 @@ export async function listExperiments(token?: string): Promise<LoadedExperiment[
   const loaded = await Promise.all(
     ymls.map(async ({ name }) => {
       const file = await gh<FileContent>(`/repos/${REPO}/contents/${EXPERIMENTS_DIR}/${name}`, { token });
-      return { file: name, exp: parseExperiment(decodeBase64(file.content)) };
+      try {
+        return { file: name, exp: parseExperiment(decodeBase64(file.content)) };
+      } catch (e) {
+        throw new Error(`${name}: ${(e as Error).message}`); // surface which file is invalid
+      }
     }),
   );
   return loaded;

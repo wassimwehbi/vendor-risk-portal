@@ -1,9 +1,21 @@
 import yaml from 'js-yaml';
 import type { Experiment } from '../types';
 
-/** Parse an experiment YAML file. JSON_SCHEMA keeps dates as strings (matches the server/validator). */
+/**
+ * Parse an experiment YAML file. JSON_SCHEMA keeps dates as strings (matches the server/validator).
+ * Validates the basic shape and throws a clear error on empty/invalid YAML, so the caller can
+ * surface *which* file is broken rather than crashing later on `exp.key`/`exp.variants`.
+ */
 export function parseExperiment(raw: string): Experiment {
-  return yaml.load(raw, { schema: yaml.JSON_SCHEMA }) as Experiment;
+  const data = yaml.load(raw, { schema: yaml.JSON_SCHEMA });
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('not a valid experiment (YAML did not parse to an object)');
+  }
+  const exp = data as Partial<Experiment>;
+  if (typeof exp.key !== 'string' || typeof exp.name !== 'string' || !Array.isArray(exp.variants)) {
+    throw new Error('missing required fields (key, name, variants[])');
+  }
+  return exp as Experiment;
 }
 
 /**
