@@ -59,10 +59,17 @@ interface FileContent {
   sha: string;
 }
 
+// Filenames in experiments/ that are valid YAML but are NOT experiment cards (catalog.yml is
+// a distinct schema — see spec 0019). Mirrors RESERVED_NAMES in scripts/experiments.mjs so the
+// portal's dashboard doesn't try to parse them as Experiments and crash on the missing fields.
+const RESERVED_EXPERIMENT_FILES = new Set(['catalog.yml', 'catalog.yaml']);
+
 /** List + parse every experiment YAML in the repo's experiments/ directory. */
 export async function listExperiments(token?: string): Promise<LoadedExperiment[]> {
   const items = await gh<ContentItem[]>(`/repos/${REPO}/contents/${EXPERIMENTS_DIR}`, { token });
-  const ymls = items.filter((i) => i.type === 'file' && /\.ya?ml$/.test(i.name)).sort((a, b) => a.name.localeCompare(b.name));
+  const ymls = items
+    .filter((i) => i.type === 'file' && /\.ya?ml$/.test(i.name) && !RESERVED_EXPERIMENT_FILES.has(i.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const loaded = await Promise.all(
     ymls.map(async ({ name }) => {
       const file = await gh<FileContent>(`/repos/${REPO}/contents/${EXPERIMENTS_DIR}/${name}`, { token });
