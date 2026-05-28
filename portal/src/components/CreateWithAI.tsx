@@ -246,19 +246,19 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
             value={pickerValue}
             onChange={(e) => setPickerValue(e.target.value)}
           >
-            {instrumentedActions.length > 0 && (
-              <optgroup label="Available measurements">
-                {Object.entries(groupByPage(instrumentedActions)).map(([pageTitle, items]) => (
-                  <optgroup key={pageTitle} label={pageTitle}>
-                    {items.map((it) => (
-                      <option key={it.value} value={it.value}>
-                        {it.action.title}
-                      </option>
-                    ))}
-                  </optgroup>
+            {/* HTML5 forbids nested <optgroup>; the previous outer 'Available measurements'
+                wrapper made Chrome desync the controlled-select value from the visible option
+                (clicking 'Propose a new measurement…' silently kept pickerValue on the first
+                instrumented action). Single-level optgroups only — one per page. */}
+            {Object.entries(groupByPage(instrumentedActions)).map(([pageTitle, items]) => (
+              <optgroup key={pageTitle} label={pageTitle}>
+                {items.map((it) => (
+                  <option key={it.value} value={it.value}>
+                    {it.action.title}
+                  </option>
                 ))}
               </optgroup>
-            )}
+            ))}
             <option value={PROPOSE_NEW_VALUE}>Propose a new measurement…</option>
           </select>
           {pickerSummary && (
@@ -302,7 +302,7 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
             aria-expanded={showVariantOverride}
             aria-controls="ai-variant-override-panel"
           >
-            {showVariantOverride ? 'Hide' : 'Advanced — '}where does the change appear?
+            {showVariantOverride ? 'Hide ' : 'Advanced — '}where does the change appear?
           </button>
           {showVariantOverride && resolved && (
             <div id="ai-variant-override-panel" style={{ marginTop: '0.4rem' }}>
