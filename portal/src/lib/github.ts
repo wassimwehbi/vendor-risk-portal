@@ -2,8 +2,8 @@
 // changes. Authenticated with the device-flow token (5000 req/h; reads also work unauthenticated at
 // 60 req/h). api.github.com supports CORS for these calls.
 import { EXPERIMENTS_DIR, REPO } from '../config';
-import type { LoadedExperiment } from '../types';
-import { parseExperiment } from './yaml';
+import type { Catalog, LoadedExperiment } from '../types';
+import { parseCatalog, parseExperiment } from './yaml';
 
 const GH = 'https://api.github.com';
 
@@ -62,13 +62,15 @@ export function getRepoPermissions(token: string): Promise<{ push: boolean }> {
   }));
 }
 
-/** Filenames of `client/src/pages/*.tsx` — used to populate page-file dropdowns in the AI form. */
-export async function listPageFiles(token?: string): Promise<string[]> {
-  const items = await gh<ContentItem[]>(`/repos/${REPO}/contents/client/src/pages`, { token });
-  return items
-    .filter((i) => i.type === 'file' && /\.tsx$/.test(i.name))
-    .map((i) => `client/src/pages/${i.name}`)
-    .sort();
+/**
+ * Fetch + parse experiments/catalog.yml. The catalog is the source of truth for what's available
+ * to A/B test today (spec 0017 refinement). On any failure (404, decode, parse, shape), throws —
+ * the caller (App) turns the error into the fail-closed banner. We deliberately don't fall back
+ * to file-path pickers: the catalog IS the contract.
+ */
+export async function fetchCatalog(token?: string): Promise<Catalog> {
+  const file = await gh<FileContent>(`/repos/${REPO}/contents/${EXPERIMENTS_DIR}/catalog.yml`, { token });
+  return parseCatalog(decodeBase64(file.content));
 }
 
 /**

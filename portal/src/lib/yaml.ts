@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import type { Experiment } from '../types';
+import type { Catalog, CatalogPage, Experiment } from '../types';
 
 /**
  * Parse an experiment YAML file. JSON_SCHEMA keeps dates as strings (matches the server/validator).
@@ -39,4 +39,28 @@ export function toYaml(exp: Experiment): string {
 
   const body = yaml.dump(doc, { lineWidth: 100, quotingType: '"', schema: yaml.JSON_SCHEMA });
   return `# yaml-language-server: $schema=./schema.json\n${body}`;
+}
+
+/**
+ * Parse experiments/catalog.yml. Shape-validates the basic structure (version + pages array of
+ * objects with id/title/actions). Authoritative validation happens in CI via the JSON Schema;
+ * this client-side check exists so the portal can fail-closed cleanly when the catalog is
+ * malformed at runtime, and so a parse error names the offending field instead of crashing.
+ */
+export function parseCatalog(raw: string): Catalog {
+  const data = yaml.load(raw, { schema: yaml.JSON_SCHEMA });
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('catalog.yml did not parse to an object');
+  }
+  const c = data as Partial<Catalog>;
+  if (c.version !== 1) throw new Error('catalog.yml: unsupported version (expected 1)');
+  if (!Array.isArray(c.pages)) throw new Error('catalog.yml: missing pages[]');
+  for (const page of c.pages) {
+    if (!page || typeof page !== 'object' || Array.isArray(page)) throw new Error('catalog.yml: a page is not an object');
+    const p = page as Partial<CatalogPage>;
+    if (typeof p.id !== 'string' || typeof p.title !== 'string' || !Array.isArray(p.actions)) {
+      throw new Error(`catalog.yml: page "${p.id ?? '?'}" is missing id/title/actions`);
+    }
+  }
+  return c as Catalog;
 }

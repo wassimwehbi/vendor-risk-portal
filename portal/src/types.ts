@@ -34,6 +34,42 @@ export interface LoadedExperiment {
   exp: Experiment;
 }
 
+// ---- Experiment catalog (spec 0017 refinement) ---------------------------------------------
+// The catalog (experiments/catalog.yml) is the PM-facing source of truth for what's available
+// to A/B test. The portal reads it via the GitHub Contents API and renders the action-centric
+// picker from it. Shape mirrors experiments/catalog.schema.json.
+
+export type MetricStatus = 'instrumented' | 'proposed';
+
+export interface CatalogMetric {
+  key: string;
+  fires_in: string; // file path; internal only — never shown to PMs
+  status: MetricStatus;
+  handler_hint?: string; // load-bearing for TEMPLATE B safe wiring
+}
+
+export interface CatalogAction {
+  id: string;
+  title: string;
+  description: string;
+  metric?: CatalogMetric;
+}
+
+export interface CatalogPage {
+  id: string;
+  title: string;
+  description: string;
+  file: string; // internal only — never shown to PMs
+  surface: string;
+  experimentable: boolean;
+  actions: CatalogAction[];
+}
+
+export interface Catalog {
+  version: 1;
+  pages: CatalogPage[];
+}
+
 export interface VariantResult {
   key: string;
   exposed: number;

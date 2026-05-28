@@ -5,11 +5,11 @@ import { Dashboard } from './components/Dashboard';
 import { ExperimentForm } from './components/ExperimentForm';
 import { SignIn } from './components/SignIn';
 import { Banner, Spinner } from './components/ui';
-import { getRepoPermissions, getViewer, listExperiments, listPageFiles, openExperimentPR, type Viewer } from './lib/github';
+import { fetchCatalog, getRepoPermissions, getViewer, listExperiments, openExperimentPR, type Viewer } from './lib/github';
 import { fetchResults } from './lib/relay';
 import { session } from './lib/session';
 import { toYaml } from './lib/yaml';
-import type { Experiment, ExperimentResults, LoadedExperiment } from './types';
+import type { Catalog, Experiment, ExperimentResults, LoadedExperiment } from './types';
 
 type ResultState = ExperimentResults | { error: string } | undefined;
 
@@ -23,7 +23,10 @@ export function App() {
   // canCreate gates the "Create with AI" CTA. Mirrors the `adw-zte.yml` author gate (push access ==
   // OWNER/MEMBER/COLLABORATOR) so we don't surface a button that quietly no-ops for non-collaborators.
   const [canCreate, setCanCreate] = useState(false);
-  const [pageFiles, setPageFiles] = useState<string[]>([]);
+  // The catalog is the source of truth for the AI form (spec 0017 refinement). null = still
+  // loading; { error: ... } = failed → the AI flow goes fail-closed (the CTA stays visible but
+  // clicking it surfaces the error banner instead of the form).
+  const [catalog, setCatalog] = useState<Catalog | { error: string } | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<ReactNode>(null);
 
@@ -38,8 +41,8 @@ export function App() {
   }, []);
 
   // After sign-in: fetch the viewer + the experiment list, plus the inputs the "Create with AI"
-  // flow needs (push-permission to gate the CTA, page-file dropdowns). Both lookups are best-effort
-  // and never break the dashboard if they fail (the CTA simply stays hidden / dropdowns empty).
+  // flow needs (push-permission gating, the experiment catalog). The lookups are best-effort
+  // and never break the dashboard if they fail; the CTA gate / fail-closed banner handles fallout.
   useEffect(() => {
     if (!token) return;
     getViewer(token)
@@ -49,9 +52,9 @@ export function App() {
     getRepoPermissions(token)
       .then((p) => setCanCreate(p.push))
       .catch(() => setCanCreate(false));
-    listPageFiles(token)
-      .then(setPageFiles)
-      .catch(() => setPageFiles([]));
+    fetchCatalog(token)
+      .then(setCatalog)
+      .catch((e: Error) => setCatalog({ error: e.message }));
   }, [token, loadExperiments]);
 
   // Live results, authorized by the signed-in GitHub token (the server checks repo-collaborator
@@ -76,7 +79,7 @@ export function App() {
     setExperiments(null);
     setResults({});
     setCanCreate(false);
-    setPageFiles([]);
+    setCatalog(null);
   }
 
   async function pause(loaded: LoadedExperiment) {
@@ -140,9 +143,9 @@ export function App() {
             }}
           />
         ) : view === 'ai' ? (
-          <CreateWithAI
+          <CreateWithAIView
             token={token}
-            pageFiles={pageFiles}
+            catalog={catalog}
             existingKeys={(experiments ?? []).map((l) => l.exp.key)}
             onCancel={() => setView('dashboard')}
             onDone={(url, number) => {
@@ -181,5 +184,58 @@ export function App() {
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * Three-state shim around CreateWithAI. The catalog is the contract for the AI flow — when it's
+ * missing or malformed we deliberately do NOT fall back to file-path inputs (that would re-create
+ * the v1 problem the catalog solves). Surfacing the issue clearly is the right call.
+ */
+function CreateWithAIView({
+  token,
+  catalog,
+  existingKeys,
+  onCancel,
+  onDone,
+}: {
+  token: string;
+  catalog: Catalog | { error: string } | null;
+  existingKeys: string[];
+  onCancel: () => void;
+  onDone: (issueUrl: string, issueNumber: number) => void;
+}) {
+  if (catalog === null) {
+    return (
+      <div className="row">
+        <Spinner /> Loading the experiment catalog…
+      </div>
+    );
+  }
+  if ('error' in catalog) {
+    return (
+      <div className="stack">
+        <div className="between">
+          <h2>Create with AI</h2>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+            ← Back
+          </button>
+        </div>
+        <Banner kind="error">
+          The experiment catalog could not be loaded ({catalog.error}). Ask an engineer to confirm{' '}
+          <span className="mono">experiments/catalog.yml</span> exists on the default branch and matches{' '}
+          <span className="mono">experiments/catalog.schema.json</span>.
+        </Banner>
+      </div>
+    );
+  }
+  return (
+    <CreateWithAI
+      token={token}
+      catalog={catalog}
+      existingKeys={existingKeys}
+      onCancel={onCancel}
+      onDone={onDone}
+    />
   );
 }

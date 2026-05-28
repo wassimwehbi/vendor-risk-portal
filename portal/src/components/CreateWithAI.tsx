@@ -1,39 +1,69 @@
-// Spec 0017 — "Create with AI" flow. A guided form (+ a free-text treatment prompt) that the
-// portal composes into a checklist-shaped ADW issue and posts to GitHub with the `adw:zte` label,
-// triggering the repo's plan→build→test→review→ship pipeline to wire the product code AND create
-// the first draft config card. Subsequent edits go through the existing ExperimentForm (Edit).
+// Catalog-driven "Create with AI" form (spec 0017 refinement). A non-technical PM picks an
+// action from the experiments catalog (or proposes a new measurement); the portal composes a
+// templated ADW issue and creates it labeled `adw:zte`, triggering the repo's pipeline to wire
+// the product code AND open the draft config card in a single auto-merged PR.
+//
+// Design-system rules followed strictly (per design-system/DESIGN_SYSTEM.md + the
+// design-system skill):
+//   - Tokens via CSS vars only (no hex/rgb literals).
+//   - Recipes only: card / card-pad / btn-* / input / select / textarea / label / field /
+//     pill / chip / banner-{error,warn,ok} / row / between / stack / grid-2 / caption / mono.
+//   - One primary action per view (Launch ADW build); secondary = Cancel, ghost = toggles.
+//   - Sentence case; no emoji.
+//   - The AI-attribution chip (brand-50 + sparkles) appears on the preview card per the
+//     design system's mandatory provenance pattern.
 import { useMemo, useState } from 'react';
 import { ADW_LABEL } from '../config';
-import { composeAdwIssue, type AICreatePayload } from '../lib/adwIssue';
+import { composeAdwIssue, suggestKey, suggestMetricKey, type AICreatePayload, type FreeformMode, type ProposedMode } from '../lib/adwIssue';
 import { createIssue } from '../lib/github';
-import type { Role } from '../types';
-import { Banner, Spinner } from './ui';
+import type { Catalog, CatalogAction, CatalogPage, Role } from '../types';
+import { AiChip, Banner, Spinner } from './ui';
 
 const ROLES: Role[] = ['Analyst', 'Submitter', 'Viewer', 'Admin'];
-const KEY_RX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const METRIC_RX = /^[a-z][a-z0-9_]*$/i;
+const METRIC_RX = /^[a-z][a-z0-9_]*$/;
+const PROPOSE_NEW_VALUE = '__propose-new__';
 
 interface Props {
   token: string;
-  pageFiles: string[];
+  catalog: Catalog;
   existingKeys: string[];
   onCancel: () => void;
   onDone: (issueUrl: string, issueNumber: number) => void;
 }
 
-export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone }: Props) {
-  const [key, setKey] = useState('');
+type ProposeMode = 'pick-proposed' | 'freeform';
+
+export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }: Props) {
+  const experimentablePages = useMemo(() => catalog.pages.filter((p) => p.experimentable), [catalog]);
+  const allActions = useMemo(() => collectActions(experimentablePages), [experimentablePages]);
+  const instrumentedActions = useMemo(() => allActions.filter((a) => a.action.metric?.status === 'instrumented'), [allActions]);
+  const proposedActions = useMemo(() => allActions.filter((a) => a.action.metric?.status === 'proposed'), [allActions]);
+
   const [name, setName] = useState('');
-  const [pageFile, setPageFile] = useState(pageFiles[0] ?? '');
-  const [goalActionFile, setGoalActionFile] = useState(pageFiles[0] ?? '');
-  const [goalAction, setGoalAction] = useState('');
-  const [primaryMetric, setPrimaryMetric] = useState('');
-  const [surface, setSurface] = useState('');
-  const [hypothesis, setHypothesis] = useState('');
+  // The picker's value is either an instrumented "<pageId>/<actionId>" or PROPOSE_NEW_VALUE.
+  const [pickerValue, setPickerValue] = useState<string>(() => instrumentedActions[0]?.value ?? PROPOSE_NEW_VALUE);
+
+  const [proposeMode, setProposeMode] = useState<ProposeMode>(proposedActions.length ? 'pick-proposed' : 'freeform');
+  const [proposedValue, setProposedValue] = useState<string>(() => proposedActions[0]?.value ?? '');
+
+  // Freeform fields (only used when mode==='freeform')
+  const [freePageId, setFreePageId] = useState<string>(experimentablePages[0]?.id ?? '');
+  const [freeTitle, setFreeTitle] = useState('');
+  const [freeDesc, setFreeDesc] = useState('');
+  const [freeMetric, setFreeMetric] = useState('');
+  const [freeMetricEdited, setFreeMetricEdited] = useState(false);
+  const [freeHint, setFreeHint] = useState('');
+
+  // Variant-page override (default to the resolved action's page).
+  const [variantOverrideId, setVariantOverrideId] = useState<string>('');
+  const [showVariantOverride, setShowVariantOverride] = useState(false);
+
   const [treatmentDescription, setTreatmentDescription] = useState('');
+  const [hypothesis, setHypothesis] = useState('');
   const [roles, setRoles] = useState<Role[]>([]);
   const [tenantsCsv, setTenantsCsv] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
+
+  const [showTechnicalBrief, setShowTechnicalBrief] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -50,65 +80,81 @@ export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone 
     [tenantsCsv],
   );
 
-  // Derive a default surface from the page-file basename ("Dashboard.tsx" → "dashboard") so the
-  // common case is one less field to fill — keeps the form short while still letting the user
-  // override it when they want a custom surface name (e.g. for overlap-protection scoping).
-  const effectiveSurface = surface.trim() || derivedSurface(pageFile);
+  const derivedKey = useMemo(() => suggestKey(name), [name]);
 
-  const payload: AICreatePayload = {
-    key: key.trim(),
-    name: name.trim(),
-    pageFile,
-    goalActionFile,
-    goalAction: goalAction.trim(),
-    primaryMetric: primaryMetric.trim(),
-    surface: effectiveSurface,
-    hypothesis: hypothesis.trim() || undefined,
-    treatmentDescription: treatmentDescription.trim(),
-    targetRoles: roles.length ? roles : undefined,
-    targetTenants: tenants.length ? tenants : undefined,
-  };
+  // Resolve the user's selection into a concrete (actionPage, mode) pair.
+  const resolved = useMemo(() => resolveSelection({
+    pickerValue,
+    allActions,
+    instrumentedActions,
+    proposedActions,
+    proposedValue,
+    proposeMode,
+    experimentablePages,
+    freePageId,
+    freeTitle,
+    freeDesc,
+    freeMetric,
+    freeHint,
+  }), [pickerValue, allActions, instrumentedActions, proposedActions, proposedValue, proposeMode, experimentablePages, freePageId, freeTitle, freeDesc, freeMetric, freeHint]);
 
-  function toggleRole(r: Role) {
-    setRoles((rs) => (rs.includes(r) ? rs.filter((x) => x !== r) : [...rs, r]));
-  }
-
-  function validate(): string | null {
-    if (!KEY_RX.test(payload.key)) return 'Key must be kebab-case (e.g. checkout-banner).';
-    if (existingKeys.includes(payload.key)) return `Key "${payload.key}" already exists — choose another or edit the existing experiment.`;
-    if (!payload.name) return 'Name is required.';
-    if (!payload.pageFile) return 'Page file is required.';
-    if (!payload.goalActionFile) return 'Goal-action file is required.';
-    if (!payload.goalAction) return 'Goal action is required (describe the user action that counts as conversion).';
-    if (!METRIC_RX.test(payload.primaryMetric)) return 'Primary metric must be a snake_case identifier (e.g. assessment_created).';
-    if (!payload.treatmentDescription) return 'Describe the treatment UI — this is the only prompt the AI gets.';
-    return null;
-  }
+  // Build the payload + composed issue. Both update reactively so the preview is always live.
+  const payload: AICreatePayload | null = useMemo(() => {
+    if (!resolved) return null;
+    const variantPage = (showVariantOverride && variantOverrideId)
+      ? experimentablePages.find((p) => p.id === variantOverrideId) ?? resolved.actionPage
+      : resolved.actionPage;
+    return {
+      name: name.trim(),
+      key: derivedKey,
+      actionPage: resolved.actionPage,
+      mode: resolved.mode,
+      variantPage,
+      treatmentDescription: treatmentDescription.trim(),
+      hypothesis: hypothesis.trim() || undefined,
+      targetRoles: roles.length ? roles : undefined,
+      targetTenants: tenants.length ? tenants : undefined,
+    };
+  }, [resolved, showVariantOverride, variantOverrideId, experimentablePages, name, derivedKey, treatmentDescription, hypothesis, roles, tenants]);
 
   const composed = useMemo(() => {
+    if (!payload || !payload.name || !payload.key) return null;
     try {
       return composeAdwIssue(payload);
     } catch {
       return null;
     }
-    // The composer is pure; recompute whenever any input changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    payload.key,
-    payload.name,
-    payload.pageFile,
-    payload.goalActionFile,
-    payload.goalAction,
-    payload.primaryMetric,
-    payload.surface,
-    payload.hypothesis,
-    payload.treatmentDescription,
-    payload.targetRoles,
-    payload.targetTenants,
-  ]);
+  }, [payload]);
+
+  // Surface-level dedup for freeform metric keys (catches the obvious "you already have this" case).
+  const knownMetricKeys = useMemo(() => new Set(allActions.map((a) => a.action.metric?.key).filter(Boolean) as string[]), [allActions]);
+  const freeMetricDuplicate = proposeMode === 'freeform' && freeMetric !== '' && knownMetricKeys.has(freeMetric);
+
+  function toggleRole(r: Role) {
+    setRoles((rs) => (rs.includes(r) ? rs.filter((x) => x !== r) : [...rs, r]));
+  }
+
+  function onFreeTitleChange(value: string) {
+    setFreeTitle(value);
+    if (!freeMetricEdited) setFreeMetric(suggestMetricKey(value));
+  }
+
+  function validate(p: AICreatePayload | null): string | null {
+    if (!p) return 'Pick what you want to measure first.';
+    if (!p.name) return 'Give the test a name.';
+    if (!p.key) return 'The name needs at least one letter or number.';
+    if (existingKeys.includes(p.key)) return `An experiment named "${p.key}" already exists — pick a different name.`;
+    if (p.mode.kind === 'freeform') {
+      if (!p.mode.actionTitle.trim()) return 'Describe the user action that counts as the goal.';
+      if (!p.mode.actionDescription.trim()) return 'Add a one-sentence description of the action.';
+      if (!METRIC_RX.test(p.mode.metricKey)) return 'The metric key must be snake_case (e.g. checkout_started).';
+    }
+    if (!p.treatmentDescription) return 'Describe the change ADW should build in the treatment branch.';
+    return null;
+  }
 
   async function submit() {
-    const err = validate();
+    const err = validate(payload);
     if (err) {
       setError(err);
       return;
@@ -132,13 +178,15 @@ export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone 
     }
   }
 
+  const pickerSummary = describePickerSummary(resolved);
+
   return (
     <div className="stack">
       <div className="between">
         <div>
           <h2>Create with AI</h2>
           <p className="caption">
-            ADW will wire the product code (key + variant branch + conversion event) AND open the first config card as a <b>draft</b> — then auto-merge. After it lands, refine the card (status, weights, dates) via Edit.
+            Describe the test in plain language. Claude writes the product code AND the config card, then auto-merges them as a draft. You flip the test to running later from this dashboard.
           </p>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
@@ -149,91 +197,122 @@ export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone 
       {error && <Banner kind="error">{error}</Banner>}
 
       <div className="card card-pad">
-        <div className="grid-2">
-          <div className="field">
-            <label className="label" htmlFor="ai-key">
-              Key (immutable, kebab-case)
-            </label>
-            <input
-              id="ai-key"
-              className="input mono"
-              value={key}
-              placeholder="checkout-banner"
-              onChange={(e) => setKey(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="ai-name">
-              Name
-            </label>
-            <input id="ai-name" className="input" value={name} placeholder="Checkout urgency banner" onChange={(e) => setName(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="grid-2">
-          <div className="field">
-            <label className="label" htmlFor="ai-page">
-              Page file (where useVariant is wired)
-            </label>
-            <select id="ai-page" className="select mono" value={pageFile} onChange={(e) => setPageFile(e.target.value)}>
-              {pageFiles.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="ai-surface">
-              Surface (optional · defaults to <code className="mono">{derivedSurface(pageFile)}</code>)
-            </label>
-            <input id="ai-surface" className="input" value={surface} placeholder={derivedSurface(pageFile)} onChange={(e) => setSurface(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="grid-2">
-          <div className="field">
-            <label className="label" htmlFor="ai-goalfile">
-              Goal-action file (where trackEvent fires)
-            </label>
-            <select id="ai-goalfile" className="select mono" value={goalActionFile} onChange={(e) => setGoalActionFile(e.target.value)}>
-              {pageFiles.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="ai-metric">
-              Primary metric (snake_case)
-            </label>
-            <input
-              id="ai-metric"
-              className="input mono"
-              value={primaryMetric}
-              placeholder="assessment_created"
-              onChange={(e) => setPrimaryMetric(e.target.value)}
-            />
-          </div>
+        <div className="field">
+          <label className="label" htmlFor="ai-name">
+            What's this test called?
+          </label>
+          <input
+            id="ai-name"
+            className="input"
+            value={name}
+            placeholder="Checkout urgency banner"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {derivedKey && (
+            <span className="caption mono">id: {derivedKey}</span>
+          )}
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="ai-goal">
-            Goal action — the user action that counts as conversion
+          <label className="label" htmlFor="ai-action">
+            What do you want to measure?
           </label>
-          <input
-            id="ai-goal"
-            className="input"
-            value={goalAction}
-            placeholder="successful submission of the New Assessment form"
-            onChange={(e) => setGoalAction(e.target.value)}
+          <select
+            id="ai-action"
+            className="select"
+            value={pickerValue}
+            onChange={(e) => setPickerValue(e.target.value)}
+          >
+            {instrumentedActions.length > 0 && (
+              <optgroup label="Available measurements">
+                {Object.entries(groupByPage(instrumentedActions)).map(([pageTitle, items]) => (
+                  <optgroup key={pageTitle} label={pageTitle}>
+                    {items.map((it) => (
+                      <option key={it.value} value={it.value}>
+                        {it.action.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </optgroup>
+            )}
+            <option value={PROPOSE_NEW_VALUE}>Propose a new measurement…</option>
+          </select>
+          {pickerSummary && (
+            <div className="row" style={{ marginTop: '0.4rem' }}>
+              <span className="caption">{pickerSummary.description}</span>
+              <span className={`pill pill-${pickerSummary.statusPill}`}>{pickerSummary.statusLabel}</span>
+            </div>
+          )}
+        </div>
+
+        {pickerValue === PROPOSE_NEW_VALUE && (
+          <ProposeNewSubForm
+            mode={proposeMode}
+            setMode={setProposeMode}
+            proposedActions={proposedActions}
+            proposedValue={proposedValue}
+            setProposedValue={setProposedValue}
+            experimentablePages={experimentablePages}
+            freePageId={freePageId}
+            setFreePageId={setFreePageId}
+            freeTitle={freeTitle}
+            onFreeTitleChange={onFreeTitleChange}
+            freeDesc={freeDesc}
+            setFreeDesc={setFreeDesc}
+            freeMetric={freeMetric}
+            setFreeMetric={(v: string) => {
+              setFreeMetric(v);
+              setFreeMetricEdited(true);
+            }}
+            freeMetricDuplicate={freeMetricDuplicate}
+            freeHint={freeHint}
+            setFreeHint={setFreeHint}
+          />
+        )}
+
+        <div className="field">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowVariantOverride((s) => !s)}>
+            {showVariantOverride ? 'Hide' : 'Advanced:'} where does the change appear?
+          </button>
+          {showVariantOverride && resolved && (
+            <div style={{ marginTop: '0.4rem' }}>
+              <span className="caption">
+                By default the UI change appears on the same page as the action ({resolved.actionPage.title}). Override only when the change is on a different page from the goal action (e.g. a Dashboard CTA whose goal is reached on New assessment).
+              </span>
+              <select
+                className="select"
+                style={{ marginTop: '0.4rem' }}
+                value={variantOverrideId || resolved.actionPage.id}
+                onChange={(e) => setVariantOverrideId(e.target.value)}
+              >
+                {experimentablePages.map((pg) => (
+                  <option key={pg.id} value={pg.id}>
+                    {pg.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="field">
+          <label className="label" htmlFor="ai-treatment">
+            Describe the change Claude should build
+          </label>
+          <textarea
+            id="ai-treatment"
+            className="textarea"
+            rows={4}
+            value={treatmentDescription}
+            placeholder="Show a tinted banner above the “New assessment” button, encouraging users to start now."
+            onChange={(e) => setTreatmentDescription(e.target.value)}
           />
         </div>
 
         <div className="grid-2">
           <div className="field">
-            <span className="label">Target roles (none = everyone)</span>
+            <span className="label">Who sees the test? (none = everyone)</span>
             <div className="row" style={{ flexWrap: 'wrap' }}>
               {ROLES.map((r) => (
                 <label key={r} className="caption row" style={{ marginRight: '0.5rem' }}>
@@ -244,7 +323,7 @@ export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone 
           </div>
           <div className="field">
             <label className="label" htmlFor="ai-tenants">
-              Target tenant IDs (optional, comma-separated)
+              Limit to tenants (optional, comma-separated)
             </label>
             <input id="ai-tenants" className="input" value={tenantsCsv} placeholder="12, 14" onChange={(e) => setTenantsCsv(e.target.value)} />
           </div>
@@ -259,58 +338,274 @@ export function CreateWithAI({ token, pageFiles, existingKeys, onCancel, onDone 
             className="textarea"
             rows={2}
             value={hypothesis}
-            placeholder="A more prominent urgency banner above the CTA lifts assessment creation."
+            placeholder="A more prominent CTA lifts assessment creation."
             onChange={(e) => setHypothesis(e.target.value)}
           />
         </div>
 
-        <div className="field">
-          <label className="label" htmlFor="ai-treatment">
-            Treatment UI — describe the change ADW should build
-          </label>
-          <textarea
-            id="ai-treatment"
-            className="textarea"
-            rows={4}
-            value={treatmentDescription}
-            placeholder="Show a prominent urgency banner above the “New assessment” CTA, encouraging users to start now."
-            onChange={(e) => setTreatmentDescription(e.target.value)}
-          />
-        </div>
-
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowPreview((s) => !s)}>
-            {showPreview ? 'Hide' : 'Preview'} the ADW issue
-          </button>
-          <div className="row">
-            <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
-              Cancel
-            </button>
-            <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
-              {busy && <Spinner />} Launch ADW build →
-            </button>
-          </div>
-        </div>
-
-        {showPreview && composed && (
-          <div className="field" style={{ marginTop: '1rem' }}>
-            <span className="label">Issue title</span>
-            <div className="mono caption">{composed.title}</div>
-            <span className="label" style={{ marginTop: '0.5rem' }}>
-              Issue body (what ADW reads)
-            </span>
-            <pre className="mono caption" style={{ whiteSpace: 'pre-wrap', maxHeight: 360, overflow: 'auto', padding: '0.6rem', background: 'var(--slate-50, #f8fafc)' }}>
-              {composed.body}
-            </pre>
+        {composed && (
+          <div className="card card-pad" style={{ marginBottom: '0.9rem' }}>
+            <div className="row" style={{ marginBottom: '0.3rem' }}>
+              <span className="label" style={{ margin: 0 }}>What you're about to launch</span>
+              <AiChip />
+            </div>
+            <p className="caption" style={{ margin: 0 }}>{composed.humanSummary}</p>
+            <div style={{ marginTop: '0.6rem' }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTechnicalBrief((s) => !s)}>
+                {showTechnicalBrief ? 'Hide' : 'Show'} the technical brief Claude will read
+              </button>
+              {showTechnicalBrief && (
+                <pre
+                  className="mono caption"
+                  style={{ whiteSpace: 'pre-wrap', maxHeight: 360, overflow: 'auto', padding: '0.6rem', background: 'var(--slate-50)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginTop: '0.4rem' }}
+                >
+                  {composed.body}
+                </pre>
+              )}
+            </div>
           </div>
         )}
+
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
+            {busy && <Spinner />} Launch ADW build →
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/** "client/src/pages/Dashboard.tsx" → "dashboard". Used to default the surface name. */
-function derivedSurface(pageFile: string): string {
-  const base = pageFile.split('/').pop() ?? '';
-  return base.replace(/\.tsx?$/, '').toLowerCase();
+// ---- Propose-new sub-form ------------------------------------------------------------------
+
+interface ProposeNewProps {
+  mode: ProposeMode;
+  setMode: (m: ProposeMode) => void;
+  proposedActions: ActionRef[];
+  proposedValue: string;
+  setProposedValue: (v: string) => void;
+  experimentablePages: CatalogPage[];
+  freePageId: string;
+  setFreePageId: (v: string) => void;
+  freeTitle: string;
+  onFreeTitleChange: (v: string) => void;
+  freeDesc: string;
+  setFreeDesc: (v: string) => void;
+  freeMetric: string;
+  setFreeMetric: (v: string) => void;
+  freeMetricDuplicate: boolean;
+  freeHint: string;
+  setFreeHint: (v: string) => void;
+}
+
+function ProposeNewSubForm(p: ProposeNewProps) {
+  return (
+    <div className="card card-pad" style={{ marginBottom: '0.9rem', background: 'var(--slate-50)' }}>
+      <div className="row" style={{ marginBottom: '0.5rem' }}>
+        <button
+          type="button"
+          className={`btn btn-sm ${p.mode === 'pick-proposed' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => p.setMode('pick-proposed')}
+          disabled={p.proposedActions.length === 0}
+          title={p.proposedActions.length === 0 ? 'No proposed measurements in the catalog yet' : ''}
+        >
+          Pick a proposed measurement
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${p.mode === 'freeform' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => p.setMode('freeform')}
+        >
+          Describe a brand-new measurement
+        </button>
+      </div>
+
+      {p.mode === 'pick-proposed' ? (
+        p.proposedActions.length === 0 ? (
+          <Banner kind="warn">
+            No measurements have been proposed in the catalog yet. Switch to "Describe a brand-new measurement" or ask an engineer to add a row to <span className="mono">experiments/catalog.yml</span>.
+          </Banner>
+        ) : (
+          <>
+            <Banner kind="ok">
+              These measurements are already mapped to a page + handler. Claude will wire them mechanically; this adds ~5 min to the build.
+            </Banner>
+            <div className="field">
+              <label className="label" htmlFor="ai-proposed">
+                Proposed measurement
+              </label>
+              <select id="ai-proposed" className="select" value={p.proposedValue} onChange={(e) => p.setProposedValue(e.target.value)}>
+                {Object.entries(groupByPage(p.proposedActions)).map(([pageTitle, items]) => (
+                  <optgroup key={pageTitle} label={pageTitle}>
+                    {items.map((it) => (
+                      <option key={it.value} value={it.value}>
+                        {it.action.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          </>
+        )
+      ) : (
+        <>
+          <Banner kind="warn">
+            Freeform proposal — Claude has to interpret where to add the measurement in code. Add a clear action description; an engineer will see the handler choice in the pull request before it merges.
+          </Banner>
+          <div className="grid-2">
+            <div className="field">
+              <label className="label" htmlFor="ai-free-page">
+                On which page does the user act?
+              </label>
+              <select id="ai-free-page" className="select" value={p.freePageId} onChange={(e) => p.setFreePageId(e.target.value)}>
+                {p.experimentablePages.map((pg) => (
+                  <option key={pg.id} value={pg.id}>
+                    {pg.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="ai-free-metric">
+                Metric key (snake_case)
+              </label>
+              <input
+                id="ai-free-metric"
+                className="input mono"
+                value={p.freeMetric}
+                placeholder="checkout_banner_clicked"
+                onChange={(e) => p.setFreeMetric(e.target.value)}
+              />
+              {p.freeMetricDuplicate && (
+                <span className="caption" style={{ color: 'var(--amber-700)' }}>
+                  A measurement with this key already exists in the catalog. Pick it from the dropdown instead — or rename this one.
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="ai-free-title">
+              Action — what does the user do?
+            </label>
+            <input
+              id="ai-free-title"
+              className="input"
+              value={p.freeTitle}
+              placeholder="Click the urgency banner"
+              onChange={(e) => p.onFreeTitleChange(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="ai-free-desc">
+              Action description (one sentence)
+            </label>
+            <input
+              id="ai-free-desc"
+              className="input"
+              value={p.freeDesc}
+              placeholder="User clicks the new urgency banner on the Dashboard."
+              onChange={(e) => p.setFreeDesc(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="ai-free-hint">
+              Optional hint to Claude on where in the page the action lives
+            </label>
+            <input
+              id="ai-free-hint"
+              className="input"
+              value={p.freeHint}
+              placeholder="inside the banner's onClick, after the navigation call"
+              onChange={(e) => p.setFreeHint(e.target.value)}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---- Pure helpers --------------------------------------------------------------------------
+
+interface ActionRef {
+  value: string; // "<pageId>/<actionId>"
+  page: CatalogPage;
+  action: CatalogAction;
+}
+
+function collectActions(pages: CatalogPage[]): ActionRef[] {
+  const out: ActionRef[] = [];
+  for (const page of pages) {
+    for (const action of page.actions) {
+      if (!action.metric) continue;
+      out.push({ value: `${page.id}/${action.id}`, page, action });
+    }
+  }
+  return out;
+}
+
+function groupByPage(actions: ActionRef[]): Record<string, ActionRef[]> {
+  const out: Record<string, ActionRef[]> = {};
+  for (const a of actions) {
+    if (!out[a.page.title]) out[a.page.title] = [];
+    out[a.page.title].push(a);
+  }
+  return out;
+}
+
+interface Resolved {
+  actionPage: CatalogPage;
+  mode: AICreatePayload['mode'];
+}
+
+function resolveSelection(args: {
+  pickerValue: string;
+  allActions: ActionRef[];
+  instrumentedActions: ActionRef[];
+  proposedActions: ActionRef[];
+  proposedValue: string;
+  proposeMode: ProposeMode;
+  experimentablePages: CatalogPage[];
+  freePageId: string;
+  freeTitle: string;
+  freeDesc: string;
+  freeMetric: string;
+  freeHint: string;
+}): Resolved | null {
+  if (args.pickerValue !== PROPOSE_NEW_VALUE) {
+    const ref = args.allActions.find((a) => a.value === args.pickerValue);
+    if (!ref) return null;
+    return { actionPage: ref.page, mode: { kind: 'existing', action: ref.action } };
+  }
+  if (args.proposeMode === 'pick-proposed') {
+    const ref = args.proposedActions.find((a) => a.value === args.proposedValue) ?? args.proposedActions[0];
+    if (!ref) return null;
+    const mode: ProposedMode = { kind: 'proposed', action: ref.action };
+    return { actionPage: ref.page, mode };
+  }
+  const page = args.experimentablePages.find((p) => p.id === args.freePageId);
+  if (!page) return null;
+  const mode: FreeformMode = {
+    kind: 'freeform',
+    actionTitle: args.freeTitle,
+    actionDescription: args.freeDesc,
+    metricKey: args.freeMetric,
+    handlerHint: args.freeHint || undefined,
+  };
+  return { actionPage: page, mode };
+}
+
+function describePickerSummary(resolved: Resolved | null): { description: string; statusLabel: string; statusPill: 'running' | 'draft' } | null {
+  if (!resolved) return null;
+  if (resolved.mode.kind === 'existing') {
+    return { description: resolved.mode.action.description, statusLabel: 'Live', statusPill: 'running' };
+  }
+  if (resolved.mode.kind === 'proposed') {
+    return { description: resolved.mode.action.description, statusLabel: 'Not live yet', statusPill: 'draft' };
+  }
+  return null; // freeform shows its own sub-form
 }

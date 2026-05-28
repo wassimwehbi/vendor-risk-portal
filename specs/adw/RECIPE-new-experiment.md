@@ -15,6 +15,8 @@ silently serves control forever and ships green. Follow this recipe exactly to k
 - `experiments/dashboard-cta.yml` — the YAML shape. **Note: it's `status: running` 0/100; do
   NOT copy verbatim** — use the literal draft template in §1 below.
 - `experiments/schema.json` — the validated contract.
+- `experiments/catalog.yml` + `experiments/catalog.schema.json` — the PM-facing catalog
+  (spec 0017). Templates B and C touch this file.
 - `experiments/README.md` — lifecycle + CI rules.
 - `client/src/pages/Dashboard.tsx` L12–20 — `useVariant` + variant branching (the canonical
   pattern; the comment at L12–14 documents the no-typed-link caveat).
@@ -24,6 +26,15 @@ silently serves control forever and ships green. Follow this recipe exactly to k
 
 The issue body contains a **Structured fields** block. Treat every value as **verbatim** — do
 not paraphrase keys, metric names, or file paths.
+
+**Which template is this?** The issue body's first line names it (`Template: A`, `B`, or `C`).
+Template determines which §3 you follow:
+- **A** (existing instrumented action): only sections 1, 2, 4, 5, 6, 7 — no new event code.
+- **B** (catalog-proposed action): adds §3-B (insert trackEvent at the catalog's
+  `handler_hint` anchor) and §3-CATALOG (flip status `proposed` → `instrumented`).
+- **C** (freeform brand-new measurement): adds §3-C (insert trackEvent with extra discipline)
+  and §3-CATALOG (add a new action row to the catalog). Reviewer sign-off on the handler
+  choice is expected before merge.
 
 ---
 
@@ -90,18 +101,70 @@ variant key).
 
 ## 3. CONVERSION EVENT — `api.trackEvent` in `<goal-action-file>`
 
-In the file named in the issue's `goal-action-file:` field (often a *different* page from the
-wiring), find the handler for the goal action described in the issue and fire the conversion.
-**Mirror `NewAssessment.tsx` L51–52 exactly** — fire-and-forget, non-blocking, after the
-action's primary API call succeeds:
+The required action depends on which template the issue specifies. Read the appropriate
+sub-section.
+
+### 3-A. Template A — the action is already instrumented
+
+The catalog says `trackEvent('<primary-metric>')` already fires in `<goal-action-file>`.
+**Verify** it's there (do not duplicate it):
+
+```sh
+grep "trackEvent('<primary-metric>')" <goal-action-file>
+```
+
+If the literal isn't found, treat this as a catalog bug — STOP and comment on the issue. Do
+NOT add the trackEvent without confirming with a human; the catalog promised it exists.
+
+### 3-B. Template B — the catalog declared the action, but code doesn't fire it yet
+
+Read the catalog row for `<page-id>/<action-id>` and lift its `handler_hint`. The hint tells
+you exactly which handler in `<goal-action-file>` to instrument and where to insert the call.
+Treat it as a verbatim instruction — do not improvise an insertion point.
+
+Insert this line at the named anchor, mirroring `NewAssessment.tsx` L51–52:
 
 ```ts
 // A/B conversion signal for the `<key>` experiment (spec 0015). Fire-and-forget.
 api.trackEvent('<primary-metric>').catch(() => undefined);
 ```
 
-**Required string-byte-identity:** `trackEvent('<primary-metric>')` ← the literal must equal
-`metrics.primary` in the YAML card.
+### 3-C. Template C — freeform brand-new measurement
+
+The human asked for a brand-new measurement that doesn't have a catalog row yet. Extra
+discipline applies:
+
+1. **Duplicate check.** Before writing:
+   ```sh
+   grep -r "trackEvent('<primary-metric>')" client/src
+   ```
+   If the literal already exists, STOP and comment on the issue — the human should re-pick
+   the existing measurement from the catalog. Do NOT add a duplicate.
+2. **Handler choice.** The issue may or may not include a hint (the `Treatment UI` /
+   `handler_hint` lines). Choose the handler that most clearly matches the user-facing action
+   in the issue's "Action description". **Name your choice in the PR description** (file +
+   function + one-line rationale) so a human reviewer can verify the placement before the
+   auto-merge fires.
+3. **Insertion** uses the same pattern as 3-B (mirror `NewAssessment.tsx` L51–52,
+   fire-and-forget, after the primary API call resolves).
+
+### 3-CATALOG (Templates B and C) — keep the catalog in sync
+
+The catalog is the PM-facing source of truth and is bidirectionally validated by
+`scripts/experiments.mjs`. In the same PR:
+
+- **Template B:** flip `status: proposed` → `status: instrumented` on the catalog action
+  identified in the issue (`<page-id>/<action-id>`). The per-file forward drift check will
+  confirm `trackEvent('<primary-metric>')` now exists in the named `fires_in` file.
+- **Template C:** append a new action under the picked page (`<page-id>`). Use the human's
+  action title + description verbatim from the issue; set `metric.key` to `<primary-metric>`,
+  `fires_in` to the file you instrumented, `status: instrumented`, and `handler_hint` to a
+  one-sentence description of the handler you chose (essential — future PMs picking this row
+  via Template B will rely on it).
+
+**Required string-byte-identity (all templates):** `trackEvent('<primary-metric>')` ← the
+literal must equal `metrics.primary` in the YAML card and (for B/C) `metric.key` in the
+catalog row.
 
 ---
 
@@ -112,11 +175,21 @@ Run this in your build/test phase (it's a required CI gate; ship does **not** au
 phases auto-iterate).
 
 The script enforces: schema, key == filename, weights sum to 100, no two running
-experiments overlapping on the same surface, and the **dead-experiment guard** (spec 0017) —
+experiments overlapping on the same surface, the **dead-experiment guard** (spec 0017) —
 verifies that `useVariant('<key>')` and `trackEvent('<metrics.primary>')` literals exist under
-`client/src`. For a draft these are **warnings**; the human's draft→running Edit PR turns them
-into errors, so they must be clean here (don't ship a draft PR whose warnings the running flip
-will reject).
+`client/src` — AND the **catalog bidirectional drift checks** (spec 0017 refinement):
+
+- `status: instrumented` rows MUST have their `metric.key` literal in their `fires_in` file
+  (per-file forward check) — this is an **error**, so Templates B and C must complete the
+  trackEvent insertion in the right file before validate is rerun.
+- `status: proposed` rows must NOT yet appear in code (stale = warning).
+- Every `trackEvent('X')` literal in `client/src` SHOULD have a catalog action — warning, so
+  Template C's new row resolves it.
+- Every page `file` MUST exist.
+
+For a draft experiment the dead-experiment guard's key/metric checks are **warnings**; the
+human's draft→running Edit PR turns them into errors, so they must be clean here (don't ship
+a draft PR whose warnings the running flip will reject).
 
 ---
 
@@ -148,14 +221,18 @@ treatment branch:
 
 ## 7. PR shape (what gets merged)
 
-Open one PR with all three artifacts:
-- `experiments/<key>.yml` (new file).
-- The `useVariant` branch in the page file.
-- The `trackEvent` call in the goal-action file.
+The artifact count depends on the template:
 
-If your PR is missing any of the three, it is incomplete — the planner should produce all
-three as explicit tasks in the plan-spec. The reviewer agent must verify the four
-string-byte-identity acceptance criteria from the issue before approving.
+| Template | Artifacts | Notes |
+|---|---|---|
+| **A** | card + wiring | trackEvent is already in the goal-action file — verified, not added |
+| **B** | card + wiring + new trackEvent + catalog status flip | the catalog `handler_hint` is the load-bearing pointer |
+| **C** | card + wiring + new trackEvent + new catalog row | name the handler choice in the PR description |
+
+If your PR is missing any required artifact for its template, it is incomplete — the planner
+should produce each one as an explicit task in the plan-spec. The reviewer agent must verify
+the string-byte-identity acceptance criteria from the issue before approving (and for Template
+C, the reviewer should sanity-check the handler choice named in the PR description).
 
 ---
 
@@ -164,8 +241,12 @@ string-byte-identity acceptance criteria from the issue before approving.
 | Failure | What goes wrong | Mitigation |
 |---|---|---|
 | key/variant string drift | Silently serves control forever, all checks green | Pinned literals here + dead-experiment guard in `experiments.mjs` |
-| Wiring without conversion (or vice-versa) | Experiment can't show results / `useVariant` returns control | Three mandatory artifacts; explicit `page-file` vs `goal-action-file` |
+| Wiring without conversion (or vice-versa) | Experiment can't show results / `useVariant` returns control | Mandatory artifacts per template; explicit `page-file` vs `goal-action-file` from the catalog |
 | Control-path perturbation | `ux` check goes red, ship aborts to human | Treatment fully flag-gated; control byte-identical |
 | Bad YAML schema/weights | `experiments` check red, ship aborts | Use the literal template; run `validate` in build/test |
 | Copying live `dashboard-cta.yml` as a "draft example" | Inherits `running` + `weight: 0/100` | Use the literal template in §1; never copy `dashboard-cta.yml` verbatim |
 | Unwired secondary metric | Validator warns (draft) / errors (running) | Only declare secondary metrics you'll actually fire; otherwise omit |
+| Template B: instrumented status but no literal (forward drift) | Catalog promises a metric the code doesn't deliver | Per-file forward check errors in CI — finish the trackEvent insertion before validate |
+| Template C: handler choice wrong | Conversion counts the wrong action; experiment results are misleading | Name the handler in PR description; reviewer signs off before merge |
+| Template C: duplicate metric | Two metrics for one concept = split-traffic stats | Pre-write `grep -r "trackEvent('<key>')" client/src`; stop on hit |
+| Code-without-catalog | New `trackEvent` not surfaced to PMs in portal | Reverse-direction warning in CI; engineer adds the catalog row in a follow-up |

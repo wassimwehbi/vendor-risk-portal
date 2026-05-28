@@ -240,6 +240,37 @@ a {
   color: var(--emerald-700);
   border: 1px solid var(--emerald-200);
 }
+/* Amber warn banner — mirrors the design system's amber/yellow notice pattern (the same one the
+   main app uses for the "AI output is preliminary" preamble). Used here for the freeform-propose
+   path where the human is asked to expect engineering review on the handler choice. */
+.banner-warn {
+  background: var(--amber-50);
+  color: var(--amber-700);
+  border: 1px solid var(--amber-200);
+}
+
+/* AI-attribution chip — mandatory provenance marker per design-system/DESIGN_SYSTEM.md whenever
+   AI output is surfaced. Brand-50 + brand-700 (the steel accent) + inline sparkles icon. Tiny
+   on purpose: a footnote, not an alarm. The human-decision chip (green) is the counterpart. */
+.chip-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-full);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  border: 1px solid var(--brand-200);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+.chip-ai svg {
+  width: 10px;
+  height: 10px;
+}
 .spinner {
   width: 1rem;
   height: 1rem;
