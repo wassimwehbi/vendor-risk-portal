@@ -26,11 +26,16 @@ const GDPR_TRIGGERS: DataCategory[] = [
   'subprocessors',
 ];
 
-function deriveFrameworks(categories: DataCategory[]): string[] {
-  const frameworks = ['ISO 27001', 'ISO 27002'];
-  if (categories.some((c) => GDPR_TRIGGERS.includes(c))) frameworks.push('GDPR');
-  if (categories.includes('phi')) frameworks.push('HIPAA');
-  return frameworks;
+function deriveFrameworks(analyses: Array<{ analysis: ItemAnalysis }>, categories: DataCategory[]): string[] {
+  const set = new Set<string>();
+  for (const { analysis } of analyses) {
+    for (const { framework } of analysis.framework_mappings) {
+      set.add(framework);
+    }
+  }
+  if (categories.some((c) => GDPR_TRIGGERS.includes(c))) set.add('GDPR');
+  if (categories.includes('phi')) set.add('HIPAA');
+  return [...set];
 }
 
 /**
@@ -96,7 +101,7 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
   const allCategories = new Set<DataCategory>();
   for (const { analysis } of analyses) analysis.data_categories.forEach((c) => allCategories.add(c));
   const data_categories = [...allCategories];
-  const applicable_frameworks = deriveFrameworks(data_categories);
+  const applicable_frameworks = deriveFrameworks(analyses, data_categories);
 
   // 3) Recompute risk per item using the assessment-wide sensitivity context.
   for (const a of analyses) {

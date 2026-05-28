@@ -1,0 +1,26 @@
+{
+  "name": "vendor-risk-portal-experiments",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Experimentation portal (GitHub Pages SPA) for the Vendor Risk Portal A/B platform — spec 0015.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11"
+  }
+}
