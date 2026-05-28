@@ -12,6 +12,7 @@ import type {
   Finding,
   FrameworkMapping,
   NewQuestionnaireItem,
+  PersonalDataVolume,
   QuestionnaireItem,
   ReportData,
   RiskLevel,
@@ -99,6 +100,8 @@ export interface CreateAssessmentInput {
   vendor_name: string;
   questionnaire_type: string;
   date_submitted: string;
+  internet_facing?: boolean;
+  personal_data_volume?: PersonalDataVolume | null;
 }
 
 export function createAssessment(input: CreateAssessmentInput, scope: AccessScope): Assessment {
@@ -106,10 +109,20 @@ export function createAssessment(input: CreateAssessmentInput, scope: AccessScop
   const vendorId = findOrCreateVendor(input.vendor_name.trim(), tenantId);
   const info = db
     .prepare(
-      `INSERT INTO assessments (vendor_id, tenant_id, created_by, questionnaire_type, date_submitted, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'uploaded', ?)`,
+      `INSERT INTO assessments (vendor_id, tenant_id, created_by, questionnaire_type, date_submitted,
+         internet_facing, personal_data_volume, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'uploaded', ?)`,
     )
-    .run(vendorId, tenantId, scope.actor, input.questionnaire_type, input.date_submitted, nowIso());
+    .run(
+      vendorId,
+      tenantId,
+      scope.actor,
+      input.questionnaire_type,
+      input.date_submitted,
+      input.internet_facing ? 1 : 0,
+      input.personal_data_volume ?? null,
+      nowIso(),
+    );
   const id = Number(info.lastInsertRowid);
   logAudit({
     assessment_id: id,
@@ -355,6 +368,8 @@ export interface AssessmentPatch {
   analyst_notes?: string;
   business_context?: string;
   validation_status?: 'pending' | 'approved';
+  internet_facing?: boolean;
+  personal_data_volume?: PersonalDataVolume | null;
 }
 
 export function patchAssessment(id: number, patch: AssessmentPatch, scope: AccessScope): Assessment | undefined {
@@ -389,6 +404,14 @@ export function patchAssessment(id: number, patch: AssessmentPatch, scope: Acces
     } else {
       sets.push('validated_by = NULL', 'validated_at = NULL');
     }
+  }
+  if (patch.internet_facing !== undefined) {
+    sets.push('internet_facing = @internet_facing');
+    params.internet_facing = patch.internet_facing ? 1 : 0;
+  }
+  if ('personal_data_volume' in patch) {
+    sets.push('personal_data_volume = @personal_data_volume');
+    params.personal_data_volume = patch.personal_data_volume ?? null;
   }
 
   if (sets.length > 0) {

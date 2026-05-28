@@ -8,6 +8,7 @@ import type {
   EvidenceKind,
   Finding,
   ItemAnalysis,
+  PersonalDataVolume,
   QuestionnaireItem,
 } from '../types';
 import type { AccessScope } from '../routes/_helpers';
@@ -16,6 +17,48 @@ import { createClaudeProvider } from './claudeProvider';
 import { aggregateRisk, scoreItem } from './riskScoring';
 import { getMappingVersion } from './frameworkMapping';
 import { logAudit } from './audit';
+
+const INTERNET_FACING_PATTERNS = [
+  /internet[- ]facing/i,
+  /publicly accessible/i,
+  /public[- ]facing/i,
+  /external[- ]users/i,
+  /public api/i,
+  /web application/i,
+  /exposed to the internet/i,
+  /accessible from the internet/i,
+];
+
+const HIGH_VOLUME_PATTERNS = [
+  /million[s]? (of )?(record|user|customer|individual)/i,
+  /billion[s]? (of )?(record|user|customer|individual)/i,
+  /large (volume|scale|dataset)/i,
+  /high volume/i,
+];
+
+const MEDIUM_VOLUME_PATTERNS = [
+  /thousand[s]? (of )?(record|user|customer|individual)/i,
+  /hundred[s]? of thousand/i,
+  /moderate volume/i,
+];
+
+function detectExposureSignals(items: QuestionnaireItem[]): {
+  internet_facing: boolean;
+  personal_data_volume: PersonalDataVolume | null;
+} {
+  const combined = items.map((i) => `${i.question_text} ${i.response} ${i.vendor_comments ?? ''}`).join('\n');
+
+  const internet_facing = INTERNET_FACING_PATTERNS.some((p) => p.test(combined));
+
+  let personal_data_volume: PersonalDataVolume | null = null;
+  if (HIGH_VOLUME_PATTERNS.some((p) => p.test(combined))) {
+    personal_data_volume = 'high';
+  } else if (MEDIUM_VOLUME_PATTERNS.some((p) => p.test(combined))) {
+    personal_data_volume = 'medium';
+  }
+
+  return { internet_facing, personal_data_volume };
+}
 
 const GDPR_TRIGGERS: DataCategory[] = [
   'personal',
@@ -103,6 +146,14 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
   const data_categories = [...allCategories];
   const applicable_frameworks = deriveFrameworks(analyses, data_categories);
 
+  // 2b) Detect exposure signals from questionnaire text.
+  // Prefer any analyst-declared value already on the assessment over auto-detected.
+  const detected = detectExposureSignals(items);
+  const internet_facing: boolean =
+    assessmentRow.internet_facing != null ? Boolean(assessmentRow.internet_facing) : detected.internet_facing;
+  const personal_data_volume: PersonalDataVolume | null =
+    assessmentRow.personal_data_volume ?? detected.personal_data_volume;
+
   // 3) Recompute risk per item using the assessment-wide sensitivity context.
   for (const a of analyses) {
     a.analysis.risk_level = scoreItem({
@@ -111,6 +162,8 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
       completeness: a.analysis.completeness,
       data_categories,
       control_domain: a.analysis.control_domain,
+      internet_facing,
+      personal_data_volume,
     });
   }
 
@@ -159,6 +212,8 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
           overall_risk = @overall_risk,
           ai_engine_used = @ai_engine_used,
           mapping_version = @mapping_version,
+          internet_facing = @internet_facing,
+          personal_data_volume = @personal_data_volume,
           validation_status = 'pending',
           validated_by = NULL,
           validated_at = NULL
@@ -170,6 +225,8 @@ export async function analyzeAssessment(assessmentId: number, scope: AccessScope
       overall_risk,
       ai_engine_used: engineUsed,
       mapping_version: mappingVersion,
+      internet_facing: internet_facing ? 1 : 0,
+      personal_data_volume: personal_data_volume ?? null,
     });
   });
   persist();
