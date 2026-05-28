@@ -123,7 +123,7 @@ export function NewAssessment() {
             />
             <span className="text-sm text-slate-700">
               Internet-facing system
-              <span className="ml-1 text-slate-400">(vendor's service is accessible from the public internet)</span>
+              <span className="ml-1 text-slate-600">(vendor's service is accessible from the public internet)</span>
             </span>
           </label>
           <div>
