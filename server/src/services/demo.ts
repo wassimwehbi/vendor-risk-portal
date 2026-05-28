@@ -29,6 +29,8 @@ export function loadScenario(key: string, scope: AccessScope): Assessment | unde
       vendor_name: scenario.vendor_name,
       questionnaire_type: scenario.questionnaire_type,
       date_submitted: new Date().toISOString().slice(0, 10),
+      internet_facing: scenario.internet_facing,
+      personal_data_volume: scenario.personal_data_volume,
     },
     scope,
   );

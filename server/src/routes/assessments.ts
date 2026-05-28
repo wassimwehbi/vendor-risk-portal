@@ -14,6 +14,8 @@ const createSchema = z.object({
   vendor_name: z.string().min(1, 'vendor_name is required'),
   questionnaire_type: z.string().min(1).default('SIG'),
   date_submitted: z.string().min(1),
+  internet_facing: z.boolean().optional(),
+  personal_data_volume: z.enum(['low', 'medium', 'high']).optional(),
 });
 
 router.post('/assessments', requireTenantRole('Analyst', 'Submitter'), (req, res) => {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import type { AssessmentDetail, Finding, RiskLevel } from '../types';
+import type { AssessmentDetail, Finding, PersonalDataVolume, RiskLevel } from '../types';
 import { DATA_CATEGORY_LABELS } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
 import { StatusChip, ValidationChip } from '../components/StatusChip';
@@ -139,6 +139,17 @@ export function ReviewWorkspace() {
 
   async function setOverallRisk(level: RiskLevel) {
     const updated = await api.patchAssessment(assessmentId, { overall_risk: level });
+    setDetail((d) => (d ? { ...d, assessment: updated } : d));
+  }
+
+  async function toggleInternetFacing() {
+    const current = detail?.assessment.internet_facing ?? false;
+    const updated = await api.patchAssessment(assessmentId, { internet_facing: !current });
+    setDetail((d) => (d ? { ...d, assessment: updated } : d));
+  }
+
+  async function setDataVolume(volume: PersonalDataVolume | null) {
+    const updated = await api.patchAssessment(assessmentId, { personal_data_volume: volume });
     setDetail((d) => (d ? { ...d, assessment: updated } : d));
   }
 
@@ -308,6 +319,64 @@ export function ReviewWorkspace() {
               }
             />
           </div>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Internet-facing</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                assessment.internet_facing ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {assessment.internet_facing ? 'Yes' : 'No'}
+            </span>
+            {canEdit && analyzed && (
+              <button
+                type="button"
+                className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
+                onClick={toggleInternetFacing}
+                title="Takes effect on next analysis run"
+              >
+                {assessment.internet_facing ? 'Mark No' : 'Mark Yes'}
+              </button>
+            )}
+          </div>
+          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-500">Takes effect on next analysis run</p>}
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Personal data volume</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                assessment.personal_data_volume === 'high'
+                  ? 'bg-red-100 text-red-800'
+                  : assessment.personal_data_volume === 'medium'
+                    ? 'bg-amber-100 text-amber-800'
+                    : assessment.personal_data_volume === 'low'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {assessment.personal_data_volume
+                ? assessment.personal_data_volume.charAt(0).toUpperCase() + assessment.personal_data_volume.slice(1)
+                : 'Unknown'}
+            </span>
+            {canEdit && analyzed && (
+              <select
+                aria-label="Set personal data volume"
+                className="rounded border border-slate-300 px-1 py-0.5 text-xs"
+                value={assessment.personal_data_volume ?? ''}
+                onChange={(e) => setDataVolume((e.target.value as PersonalDataVolume) || null)}
+                title="Takes effect on next analysis run"
+              >
+                <option value="">— unknown —</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            )}
+          </div>
+          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-500">Takes effect on next analysis run</p>}
         </div>
       </div>
 

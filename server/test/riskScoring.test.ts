@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aggregateRisk, pointsToLevel, scoreItem } from '../src/services/riskScoring';
+import { aggregateRisk, pointsToLevel, scoreItem, scoreItemPoints } from '../src/services/riskScoring';
+import type { DataCategory } from '../src/types';
 
 test('strong, well-evidenced control with low-sensitivity data is Low', () => {
   const level = scoreItem({
@@ -73,4 +74,80 @@ test('aggregateRisk uses worst case', () => {
   assert.equal(aggregateRisk(['Low', 'High', 'Medium']), 'High');
   assert.equal(aggregateRisk(['Medium', 'Critical']), 'Critical');
   assert.equal(aggregateRisk([]), 'Low');
+});
+
+test('internet-facing adds 2 pts (Medium weight)', () => {
+  const withExposure = scoreItemPoints({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: [],
+    control_domain: 'MFA',
+    internet_facing: true,
+  });
+  assert.equal(withExposure, 2);
+
+  const withoutExposure = scoreItemPoints({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: [],
+    control_domain: 'MFA',
+    internet_facing: false,
+  });
+  assert.equal(withoutExposure, 0);
+});
+
+test('personal_data_volume high adds 3 pts, medium adds 1 pt', () => {
+  const base = {
+    control_strength: 'Strong' as const,
+    evidence_sufficiency: 'Sufficient' as const,
+    completeness: 'Complete' as const,
+    data_categories: [] as DataCategory[],
+    control_domain: 'Data Privacy Governance',
+  };
+  assert.equal(scoreItemPoints({ ...base, personal_data_volume: 'high' }), 3);
+  assert.equal(scoreItemPoints({ ...base, personal_data_volume: 'medium' }), 1);
+  assert.equal(scoreItemPoints({ ...base, personal_data_volume: 'low' }), 0);
+  assert.equal(scoreItemPoints({ ...base, personal_data_volume: null }), 0);
+  assert.equal(scoreItemPoints({ ...base }), 0);
+});
+
+test('well-controlled internet-facing system with high personal data volume scores High', () => {
+  const level = scoreItem({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: ['personal'],
+    control_domain: 'MFA',
+    internet_facing: true,
+    personal_data_volume: 'high',
+  });
+  // 0+0+0+0+1(personal)+2(internet)+3(high-volume) = 6 -> High
+  assert.equal(level, 'High');
+});
+
+test('absent MFA on internet-facing PHI vendor with high volume is Critical', () => {
+  const level = scoreItem({
+    control_strength: 'None',
+    evidence_sufficiency: 'None',
+    completeness: 'Missing',
+    data_categories: ['phi'],
+    control_domain: 'MFA',
+    internet_facing: true,
+    personal_data_volume: 'high',
+  });
+  // 4+2+3+2(critical penalty)+2(phi)+2(internet)+3(high-volume) = 18 -> Critical
+  assert.equal(level, 'Critical');
+});
+
+test('existing tests are unaffected when new fields are absent', () => {
+  const level = scoreItem({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: ['personal'],
+    control_domain: 'MFA',
+  });
+  assert.equal(level, 'Low'); // 0+0+0+0+1 = 1 -> Low (unchanged)
 });
