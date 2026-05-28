@@ -136,8 +136,9 @@ export function App() {
         {notice && <Banner kind="ok">{notice}</Banner>}
 
         {view === 'form' ? (
-          <ExperimentForm
+          <ExperimentFormView
             token={token}
+            catalog={catalog}
             initial={editing}
             onCancel={() => {
               setView('dashboard');
@@ -200,6 +201,51 @@ export function App() {
       </main>
     </div>
   );
+}
+
+/**
+ * Three-state shim around ExperimentForm. The config-only form now also needs the catalog (for
+ * the measurement picker), so it inherits the same loading / fail-closed UX as CreateWithAI.
+ * Title differs by mode (New vs Edit) so the error state matches what the user clicked.
+ */
+function ExperimentFormView({
+  token,
+  catalog,
+  initial,
+  onCancel,
+  onDone,
+}: {
+  token: string;
+  catalog: Catalog | { error: string } | null;
+  initial: Experiment | null;
+  onCancel: () => void;
+  onDone: (prUrl: string) => void;
+}) {
+  if (catalog === null) {
+    return (
+      <div className="row">
+        <Spinner /> Loading the experiment catalog…
+      </div>
+    );
+  }
+  if ('error' in catalog) {
+    return (
+      <div className="stack">
+        <div className="between">
+          <h2>{initial ? `Edit ${initial.key}` : 'New experiment'}</h2>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+            ← Back
+          </button>
+        </div>
+        <Banner kind="error">
+          The experiment catalog could not be loaded ({catalog.error}). Ask an engineer to confirm{' '}
+          <span className="mono">experiments/catalog.yml</span> exists on the default branch and matches{' '}
+          <span className="mono">experiments/catalog.schema.json</span>.
+        </Banner>
+      </div>
+    );
+  }
+  return <ExperimentForm token={token} catalog={catalog} initial={initial} onCancel={onCancel} onDone={onDone} />;
 }
 
 /**
