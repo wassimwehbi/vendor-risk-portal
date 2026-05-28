@@ -4,7 +4,7 @@ import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as XLSX from 'xlsx';
-import { classifyEvidence, isAllowedEvidence, extractEvidence } from '../src/services/evidenceExtraction';
+import { classifyEvidence, isAllowedEvidence, extractEvidence, _testHooks } from '../src/services/evidenceExtraction';
 
 const dir = mkdtempSync(join(tmpdir(), 'vrp-ev-'));
 
@@ -79,11 +79,24 @@ test('image falls back to no_text when ANTHROPIC_API_KEY is absent', async () =>
 });
 
 test('BMP image falls back to no_text (unsupported MIME for vision)', async () => {
-  delete process.env.ANTHROPIC_API_KEY;
+  // Keep a real API key so only the MIME guard — not the "no key" guard — is responsible for the fallback.
+  process.env.ANTHROPIC_API_KEY = 'dummy-test-key';
+  let visionCalled = false;
+  _testHooks.createAnthropicClient = () => ({
+    messages: {
+      create: async () => {
+        visionCalled = true;
+        return { content: [] };
+      },
+    },
+  });
   const p = tmp('shot.bmp', PNG_1X1);
   const r = await extractEvidence(p, 'shot.bmp', 'image/bmp');
+  _testHooks.createAnthropicClient = null;
+  delete process.env.ANTHROPIC_API_KEY;
   assert.equal(r.kind, 'image');
   assert.equal(r.status, 'no_text');
+  assert.ok(!visionCalled, 'vision client must not be called for unsupported MIME');
 });
 
 test('image vision skips oversized images and falls back to no_text', async () => {

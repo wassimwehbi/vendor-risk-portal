@@ -217,6 +217,7 @@ async function describeImageWithVision(buf: Buffer, mimeType: string): Promise<E
       .map((b) => (b as Anthropic.TextBlock).text)
       .join('\n');
     const { text, chars, truncated } = clip(rawText);
+    if (!text) return null;
     return {
       kind: 'image',
       status: 'extracted',

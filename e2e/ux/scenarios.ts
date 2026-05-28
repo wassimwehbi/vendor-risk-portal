@@ -198,6 +198,7 @@ export const SCENARIOS: UxScenario[] = [
     steps: [
       { kind: 'loadScenario', index: 0 },
       { kind: 'expectVisibleText', text: 'Evidence files' },
+      { kind: 'expectVisibleText', text: 'AI described' },
     ],
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
   },

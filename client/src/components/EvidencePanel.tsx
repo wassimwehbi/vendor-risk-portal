@@ -36,7 +36,7 @@ function EvidenceItem({ ev }: { ev: EvidenceFile }) {
   const [open, setOpen] = useState(false);
   const textId = useId();
   const hasText = Boolean(ev.extracted_text && ev.extracted_text.length > 0);
-  const isAiDescription = ev.kind === 'image' && ev.parse_status === 'extracted';
+  const isAiDescription = ev.kind === 'image' && (ev.parse_note?.startsWith('Vision') ?? false);
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-center gap-2">

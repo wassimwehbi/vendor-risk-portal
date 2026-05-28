@@ -49,7 +49,7 @@ export function loadScenario(key: string, scope: AccessScope): Assessment | unde
         extracted_chars: 318,
         extracted_text:
           'ISO/IEC 27001:2022 Certificate of Registration\nCertified Organization: TrustVault Security Ltd\nCertification Body: BSI Group\nCertificate Number: IS 123456\nFirst Issued: 2022-04-01\nExpiry Date: 2027-03-31\nScope: Design, development, and operation of cloud security tooling.',
-        parse_note: 'AI image description',
+        parse_note: 'Vision description',
       },
       {
         original_name: 'pentest-report-2026-02.pdf',
