@@ -12,6 +12,7 @@ const GDPR_TRIGGERS: DataCategory[] = [
   'employee',
   'cross_border',
   'subprocessors',
+  'data_subject_requests',
 ];
 
 // Mirrors aiEngine.analyzeAssessment's pure computation (without persistence).
@@ -102,4 +103,29 @@ test('every scenario generates follow-up questions where gaps exist', async () =
   const { analyses } = await analyzeScenario('securehealth');
   const withFollowUps = analyses.filter((a) => a.analysis.follow_up_questions.length > 0);
   assert.ok(withFollowUps.length >= 1);
+});
+
+test('DSR terms in questionnaire responses trigger data_subject_requests category and GDPR framework', async () => {
+  const item: QuestionnaireItem = {
+    id: 1,
+    assessment_id: 1,
+    question_id: 'DSR-1',
+    question_text: 'How do you handle data subject access requests?',
+    response: 'We handle all DSAR requests within 30 days and support the right to erasure and right to portability.',
+    response_type: 'FreeText',
+    evidence_text: null,
+    evidence_location: null,
+    vendor_comments: null,
+    relevant_date: null,
+    expiration_date: null,
+  };
+  const analysis = await ruleEngine.analyzeItem(item);
+  assert.ok(
+    analysis.data_categories.includes('data_subject_requests'),
+    `expected 'data_subject_requests' in ${JSON.stringify(analysis.data_categories)}`,
+  );
+  const allCategories = analysis.data_categories;
+  const frameworks = new Set<string>();
+  if (allCategories.some((c) => GDPR_TRIGGERS.includes(c))) frameworks.add('GDPR');
+  assert.ok(frameworks.has('GDPR'), 'expected GDPR framework to be triggered by DSR category');
 });

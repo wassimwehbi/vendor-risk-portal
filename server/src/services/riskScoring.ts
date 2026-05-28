@@ -62,7 +62,7 @@ const COMPLETENESS_POINTS: Record<Completeness, number> = {
 
 function dataSensitivityPoints(categories: DataCategory[]): number {
   const high: DataCategory[] = ['phi', 'sensitive_personal', 'financial', 'children'];
-  const medium: DataCategory[] = ['personal', 'cross_border'];
+  const medium: DataCategory[] = ['personal', 'cross_border', 'data_subject_requests'];
   if (categories.some((c) => high.includes(c))) return 2;
   if (categories.some((c) => medium.includes(c))) return 1;
   return 0;

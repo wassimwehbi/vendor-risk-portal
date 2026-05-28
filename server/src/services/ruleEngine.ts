@@ -143,6 +143,24 @@ const CATEGORY_SIGNALS: CategorySignal[] = [
     ],
   },
   {
+    category: 'data_subject_requests',
+    terms: [
+      'dsar',
+      'data subject access request',
+      'data subject request',
+      'subject access request',
+      'right to access',
+      'right to erasure',
+      'right to be forgotten',
+      'right to rectification',
+      'right to portability',
+      'right to object',
+      'right to restrict',
+      'data deletion request',
+      'withdrawal of consent',
+    ],
+  },
+  {
     category: 'personal',
     terms: [
       'personal data',

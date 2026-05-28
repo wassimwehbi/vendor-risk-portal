@@ -151,3 +151,25 @@ test('existing tests are unaffected when new fields are absent', () => {
   });
   assert.equal(level, 'Low'); // 0+0+0+0+1 = 1 -> Low (unchanged)
 });
+
+test('data_subject_requests alone scores 1 point (medium tier)', () => {
+  const pts = scoreItemPoints({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: ['data_subject_requests'],
+    control_domain: 'Data Subject Rights',
+  });
+  assert.equal(pts, 1);
+});
+
+test('phi + data_subject_requests scores 2 points (high tier wins)', () => {
+  const pts = scoreItemPoints({
+    control_strength: 'Strong',
+    evidence_sufficiency: 'Sufficient',
+    completeness: 'Complete',
+    data_categories: ['phi', 'data_subject_requests'],
+    control_domain: 'Data Subject Rights',
+  });
+  assert.equal(pts, 2);
+});

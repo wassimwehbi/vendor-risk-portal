@@ -77,7 +77,8 @@ export type DataCategory =
   | 'employee'
   | 'financial'
   | 'cross_border'
-  | 'subprocessors';
+  | 'subprocessors'
+  | 'data_subject_requests';
 
 export const DATA_CATEGORY_LABELS: Record<DataCategory, string> = {
   personal: 'Personal data',
@@ -88,6 +89,7 @@ export const DATA_CATEGORY_LABELS: Record<DataCategory, string> = {
   financial: 'Financial data',
   cross_border: 'Cross-border transfers',
   subprocessors: 'Subprocessors',
+  data_subject_requests: 'Data subject requests',
 };
 
 export interface ApiResponse<T> {
