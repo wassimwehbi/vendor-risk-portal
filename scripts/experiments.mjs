@@ -199,7 +199,6 @@ function crossCheckCatalog(catalog, sourceByFile, clientSource) {
   const warnings = [];
   const declaredMetricKeys = new Set();
   const pageIds = new Set();
-  const actionIdsByPage = new Map();
 
   for (const page of catalog.pages) {
     // Uniqueness of page ids (the schema enforces shape, not uniqueness).
@@ -211,7 +210,6 @@ function crossCheckCatalog(catalog, sourceByFile, clientSource) {
     if (!existsSync(pageAbs)) errors.push(`catalog.yml: page "${page.id}" references missing file ${page.file}`);
 
     const seenActions = new Set();
-    actionIdsByPage.set(page.id, seenActions);
     for (const action of page.actions) {
       if (seenActions.has(action.id)) errors.push(`catalog.yml: duplicate action id "${page.id}/${action.id}"`);
       seenActions.add(action.id);
