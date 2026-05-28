@@ -50,6 +50,43 @@ export function getViewer(token: string): Promise<Viewer> {
   return gh<Viewer>('/user', { token });
 }
 
+/**
+ * Repo-level permissions for the signed-in user. We only care about `push` — it mirrors the
+ * server's collaborator gate for results, and the `adw-zte.yml` workflow's `author_association`
+ * gate (OWNER/MEMBER/COLLABORATOR). The portal hides the "Create with AI" CTA when push is
+ * false so a non-collaborator doesn't silently file an issue ADW will then ignore.
+ */
+export function getRepoPermissions(token: string): Promise<{ push: boolean }> {
+  return gh<{ permissions?: { push?: boolean } }>(`/repos/${REPO}`, { token }).then((r) => ({
+    push: r.permissions?.push === true,
+  }));
+}
+
+/** Filenames of `client/src/pages/*.tsx` — used to populate page-file dropdowns in the AI form. */
+export async function listPageFiles(token?: string): Promise<string[]> {
+  const items = await gh<ContentItem[]>(`/repos/${REPO}/contents/client/src/pages`, { token });
+  return items
+    .filter((i) => i.type === 'file' && /\.tsx$/.test(i.name))
+    .map((i) => `client/src/pages/${i.name}`)
+    .sort();
+}
+
+/**
+ * Create a GitHub issue with labels in a single call. `adw-zte.yml` fires on `issues: opened` AND
+ * checks the labels array on the same event, so creating with `labels: ['adw:zte']` triggers ADW
+ * directly — no separate label call needed.
+ */
+export function createIssue(
+  token: string,
+  opts: { title: string; body: string; labels: string[] },
+): Promise<{ html_url: string; number: number }> {
+  return gh<{ html_url: string; number: number }>(`/repos/${REPO}/issues`, {
+    token,
+    method: 'POST',
+    body: opts,
+  });
+}
+
 interface ContentItem {
   name: string;
   type: string;

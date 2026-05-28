@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { BrandMark } from './components/BrandMark';
+import { CreateWithAI } from './components/CreateWithAI';
 import { Dashboard } from './components/Dashboard';
 import { ExperimentForm } from './components/ExperimentForm';
 import { SignIn } from './components/SignIn';
 import { Banner, Spinner } from './components/ui';
-import { getViewer, listExperiments, openExperimentPR, type Viewer } from './lib/github';
+import { getRepoPermissions, getViewer, listExperiments, listPageFiles, openExperimentPR, type Viewer } from './lib/github';
 import { fetchResults } from './lib/relay';
 import { session } from './lib/session';
 import { toYaml } from './lib/yaml';
@@ -17,8 +18,12 @@ export function App() {
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [experiments, setExperiments] = useState<LoadedExperiment[] | null>(null);
   const [results, setResults] = useState<Record<string, ResultState>>({});
-  const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'form' | 'ai'>('dashboard');
   const [editing, setEditing] = useState<Experiment | null>(null);
+  // canCreate gates the "Create with AI" CTA. Mirrors the `adw-zte.yml` author gate (push access ==
+  // OWNER/MEMBER/COLLABORATOR) so we don't surface a button that quietly no-ops for non-collaborators.
+  const [canCreate, setCanCreate] = useState(false);
+  const [pageFiles, setPageFiles] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<ReactNode>(null);
 
@@ -32,13 +37,21 @@ export function App() {
     }
   }, []);
 
-  // After sign-in: fetch the viewer + the experiment list.
+  // After sign-in: fetch the viewer + the experiment list, plus the inputs the "Create with AI"
+  // flow needs (push-permission to gate the CTA, page-file dropdowns). Both lookups are best-effort
+  // and never break the dashboard if they fail (the CTA simply stays hidden / dropdowns empty).
   useEffect(() => {
     if (!token) return;
     getViewer(token)
       .then(setViewer)
       .catch(() => undefined);
     loadExperiments(token);
+    getRepoPermissions(token)
+      .then((p) => setCanCreate(p.push))
+      .catch(() => setCanCreate(false));
+    listPageFiles(token)
+      .then(setPageFiles)
+      .catch(() => setPageFiles([]));
   }, [token, loadExperiments]);
 
   // Live results, authorized by the signed-in GitHub token (the server checks repo-collaborator
@@ -62,6 +75,8 @@ export function App() {
     setViewer(null);
     setExperiments(null);
     setResults({});
+    setCanCreate(false);
+    setPageFiles([]);
   }
 
   async function pause(loaded: LoadedExperiment) {
@@ -124,6 +139,25 @@ export function App() {
               );
             }}
           />
+        ) : view === 'ai' ? (
+          <CreateWithAI
+            token={token}
+            pageFiles={pageFiles}
+            existingKeys={(experiments ?? []).map((l) => l.exp.key)}
+            onCancel={() => setView('dashboard')}
+            onDone={(url, number) => {
+              setView('dashboard');
+              setNotice(
+                <>
+                  ADW is building this experiment — issue{' '}
+                  <a href={url} target="_blank" rel="noreferrer">
+                    #{number}
+                  </a>
+                  . It'll appear in this list once the pull request merges (usually 10–20 min).
+                </>,
+              );
+            }}
+          />
         ) : experiments === null ? (
           <div className="row">
             <Spinner /> Loading experiments…
@@ -132,10 +166,12 @@ export function App() {
           <Dashboard
             experiments={experiments}
             results={results}
+            canCreate={canCreate}
             onNew={() => {
               setEditing(null);
               setView('form');
             }}
+            onCreateWithAI={() => setView('ai')}
             onEdit={(l) => {
               setEditing(l.exp);
               setView('form');
