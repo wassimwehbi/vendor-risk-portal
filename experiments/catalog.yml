@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=./catalog.schema.json
+#
+# Experiment catalog — the source of truth for what a non-technical PM can A/B test today.
+# Read by the GitHub Pages portal's "Create with AI" picker (spec 0017). Engineers update this
+# file when they add a new page or instrument a new metric.
+#
+# Drift detection: scripts/experiments.mjs cross-checks every entry against client/src:
+#   - status: instrumented → the literal MUST exist in `fires_in` (error otherwise).
+#   - status: proposed → the literal must NOT yet exist anywhere in client/src (warning if stale).
+#   - every trackEvent('X') literal under client/src SHOULD have a matching action (warning).
+#   - every page `file` MUST exist (error otherwise).
+#
+# experimentable=false hides the page from the PM picker. Use it for routes that aren't
+# product-experiment targets (Login, InviteAccept, AuditTrail, Admin).
+version: 1
+
+pages:
+  - id: dashboard
+    title: Dashboard
+    description: The first screen users see after sign-in — the list of vendor assessments and the primary "New assessment" CTA.
+    file: client/src/pages/Dashboard.tsx
+    surface: dashboard
+    experimentable: true
+    actions:
+      - id: start-new-assessment
+        title: Start a new assessment
+        description: User clicks the primary CTA on the dashboard to begin a new vendor questionnaire.
+        metric:
+          key: assessment_created
+          fires_in: client/src/pages/NewAssessment.tsx
+          status: instrumented
+          handler_hint: >-
+            fires inside the `submit(e)` form handler AFTER `api.createAssessment(...)` resolves
+            and BEFORE `api.uploadFiles(...)` runs — measures the moment the new assessment
+            actually exists, regardless of whether the file upload that follows succeeds.
+
+  - id: new-assessment
+    title: New assessment
+    description: The upload form where Submitters start a new vendor assessment (vendor name, questionnaire type, optional exposure context, file uploads).
+    file: client/src/pages/NewAssessment.tsx
+    surface: new-assessment
+    experimentable: true
+    actions:
+      - id: submit-new-assessment
+        title: Submit the new assessment form
+        description: User finishes the upload form and the new assessment is created in the system.
+        metric:
+          key: assessment_created
+          fires_in: client/src/pages/NewAssessment.tsx
+          status: instrumented
+          handler_hint: >-
+            fires inside the `submit(e)` form handler AFTER `api.createAssessment(...)` resolves
+            and BEFORE `api.uploadFiles(...)` runs — measures the moment the new assessment
+            actually exists, regardless of whether the file upload that follows succeeds.
+
+  - id: review-workspace
+    title: Review workspace
+    description: The analyst's main screen for an assessment — control-by-control grid, AI analysis, evidence panel, analyst notes, approval.
+    file: client/src/pages/ReviewWorkspace.tsx
+    surface: review-workspace
+    experimentable: true
+    actions:
+      - id: click-analyze
+        title: Run AI analysis
+        description: Analyst clicks "Run AI analysis" (or "Re-run AI analysis") to trigger the AI pass over the questionnaire.
+        metric:
+          key: analyze_clicked
+          fires_in: client/src/pages/ReviewWorkspace.tsx
+          status: proposed
+          handler_hint: >-
+            fires inside the `analyze()` function (the "Run AI analysis" button's onClick handler)
+            as the first line — before the await api.analyze(assessmentId) call — so the metric
+            counts the user's intent rather than a successful response.
+      - id: approve-and-validate
+        title: Approve and validate
+        description: Analyst clicks "Approve & validate" to mark the assessment final.
+        metric:
+          key: assessment_approved
+          fires_in: client/src/pages/ReviewWorkspace.tsx
+          status: proposed
+          handler_hint: >-
+            fires inside the `approve()` function (the "Approve & validate" button's onClick
+            handler) AFTER the api.approveAssessment(...) call resolves successfully — mirroring
+            NewAssessment's pattern of measuring outcome rather than intent for irreversible actions.
+
+  - id: demo-showcase
+    title: Demo Showcase
+    description: A landing page with five pre-built vendor scenarios (Low / Medium / High / Critical risk) the user can load and analyze.
+    file: client/src/pages/DemoShowcase.tsx
+    surface: demo-showcase
+    experimentable: true
+    actions:
+      - id: load-scenario
+        title: Load a demo scenario
+        description: User clicks "Load & Analyze" on one of the pre-built scenario cards.
+        metric:
+          key: demo_scenario_loaded
+          fires_in: client/src/pages/DemoShowcase.tsx
+          status: proposed
+          handler_hint: >-
+            fires inside `runScenario()` (called from each scenario card's "Load & Analyze"
+            onClick) AFTER the api.loadScenario(key) call resolves successfully — measures
+            outcome, not intent (matches the NewAssessment pattern).
+
+  - id: report-view
+    title: Report
+    description: Print-friendly analyst report for an assessment — exportable to CSV / Excel / GRC JSON.
+    file: client/src/pages/ReportView.tsx
+    surface: report-view
+    experimentable: true
+    actions:
+      - id: export-report
+        title: Export the report
+        description: User clicks one of the export buttons (CSV, Excel, or GRC JSON).
+        metric:
+          key: report_exported
+          fires_in: client/src/pages/ReportView.tsx
+          status: proposed
+          handler_hint: >-
+            the three export links are <a href={api.exportUrl(...)}> anchors (lines ~56–63), so
+            add an onClick={() => api.trackEvent('report_exported').catch(() => undefined)} to
+            each anchor — keep the href flow intact so middle-click/right-click still work.
+
+  # Pages below are NOT experiment targets — hidden from the PM picker but kept here so the
+  # catalog is a complete map of the app (and the file-existence check covers them).
+
+  - id: login
+    title: Login
+    description: Sign-in page (SSO + email magic-link + dev fallback).
+    file: client/src/pages/Login.tsx
+    surface: login
+    experimentable: false
+    actions: []
+
+  - id: invite-accept
+    title: Invite accept
+    description: Page that confirms and accepts a pending tenant invitation.
+    file: client/src/pages/InviteAccept.tsx
+    surface: invite-accept
+    experimentable: false
+    actions: []
+
+  - id: audit-trail
+    title: Audit trail
+    description: Read-only event log for an assessment.
+    file: client/src/pages/AuditTrail.tsx
+    surface: audit-trail
+    experimentable: false
+    actions: []
+
+  - id: admin
+    title: Administration
+    description: Tenants, users, memberships, and invitations (Admin-only).
+    file: client/src/pages/Admin.tsx
+    surface: admin
+    experimentable: false
+    actions: []

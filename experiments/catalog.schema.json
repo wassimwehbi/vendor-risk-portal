@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wassimwehbi/vendor-risk-portal/experiments/catalog.schema.json",
+  "title": "Experiment catalog",
+  "description": "Curated catalog of pages + experiment-worthy actions, surfaced to non-technical PMs in the portal's 'Create with AI' picker. See specs/0017-adw-experiment-authoring.md. The dead-experiment guard (scripts/experiments.mjs) cross-checks every catalog entry against client/src.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "pages"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Bumping this is a breaking change for the portal."
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "description", "file", "surface", "experimentable", "actions"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Stable kebab-case identifier. Unique across pages."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable page title shown to PMs."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "One-sentence summary of what users do on this page."
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^client/src/pages/[A-Za-z0-9_]+\\.tsx$",
+            "description": "Internal file path (never shown to PMs). Used by the composer + drift guard."
+          },
+          "surface": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Maps to experiments[].surface. Used by the running-experiment overlap guard."
+          },
+          "experimentable": {
+            "type": "boolean",
+            "description": "When false, the page is hidden from the PM picker (still validated)."
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "title", "description"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "description": "Stable kebab-case identifier. Unique within the page."
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "PM-facing action title, sentence case."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "One sentence on the user action."
+                },
+                "metric": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["key", "fires_in", "status"],
+                  "description": "The conversion event this action fires, or proposes to fire. Omit when an action has no measurable conversion (a future use; v1 expects every experimentable action to declare a metric).",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "maxLength": 64,
+                      "description": "snake_case metric identifier — passed to api.trackEvent('<key>')."
+                    },
+                    "fires_in": {
+                      "type": "string",
+                      "pattern": "^client/src/.+\\.(ts|tsx)$",
+                      "description": "Internal file path where trackEvent fires (or should fire, for proposed metrics)."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["instrumented", "proposed"],
+                      "description": "instrumented = literal exists in code; proposed = catalog declares the opportunity but code does not fire it yet (ADW wires it via TEMPLATE B)."
+                    },
+                    "handler_hint": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "One sentence telling ADW exactly where to insert the trackEvent (e.g. 'after api.createAssessment resolves, before uploadFiles()'). Load-bearing for safe AI wiring."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
