@@ -194,4 +194,16 @@ export const SCENARIOS: UxScenario[] = [
     invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
     snapshot: true,
   },
+  {
+    id: 'evidence-panel-vision',
+    title: 'Evidence panel — AI-described image provenance chip (#45)',
+    role: 'Analyst',
+    viewports: ALL,
+    steps: [
+      { kind: 'loadScenario', index: 0 },
+      { kind: 'expectVisibleText', text: 'Evidence files' },
+      { kind: 'expectVisibleText', text: 'AI described' },
+    ],
+    invariants: ['noHorizontalOverflow', 'axeClean', 'noConsoleErrors'],
+  },
 ];
