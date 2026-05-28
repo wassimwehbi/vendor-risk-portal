@@ -208,6 +208,13 @@ export function ReportView() {
         </section>
 
         <section>
+          <h2 className="mb-1 text-sm font-semibold text-slate-800">Business context</h2>
+          <p className="whitespace-pre-wrap text-sm text-slate-600">
+            {report.business_context || <span className="text-slate-500">No business context added.</span>}
+          </p>
+        </section>
+
+        <section>
           <h2 className="mb-1 text-sm font-semibold text-slate-800">Analyst notes</h2>
           <p className="whitespace-pre-wrap text-sm text-slate-600">
             {report.analyst_notes || <span className="text-slate-500">No notes added.</span>}
