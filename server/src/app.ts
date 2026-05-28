@@ -63,13 +63,15 @@ export function createApp(): Express {
   // CORS. The app SPA gets CREDENTIALED access (prod: CLIENT_ORIGIN; dev: any localhost). The
   // experiments portal is a SEPARATE GitHub Pages origin with no app session, so it is granted
   // access ONLY to the two public experiment routes (results + device-flow relay) and WITHOUT
-  // credentials — never to the authenticated/cookie API surface.
+  // credentials — never to the authenticated/cookie API surface. EXPERIMENTS_PORTAL_ORIGIN is a
+  // comma-separated allow-list (spec 0018) so a local portal dev server can be added alongside
+  // production without juggling env between deploys; matching stays exact, not wildcard.
   const isLocalOrigin = (origin: string): boolean => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   const isPortalPublicRoute = (path: string): boolean =>
     path.startsWith('/api/gh-device/') || /^\/api\/experiments\/[^/]+\/results$/.test(path);
   const corsDelegate: CorsOptionsDelegate<Request> = (req, cb) => {
     const origin = req.headers.origin;
-    if (origin && experimentsConfig.portalOrigin && origin === experimentsConfig.portalOrigin) {
+    if (origin && experimentsConfig.portalOrigins.includes(origin)) {
       cb(null, isPortalPublicRoute(req.path) ? { origin: true, credentials: false } : { origin: false });
       return;
     }
