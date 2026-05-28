@@ -6,7 +6,7 @@ hypothesis: >-
   rate.
 owner: "@wassimwehbi"
 surface: dashboard
-status: running
+status: paused
 created: 2026-05-27
 start: 2026-05-27
 end: 2026-06-28
