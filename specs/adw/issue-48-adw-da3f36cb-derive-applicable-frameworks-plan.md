@@ -1,6 +1,6 @@
 # Spec — Fix hardcoded assessment-level applicable_frameworks (drops GDPR/NIST/HIPAA)
 
-- **Status:** Draft
+- **Status:** Implemented
 - **Branch:** bug-issue-48-adw-da3f36cb-derive-applicable-frameworks
 - **Location:** `server/src/services/aiEngine.ts`, `server/test/scenarios.test.ts`
 - **Related docs:** `specs/adw/patch-adw-eaf33e16-expand-hipaa-framework-mappings-plan.md`, `README.md`, `API_CONTRACT.md`
