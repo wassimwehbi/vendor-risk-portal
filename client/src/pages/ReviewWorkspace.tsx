@@ -341,7 +341,7 @@ export function ReviewWorkspace() {
               </button>
             )}
           </div>
-          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-400">Takes effect on next analysis run</p>}
+          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-500">Takes effect on next analysis run</p>}
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">Personal data volume</p>
@@ -354,7 +354,7 @@ export function ReviewWorkspace() {
                     ? 'bg-amber-100 text-amber-800'
                     : assessment.personal_data_volume === 'low'
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-slate-100 text-slate-500'
+                      : 'bg-slate-100 text-slate-600'
               }`}
             >
               {assessment.personal_data_volume
@@ -376,7 +376,7 @@ export function ReviewWorkspace() {
               </select>
             )}
           </div>
-          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-400">Takes effect on next analysis run</p>}
+          {canEdit && analyzed && <p className="mt-0.5 text-xs text-slate-500">Takes effect on next analysis run</p>}
         </div>
       </div>
 
