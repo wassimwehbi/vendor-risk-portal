@@ -30,31 +30,39 @@ export function App() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<ReactNode>(null);
 
-  const loadExperiments = useCallback(async (tok: string) => {
-    setError('');
-    try {
-      setExperiments(await listExperiments(tok));
-    } catch (e) {
-      setError((e as Error).message);
-      setExperiments([]);
-    }
-  }, []);
+  // Returns the parsed list (callers set state). Made cancellation-friendly by NOT touching
+  // state directly — the caller checks its `cancelled` flag before publishing.
+  const loadExperiments = useCallback((tok: string) => listExperiments(tok), []);
 
   // After sign-in: fetch the viewer + the experiment list, plus the inputs the "Create with AI"
   // flow needs (push-permission gating, the experiment catalog). The lookups are best-effort
   // and never break the dashboard if they fail; the CTA gate / fail-closed banner handles fallout.
+  // Cancellation: a rapid sign-out → sign-in (or any token change) shouldn't let a stale fetch
+  // resolve and overwrite the new session's state. Mirrors the cancellation pattern in the
+  // results effect below.
   useEffect(() => {
     if (!token) return;
+    let cancelled = false;
+    setError('');
     getViewer(token)
-      .then(setViewer)
+      .then((v) => !cancelled && setViewer(v))
       .catch(() => undefined);
-    loadExperiments(token);
+    loadExperiments(token)
+      .then((list) => !cancelled && setExperiments(list))
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setError(e.message);
+        setExperiments([]);
+      });
     getRepoPermissions(token)
-      .then((p) => setCanCreate(p.push))
-      .catch(() => setCanCreate(false));
+      .then((p) => !cancelled && setCanCreate(p.push))
+      .catch(() => !cancelled && setCanCreate(false));
     fetchCatalog(token)
-      .then(setCatalog)
-      .catch((e: Error) => setCatalog({ error: e.message }));
+      .then((c) => !cancelled && setCatalog(c))
+      .catch((e: Error) => !cancelled && setCatalog({ error: e.message }));
+    return () => {
+      cancelled = true;
+    };
   }, [token, loadExperiments]);
 
   // Live results, authorized by the signed-in GitHub token (the server checks repo-collaborator
@@ -80,6 +88,13 @@ export function App() {
     setResults({});
     setCanCreate(false);
     setCatalog(null);
+    // Reset transient UI state too — otherwise a second user signing in on the same browser
+    // lands on the previous user's mid-edit / AI form / stale notice (and the previous user's
+    // draft text would still be in the textareas).
+    setView('dashboard');
+    setEditing(null);
+    setError('');
+    setNotice(null);
   }
 
   async function pause(loaded: LoadedExperiment) {

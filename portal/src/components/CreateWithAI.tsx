@@ -12,7 +12,7 @@
 //   - Sentence case; no emoji.
 //   - The AI-attribution chip (brand-50 + sparkles) appears on the preview card per the
 //     design system's mandatory provenance pattern.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ADW_LABEL } from '../config';
 import { composeAdwIssue, suggestKey, suggestMetricKey, type AICreatePayload, type FreeformMode, type ProposedMode } from '../lib/adwIssue';
 import { createIssue } from '../lib/github';
@@ -21,6 +21,9 @@ import { AiChip, Banner, Spinner } from './ui';
 
 const ROLES: Role[] = ['Analyst', 'Submitter', 'Viewer', 'Admin'];
 const METRIC_RX = /^[a-z][a-z0-9_]*$/;
+// Action title must contain at least one alphanumeric character so derivedActionId (kebab-cased
+// from the title) yields a non-empty catalog id — otherwise the freeform catalog row is invalid.
+const HAS_ALPHANUM_RX = /[a-z0-9]/i;
 const PROPOSE_NEW_VALUE = '__propose-new__';
 
 interface Props {
@@ -73,8 +76,13 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
         new Set(
           tenantsCsv
             .split(',')
-            .map((s) => Number(s.trim()))
-            .filter((n) => Number.isInteger(n) && n > 0),
+            // Reject anything that isn't a pure base-10 integer: rules out '0x10', '1e3', '12.0',
+            // ' 12 ' (after trim, the regex demands the whole string be digits). parseInt is then
+            // safe because the regex already vetted the shape.
+            .map((s) => s.trim())
+            .filter((s) => /^\d+$/.test(s))
+            .map((s) => parseInt(s, 10))
+            .filter((n) => n > 0),
         ),
       ),
     [tenantsCsv],
@@ -97,6 +105,17 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
     freeMetric,
     freeHint,
   }), [pickerValue, allActions, instrumentedActions, proposedActions, proposedValue, proposeMode, experimentablePages, freePageId, freeTitle, freeDesc, freeMetric, freeHint]);
+
+  // When the user changes the measurement (a different action / page), the previous variant-page
+  // override is silently stale — we'd keep wiring useVariant in the OLD page even though the visible
+  // select looks fine. Reset the override AND the panel toggle whenever the resolved action page
+  // changes, so the user has to opt back into the override deliberately.
+  const resolvedPageId = resolved?.actionPage.id;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberately keyed on resolvedPageId
+  useEffect(() => {
+    setVariantOverrideId('');
+    setShowVariantOverride(false);
+  }, [resolvedPageId]);
 
   // Build the payload + composed issue. Both update reactively so the preview is always live.
   const payload: AICreatePayload | null = useMemo(() => {
@@ -146,8 +165,12 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
     if (existingKeys.includes(p.key)) return `An experiment named "${p.key}" already exists — pick a different name.`;
     if (p.mode.kind === 'freeform') {
       if (!p.mode.actionTitle.trim()) return 'Describe the user action that counts as the goal.';
+      if (!HAS_ALPHANUM_RX.test(p.mode.actionTitle)) return 'The action title needs at least one letter or number (it becomes the catalog id).';
       if (!p.mode.actionDescription.trim()) return 'Add a one-sentence description of the action.';
       if (!METRIC_RX.test(p.mode.metricKey)) return 'The metric key must be snake_case (e.g. checkout_started).';
+      // Block the obvious duplicate at submit-time too — the inline amber caption nudges
+      // the PM; this gate prevents a wasted ADW run when they ignore the nudge.
+      if (freeMetricDuplicate) return `A measurement named "${p.mode.metricKey}" already exists in the catalog — pick it from the dropdown instead.`;
     }
     if (!p.treatmentDescription) return 'Describe the change ADW should build in the treatment branch.';
     return null;
@@ -272,15 +295,22 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
         )}
 
         <div className="field">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowVariantOverride((s) => !s)}>
-            {showVariantOverride ? 'Hide' : 'Advanced:'} where does the change appear?
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowVariantOverride((s) => !s)}
+            aria-expanded={showVariantOverride}
+            aria-controls="ai-variant-override-panel"
+          >
+            {showVariantOverride ? 'Hide' : 'Advanced — '}where does the change appear?
           </button>
           {showVariantOverride && resolved && (
-            <div style={{ marginTop: '0.4rem' }}>
-              <span className="caption">
+            <div id="ai-variant-override-panel" style={{ marginTop: '0.4rem' }}>
+              <label className="caption" htmlFor="ai-variant-page">
                 By default the UI change appears on the same page as the action ({resolved.actionPage.title}). Override only when the change is on a different page from the goal action (e.g. a Dashboard CTA whose goal is reached on New assessment).
-              </span>
+              </label>
               <select
+                id="ai-variant-page"
                 className="select"
                 style={{ marginTop: '0.4rem' }}
                 value={variantOverrideId || resolved.actionPage.id}
@@ -311,8 +341,11 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
         </div>
 
         <div className="grid-2">
-          <div className="field">
-            <span className="label">Who sees the test? (none = everyone)</span>
+          {/* fieldset+legend so screen readers announce "Who sees the test?" as the group name when
+              navigating the checkboxes (axe-core's group-name rule, which the ux PR gate enforces).
+              Inline-reset the browser-default fieldset chrome to match the .field recipe. */}
+          <fieldset className="field" style={{ border: 0, padding: 0, margin: '0 0 0.9rem 0', minInlineSize: 'auto' }}>
+            <legend className="label" style={{ padding: 0 }}>Who sees the test? (none = everyone)</legend>
             <div className="row" style={{ flexWrap: 'wrap' }}>
               {ROLES.map((r) => (
                 <label key={r} className="caption row" style={{ marginRight: '0.5rem' }}>
@@ -320,7 +353,7 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="field">
             <label className="label" htmlFor="ai-tenants">
               Limit to tenants (optional, comma-separated)
@@ -351,11 +384,18 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
             </div>
             <p className="caption" style={{ margin: 0 }}>{composed.humanSummary}</p>
             <div style={{ marginTop: '0.6rem' }}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTechnicalBrief((s) => !s)}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowTechnicalBrief((s) => !s)}
+                aria-expanded={showTechnicalBrief}
+                aria-controls="ai-technical-brief"
+              >
                 {showTechnicalBrief ? 'Hide' : 'Show'} the technical brief Claude will read
               </button>
               {showTechnicalBrief && (
                 <pre
+                  id="ai-technical-brief"
                   className="mono caption"
                   style={{ whiteSpace: 'pre-wrap', maxHeight: 360, overflow: 'auto', padding: '0.6rem', background: 'var(--slate-50)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginTop: '0.4rem' }}
                 >

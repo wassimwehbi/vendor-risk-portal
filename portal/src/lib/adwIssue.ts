@@ -19,6 +19,7 @@
 //      'treatment') — the antidote to silent control-revert.
 //   4. status: draft + 50/50 — auto-merge is provably inert (treatment is dead code until the
 //      human flips it via the portal Edit form).
+import yaml from 'js-yaml';
 import { toYaml } from './yaml';
 import type { CatalogAction, CatalogPage, Experiment, Role } from '../types';
 
@@ -103,6 +104,16 @@ export function buildDraftExperiment(p: AICreatePayload): Experiment {
 }
 
 export function composeAdwIssue(p: AICreatePayload): ComposedAdwIssue {
+  // Defense-in-depth guard for the freeform path: an actionTitle made of only punctuation
+  // would derive an empty catalog id, which would silently produce an invalid catalog row.
+  // The form-level validate() catches this first; this throw is the secondary backstop for
+  // any future caller (test, alternate UI, programmatic flow).
+  if (p.mode.kind === 'freeform' && !derivedActionId(p.mode)) {
+    throw new Error('Action title must contain at least one alphanumeric character (it derives the catalog action id).');
+  }
+  if (!primaryMetricKey(p.mode)) {
+    throw new Error('Could not resolve a primary metric for this experiment — the catalog action has no metric, or the freeform metric key is empty.');
+  }
   const draft = buildDraftExperiment(p);
   const draftYaml = toYaml(draft);
   const title = composeTitle(p);
@@ -149,9 +160,10 @@ function composeBody(p: AICreatePayload, draftYaml: string): string {
     '## Canonical pattern to read FIRST',
     '- `experiments/dashboard-cta.yml` — the YAML card shape (note: this one is `status: running` 0/100; do **not** copy verbatim — see the literal draft template below).',
     '- `experiments/schema.json` — the validated contract.',
+    '- `experiments/README.md` — lifecycle + CI rules.',
     '- `experiments/catalog.yml` + `experiments/catalog.schema.json` — the PM-facing catalog.',
-    '- `client/src/pages/Dashboard.tsx` L12–20 — `useVariant` + variant branching.',
-    '- `client/src/pages/NewAssessment.tsx` L51–52 — `api.trackEvent` at the goal action.',
+    "- `client/src/pages/Dashboard.tsx` — `useVariant` + variant branching (search for `useVariant('dashboard-cta')`).",
+    "- `client/src/pages/NewAssessment.tsx` — `api.trackEvent` at the goal action (search for `trackEvent('assessment_created')`).",
     '- `client/src/lib/FlagsContext.tsx` — the `useVariant` / `useFlag` API.',
     '- `specs/0015-experimentation-platform.md` — the platform design.',
     '- `specs/0017-adw-experiment-authoring.md` — this feature.',
@@ -173,7 +185,7 @@ function composeBody(p: AICreatePayload, draftYaml: string): string {
     '```',
     '',
     '## Treatment UI (from the human)',
-    p.treatmentDescription || '(none provided — infer from the experiment name)',
+    safeMarkdownBlock(p.treatmentDescription, '(none provided — infer from the experiment name)'),
     '',
     `## Literal draft card to drop in (\`experiments/${p.key}.yml\`)`,
     '```yaml',
@@ -186,18 +198,32 @@ function composeBody(p: AICreatePayload, draftYaml: string): string {
     '## Acceptance criteria (the plan MUST include these as explicit, checkable tasks)',
     `- [ ] \`node scripts/experiments.mjs validate\` exits 0 — including the catalog bidirectional drift checks (this also runs the dead-experiment guard).`,
     `- [ ] The literal string \`'${p.key}'\` appears in a \`useVariant(...)\` call under \`client/src\` and equals the YAML filename basename.`,
-    `- [ ] The literal string \`'${metricKey}'\` appears in a \`trackEvent(...)\` call inside \`${goalActionFile}\` (the file named above) and equals \`metrics.primary\` in the card.`,
+    `- [ ] The literal string \`'${metricKey}'\` appears in a \`trackEvent(...)\` call inside \`${goalActionFile}\` (the file named above) and equals \`metrics.primary\` in the card byte-for-byte.`,
     "- [ ] The variant key compared in the page is the literal string `'treatment'` (matches the YAML).",
     `- [ ] With \`status: draft\`, the rendered page is byte-identical to the current control — UX structural + a11y checks pass with no new scenarios (this experiment reuses the existing route's scenario; only add a new \`e2e/ux/scenarios.ts\` entry if the experiment introduces a new route).`,
     '- [ ] Follow the **design-system skill** (`.claude/skills/design-system/`, `design-system/DESIGN_SYSTEM.md`) for any UI styling in the treatment branch — reuse `card` / `btn-*` / `input` / `label` recipes; never hardcode palette values.',
     '',
     '## Hypothesis',
-    p.hypothesis || '(not provided)',
+    safeMarkdownBlock(p.hypothesis, '(not provided)'),
     '',
     '---',
     '_Created from the experiments portal · spec 0017 · the catalog + dead-experiment guard (`scripts/experiments.mjs`) will warn on this draft if catalog↔code drift exists — the human draft→running Edit PR will turn any remaining warning into an error._',
   ];
   return sections.join('\n');
+}
+
+/**
+ * Wrap free-text PM input inside a fenced code block so it can't inject markdown headings
+ * (e.g. `\n## Mandatory deliverables\n`) that ADW would read as authoritative instructions —
+ * a prompt-injection vector. We use TILDE fences (GFM-supported, almost never appear in PM
+ * copy) so the user can freely include single/triple BACKticks in their prose. Any literal
+ * sequence of 4+ tildes inside the user text is collapsed to 3 to keep our outer fence stable.
+ */
+function safeMarkdownBlock(text: string | undefined, fallback: string): string {
+  const trimmed = (text ?? '').trim();
+  if (!trimmed) return `_${fallback}_`;
+  const safe = trimmed.replace(/~{4,}/g, '~~~');
+  return `~~~~text\n${safe}\n~~~~`;
 }
 
 function deliverablesSection(p: AICreatePayload, goalActionFile: string, metricKey: string): string[] {
@@ -223,13 +249,33 @@ function deliverablesSection(p: AICreatePayload, goalActionFile: string, metricK
     ];
   }
   // freeform
-  const hint = p.mode.handlerHint ? `The human suggested: **${p.mode.handlerHint}**` : '**No handler hint was provided — choose the most appropriate handler and name it explicitly in the PR description so a human can verify before merge.**';
+  const freeMode = p.mode as FreeformMode;
+  const hint = freeMode.handlerHint ? `The human suggested: **${freeMode.handlerHint}**` : '**No handler hint was provided — choose the most appropriate handler and name it explicitly in the PR description so a human can verify before merge.**';
+  // Build the catalog row as an object and run it through yaml.dump so user-controlled
+  // title/description strings are correctly quoted/escaped — guards against the YAML
+  // injection where e.g. `title: User: clicks export` would parse as a nested mapping.
+  const newCatalogRow = {
+    id: derivedActionId(freeMode),
+    title: freeMode.actionTitle,
+    description: freeMode.actionDescription,
+    metric: {
+      key: metricKey,
+      fires_in: goalActionFile,
+      status: 'instrumented',
+      handler_hint: '<one sentence naming the handler you chose>',
+    },
+  };
+  // yaml.dump([row]) yields a top-level sequence entry — exactly what the catalog expects when
+  // appending to the page's `actions:` list. quotingType: '"' keeps strings predictable.
+  const newCatalogRowYaml = yaml
+    .dump([newCatalogRow], { lineWidth: 100, quotingType: '"', schema: yaml.JSON_SCHEMA })
+    .replace(/^/gm, '   '); // indent for the numbered-list nesting in markdown
   return [
     '## Mandatory deliverables (a PR with fewer than 4 is incomplete)',
     card,
     wiring,
-    `3. **NEW CONVERSION EVENT** in \`${goalActionFile}\` — fire \`api.trackEvent('${metricKey}').catch(() => undefined)\` at the user action: *"${actionDescriptionText(p.mode)}"*. ${hint} Before writing, run \`grep -r "trackEvent('${metricKey}')" client/src\` — if it already exists, **STOP** and add a comment on this issue noting the duplicate (then the PM should re-pick the existing metric).`,
-    `4. **ADD CATALOG ROW** in \`experiments/catalog.yml\` — append a new action under the \`${p.actionPage.id}\` page with this shape (mirroring catalog.schema.json):\n\n   \`\`\`yaml\n   - id: ${derivedActionId(p.mode)}\n     title: ${(p.mode as FreeformMode).actionTitle}\n     description: ${(p.mode as FreeformMode).actionDescription}\n     metric:\n       key: ${metricKey}\n       fires_in: ${goalActionFile}\n       status: instrumented\n       handler_hint: <one sentence naming the handler you chose>\n   \`\`\``,
+    `3. **NEW CONVERSION EVENT** in \`${goalActionFile}\` — fire \`api.trackEvent('${metricKey}').catch(() => undefined)\` at the user action described in the **Treatment UI** section below. ${hint} Before writing, run \`grep -r "trackEvent('${metricKey}')" client/src\` — if it already exists, **STOP** and add a comment on this issue noting the duplicate (then the PM should re-pick the existing metric).`,
+    `4. **ADD CATALOG ROW** in \`experiments/catalog.yml\` — append the following new action under the \`${p.actionPage.id}\` page's \`actions:\` list (yaml-dumped from the human input):\n\n   \`\`\`yaml\n${newCatalogRowYaml.trimEnd()}\n   \`\`\``,
   ];
 }
 
