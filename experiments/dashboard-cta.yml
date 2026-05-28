@@ -6,15 +6,15 @@ hypothesis: >-
   rate.
 owner: "@wassimwehbi"
 surface: dashboard
-status: paused
+status: running
 created: 2026-05-27
 start: 2026-05-27
 end: 2026-06-28
 variants:
   - key: control
-    weight: 0
+    weight: 50
   - key: treatment
-    weight: 100
+    weight: 50
 targeting:
   roles:
     - Analyst
