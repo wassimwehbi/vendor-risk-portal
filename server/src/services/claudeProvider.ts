@@ -28,7 +28,7 @@ Assess these qualitative dimensions:
 - control_strength: "Strong" (clearly implemented, broad scope, specifics/standards given), "Medium" (partial scope or unqualified yes), "Weak" (vague/optional), or "None" (absent/no).
 - completeness: "Complete", "Partial", "Vague" (non-specific buzzwords like "industry-standard"), or "Missing".
 - evidence_sufficiency: "Sufficient", "Insufficient" (generic policy / no implementation proof), "None" (no evidence), "Expired" (cert/report past its date), or "Misaligned" (evidence does not match the answer). When evidence documents are provided, ground your evidence_sufficiency verdict in their content — "Sufficient" requires a concrete finding (cert number, test result, config sample, or dated audit opinion) in the documents.
-- data_categories: array, any of: personal, sensitive_personal, phi, children, employee, financial, cross_border, subprocessors (only those clearly implied).
+- data_categories: array, any of: personal, sensitive_personal, phi, children, employee, financial, cross_border, subprocessors, data_subject_requests (only those clearly implied).
 - ai_finding: one concise sentence describing the gap or status.
 - ai_rationale: one sentence explaining your reasoning.
 - follow_up_questions: array of 1-4 targeted, specific follow-up questions to close gaps.
@@ -126,6 +126,7 @@ Expiration date: ${item.expiration_date ?? '(none)'}${evidenceBlock}`;
       'financial',
       'cross_border',
       'subprocessors',
+      'data_subject_requests',
     ];
     const data_categories: DataCategory[] = Array.isArray(parsed.data_categories)
       ? parsed.data_categories.filter((c: unknown): c is DataCategory => allowedCats.includes(c as DataCategory))

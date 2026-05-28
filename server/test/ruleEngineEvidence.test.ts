@@ -245,3 +245,25 @@ test('mixed evidence: undated screenshot + SOC2 pdf → concrete signal wins as 
   const result = assessEvidence(item, 'yes', 'Strong', 'Vulnerability Management', mixedEvidence);
   assert.equal(result, 'Sufficient');
 });
+
+// --- data_subject_requests detection tests ---
+
+test('detectDataCategories detects DSAR term', () => {
+  const cats = detectDataCategories('the vendor has a dsar process in place');
+  assert.ok(cats.includes('data_subject_requests'), `expected 'data_subject_requests' in ${JSON.stringify(cats)}`);
+});
+
+test('detectDataCategories detects right to erasure', () => {
+  const cats = detectDataCategories('we support the right to erasure within 30 days');
+  assert.ok(cats.includes('data_subject_requests'), `expected 'data_subject_requests' in ${JSON.stringify(cats)}`);
+});
+
+test('detectDataCategories detects subject access request', () => {
+  const cats = detectDataCategories('subject access request handled within 30 days');
+  assert.ok(cats.includes('data_subject_requests'), `expected 'data_subject_requests' in ${JSON.stringify(cats)}`);
+});
+
+test('detectDataCategories does not over-trigger on generic personal data text', () => {
+  const cats = detectDataCategories('we process personal data and pii for customers');
+  assert.ok(!cats.includes('data_subject_requests'), `expected no 'data_subject_requests' in ${JSON.stringify(cats)}`);
+});

@@ -67,6 +67,7 @@ const GDPR_TRIGGERS: DataCategory[] = [
   'employee',
   'cross_border',
   'subprocessors',
+  'data_subject_requests',
 ];
 
 function deriveFrameworks(analyses: Array<{ analysis: ItemAnalysis }>, categories: DataCategory[]): string[] {
