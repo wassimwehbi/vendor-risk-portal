@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { normalize, resolve, sep } from 'node:path';
+import { dirname, join, normalize, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
@@ -111,54 +112,52 @@ function parseCellsFromHtml(rowHtml: string): string[] {
 
 // Exported for unit testing — processes mammoth HTML output without calling mammoth.
 export function parseDocxHtml(html: string): NewQuestionnaireItem[] {
-  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  const trBlocks = [...html.matchAll(trRe)].map((m) => m[0]);
-
-  if (trBlocks.length === 0) {
-    throw new Error(
-      'No parseable table found in Word document. Ensure the questionnaire uses a table with column headers.',
-    );
-  }
+  // Scope parsing to a single <table> so rows from another table (e.g. a cover-page or
+  // contact table before OR after the questionnaire) are never absorbed as questionnaire
+  // rows. Fall back to the whole document when no <table> wrapper is present.
+  const tableRe = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+  const tableBlocks = [...html.matchAll(tableRe)].map((m) => m[1]);
+  const blocks = tableBlocks.length > 0 ? tableBlocks : [html];
 
   const aliasedKeys = new Set<string>();
   for (const aliases of Object.values(ALIASES)) {
     for (const a of aliases) aliasedKeys.add(a);
   }
 
-  let headerIdx = -1;
-  let headers: string[] = [];
-  for (let i = 0; i < trBlocks.length; i++) {
-    const cells = parseCellsFromHtml(trBlocks[i]);
-    if (cells.some((c) => aliasedKeys.has(c.toLowerCase().trim()))) {
-      headerIdx = i;
-      headers = cells;
-      break;
+  for (const tableHtml of blocks) {
+    const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    const trBlocks = [...tableHtml.matchAll(trRe)].map((m) => m[0]);
+    if (trBlocks.length === 0) continue;
+
+    let headerIdx = -1;
+    let headers: string[] = [];
+    for (let i = 0; i < trBlocks.length; i++) {
+      const cells = parseCellsFromHtml(trBlocks[i]);
+      if (cells.some((c) => aliasedKeys.has(c.toLowerCase().trim()))) {
+        headerIdx = i;
+        headers = cells;
+        break;
+      }
     }
-  }
+    if (headerIdx === -1) continue;
 
-  if (headerIdx === -1) {
-    throw new Error(
-      'No parseable table found in Word document. Ensure the questionnaire uses a table with column headers.',
-    );
-  }
-
-  const rows: Record<string, unknown>[] = [];
-  for (let i = headerIdx + 1; i < trBlocks.length; i++) {
-    const cells = parseCellsFromHtml(trBlocks[i]);
-    const row: Record<string, unknown> = {};
-    for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = cells[j] ?? '';
+    const rows: Record<string, unknown>[] = [];
+    for (let i = headerIdx + 1; i < trBlocks.length; i++) {
+      const cells = parseCellsFromHtml(trBlocks[i]);
+      const row: Record<string, unknown> = {};
+      for (let j = 0; j < headers.length; j++) {
+        row[headers[j]] = cells[j] ?? '';
+      }
+      rows.push(row);
     }
-    rows.push(row);
+
+    const items = parseRows(rows);
+    if (items.length > 0) return items;
   }
 
-  const items = parseRows(rows);
-  if (items.length === 0) {
-    throw new Error(
-      'No parseable table found in Word document. Ensure the questionnaire uses a table with column headers.',
-    );
-  }
-  return items;
+  throw new Error(
+    'No parseable table found in Word document. Ensure the questionnaire uses a table with column headers.',
+  );
 }
 
 // Exported for unit testing — applies PDF text heuristics without calling pdf-parse.
@@ -221,7 +220,9 @@ export async function parsePdfQuestionnaire(buffer: Buffer): Promise<NewQuestion
   return parsePdfText(text);
 }
 
-const SAFE_UPLOAD_ROOT = resolve(process.cwd(), 'server', 'uploads');
+// Resolve from this module's location (like upload.ts / store.ts) so the guard matches the
+// real upload dir regardless of the process's working directory.
+const SAFE_UPLOAD_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads');
 
 function ensurePathWithinUploads(filePath: string): string {
   const root = normalize(resolve(SAFE_UPLOAD_ROOT));
@@ -238,7 +239,14 @@ export async function parseQuestionnaire(filePath: string, originalName: string)
   const ext = originalName.split('.').pop()?.toLowerCase() ?? '';
 
   if (ext === 'pdf') return parsePdfQuestionnaire(buf);
-  if (ext === 'docx' || ext === 'doc') return parseDocxQuestionnaire(buf);
+  if (ext === 'doc') {
+    // mammoth only reads the XML-based .docx; a binary legacy .doc would surface a
+    // cryptic low-level error, so reject it with actionable guidance instead.
+    throw new Error(
+      'Legacy .doc files are not supported. Please re-save the questionnaire as .docx (or export to .xlsx/.csv) and upload again.',
+    );
+  }
+  if (ext === 'docx') return parseDocxQuestionnaire(buf);
 
   // Default: XLSX / XLS / XLSM / CSV
   // (XLSX.read is kept sync inside the now-async wrapper — no behaviour change)

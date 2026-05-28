@@ -1,10 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { writeFile, rm } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { writeFile, rm, mkdir } from 'node:fs/promises';
 import * as XLSX from 'xlsx';
 import { parseRows, parseDocxHtml, parsePdfText, parseQuestionnaire } from '../src/services/extraction';
+
+// parseQuestionnaire enforces that files live under server/uploads, so write fixtures there.
+const UPLOADS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
 
 test('maps standard SIG-style columns', () => {
   const rows = [
@@ -116,6 +119,20 @@ test('parseDocxHtml uses first table with recognized headers when multiple table
   assert.equal(items[0].question_id, 'Q1');
 });
 
+test('parseDocxHtml ignores rows from a non-questionnaire table that follows', () => {
+  const html = `<table>
+    <tr><td>Question ID</td><td>Question</td><td>Response</td></tr>
+    <tr><td>Q1</td><td>Encrypted storage?</td><td>Yes</td></tr>
+  </table>
+  <table>
+    <tr><td>Name</td><td>Value</td></tr>
+    <tr><td>Contact</td><td>ops@acme.com</td></tr>
+  </table>`;
+  const items = parseDocxHtml(html);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].question_id, 'Q1');
+});
+
 test('parseDocxHtml throws when no table is present', () => {
   assert.throws(() => parseDocxHtml('<p>Some plain text</p>'), /No parseable table found/);
 });
@@ -178,7 +195,8 @@ test('parseQuestionnaire dispatches to XLSX path for .xlsx extension', async () 
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   const buf: Buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
-  const tmpPath = join(tmpdir(), `vrp-test-${Date.now()}.xlsx`);
+  await mkdir(UPLOADS_DIR, { recursive: true });
+  const tmpPath = join(UPLOADS_DIR, `vrp-test-${Date.now()}.xlsx`);
   await writeFile(tmpPath, buf);
   try {
     const items = await parseQuestionnaire(tmpPath, 'questionnaire.xlsx');
@@ -192,7 +210,8 @@ test('parseQuestionnaire dispatches to XLSX path for .xlsx extension', async () 
 
 test('parseQuestionnaire dispatches to XLSX path for .csv extension', async () => {
   const csv = 'Question,Response\nIs backup tested?,Yes\n';
-  const tmpPath = join(tmpdir(), `vrp-test-${Date.now()}.csv`);
+  await mkdir(UPLOADS_DIR, { recursive: true });
+  const tmpPath = join(UPLOADS_DIR, `vrp-test-${Date.now()}.csv`);
   await writeFile(tmpPath, csv);
   try {
     const items = await parseQuestionnaire(tmpPath, 'questionnaire.csv');
@@ -204,7 +223,8 @@ test('parseQuestionnaire dispatches to XLSX path for .csv extension', async () =
 });
 
 test('parseQuestionnaire dispatches to PDF path for .pdf extension and surfaces PDF error', async () => {
-  const tmpPath = join(tmpdir(), `vrp-test-${Date.now()}.pdf`);
+  await mkdir(UPLOADS_DIR, { recursive: true });
+  const tmpPath = join(UPLOADS_DIR, `vrp-test-${Date.now()}.pdf`);
   await writeFile(tmpPath, Buffer.from('not a real pdf'));
   try {
     await assert.rejects(parseQuestionnaire(tmpPath, 'questionnaire.pdf'));
@@ -214,7 +234,8 @@ test('parseQuestionnaire dispatches to PDF path for .pdf extension and surfaces 
 });
 
 test('parseQuestionnaire dispatches to DOCX path for .docx extension and surfaces DOCX error', async () => {
-  const tmpPath = join(tmpdir(), `vrp-test-${Date.now()}.docx`);
+  await mkdir(UPLOADS_DIR, { recursive: true });
+  const tmpPath = join(UPLOADS_DIR, `vrp-test-${Date.now()}.docx`);
   await writeFile(tmpPath, Buffer.from('not a real docx'));
   try {
     await assert.rejects(parseQuestionnaire(tmpPath, 'questionnaire.docx'));
