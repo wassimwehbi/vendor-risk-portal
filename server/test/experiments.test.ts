@@ -307,3 +307,22 @@ test('POST /api/gh-device/code returns 503 when no GitHub client_id is configure
   const res = await request(app).post('/api/gh-device/code').send({});
   assert.equal(res.status, 503);
 });
+
+// ---- spec 0018: EXPERIMENTS_PORTAL_ORIGIN parses as a comma-separated allow-list ------------
+test('parsePortalOrigins handles the env shapes the CORS gate actually sees', async () => {
+  const { parsePortalOrigins } = await import('../src/services/experiments.js');
+  // Single value (the historical env shape) — still works.
+  assert.deepEqual(parsePortalOrigins('https://wassimwehbi.github.io'), ['https://wassimwehbi.github.io']);
+  // Multiple values, with the spacing humans actually type.
+  assert.deepEqual(parsePortalOrigins('https://wassimwehbi.github.io, http://localhost:5174'), [
+    'https://wassimwehbi.github.io',
+    'http://localhost:5174',
+  ]);
+  // No tolerance for substring/wildcard semantics — these are exact origins. Stray commas, blank
+  // entries, and surrounding whitespace are filtered out; nothing is interpolated or expanded.
+  assert.deepEqual(parsePortalOrigins(',https://x.example.com,, '), ['https://x.example.com']);
+  // Absent env → empty list → the CORS gate's `.includes(origin)` always returns false, which is
+  // the correct closed default (the portal endpoints require an explicit allow-list).
+  assert.deepEqual(parsePortalOrigins(undefined), []);
+  assert.deepEqual(parsePortalOrigins(''), []);
+});
