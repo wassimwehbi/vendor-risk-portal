@@ -150,14 +150,18 @@ plane, but **GitHub stays the source of truth** — the portal authors changes b
 - **Auth:** "Sign in with GitHub" via the OAuth **device flow**, through the server's
   `/api/gh-device/*` relay (no client secret in the browser); token in `sessionStorage`.
 - **Reads:** experiment YAML straight from the repo (GitHub Contents API) + live results from
-  `GET /api/experiments/:key/results` (read token entered once, in `localStorage`).
+  `GET /api/experiments/:key/results` — **authorized by the signed-in GitHub token**: the server
+  verifies the user is a repo collaborator (push access on `EXPERIMENTS_REPO`, cached ~5 min), so
+  there's no separate read token in the portal. A shared `EXPERIMENTS_READ_TOKEN` still works as an
+  optional path for automation/curl.
 - **Authors:** New / Edit / Pause compose the YAML and **open a PR** (branch → commit → PR via the
   GitHub REST API) — every change is reviewed, CI-validated, and auto-deployed on merge.
 - **Design system:** the portal does NOT duplicate tokens — `portal/src/styles.css` imports
   `design-system/colors_and_type.css`, and the logo is the canonical `BrandMark` (shield + check).
   CLAUDE.md now makes the `design-system` skill a blocking requirement for all UI (client + portal).
-- **Prereqs (set on Render):** `GH_OAUTH_CLIENT_ID`, `EXPERIMENTS_READ_TOKEN`,
-  `EXPERIMENTS_PORTAL_ORIGIN`, plus repo Settings → Pages → Source: GitHub Actions.
+- **Prereqs (set on Render):** `GH_OAUTH_CLIENT_ID`, `EXPERIMENTS_PORTAL_ORIGIN`, and
+  `EXPERIMENTS_REPO` (defaults to the repo; overridable for forks); `EXPERIMENTS_READ_TOKEN` is now
+  optional (automation only). Plus repo Settings → Pages → Source: GitHub Actions.
 
 ## 3. Key decisions & rationale
 
@@ -185,8 +189,12 @@ plane, but **GitHub stays the source of truth** — the portal authors changes b
   the JSON is regenerated from it at build/dev time, so the two can never drift.
 - **Device-flow relay is required + secret-less.** GitHub's device/token endpoints send no CORS
   headers, so a static SPA can't call them; the relay forwards them with CORS and injects only
-  the public client_id. Results use a separate bearer token (the portal calls them cross-origin
-  with no app session).
+  the public client_id.
+- **Results auth = the signed-in GitHub identity, not a baked secret.** The portal calls results
+  cross-origin with no app session, so it authorizes with the GitHub token it already has; the
+  server verifies repo-collaborator (push) access. Baking a read token into the static bundle was
+  rejected — anything in a client build is public, so it wouldn't be a secret. A shared
+  `EXPERIMENTS_READ_TOKEN` remains an optional automation path.
 
 ## 4. Verification
 

@@ -15,14 +15,12 @@ type ResultState = ExperimentResults | { error: string } | undefined;
 export function App() {
   const [token, setToken] = useState<string | null>(session.getToken());
   const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [readToken, setReadToken] = useState(session.getReadToken());
   const [experiments, setExperiments] = useState<LoadedExperiment[] | null>(null);
   const [results, setResults] = useState<Record<string, ResultState>>({});
   const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
   const [editing, setEditing] = useState<Experiment | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState<ReactNode>(null);
-  const [showSettings, setShowSettings] = useState(false);
 
   const loadExperiments = useCallback(async (tok: string) => {
     setError('');
@@ -43,19 +41,20 @@ export function App() {
     loadExperiments(token);
   }, [token, loadExperiments]);
 
-  // Fetch live results once we have experiments + a read token (best-effort, per experiment).
+  // Live results, authorized by the signed-in GitHub token (the server checks repo-collaborator
+  // access). No separate read token — best-effort, per experiment.
   useEffect(() => {
-    if (!experiments || !readToken) return;
+    if (!experiments || !token) return;
     let cancelled = false;
     for (const { exp } of experiments) {
-      fetchResults(exp.key, readToken)
+      fetchResults(exp.key, token)
         .then((r) => !cancelled && setResults((m) => ({ ...m, [exp.key]: r })))
         .catch((e) => !cancelled && setResults((m) => ({ ...m, [exp.key]: { error: (e as Error).message } })));
     }
     return () => {
       cancelled = true;
     };
-  }, [experiments, readToken]);
+  }, [experiments, token]);
 
   function signOut() {
     session.setToken(null);
@@ -63,14 +62,6 @@ export function App() {
     setViewer(null);
     setExperiments(null);
     setResults({});
-  }
-
-  function saveReadToken(value: string) {
-    const t = value.trim();
-    session.setReadToken(t);
-    setReadToken(t);
-    setResults({});
-    setShowSettings(false);
   }
 
   async function pause(loaded: LoadedExperiment) {
@@ -101,9 +92,6 @@ export function App() {
         <BrandMark size={26} />
         <strong>Experiments</strong>
         <span className="grow" />
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSettings((s) => !s)}>
-          Settings
-        </button>
         {viewer && <span className="caption">@{viewer.login}</span>}
         <button type="button" className="btn btn-secondary btn-sm" onClick={signOut}>
           Sign out
@@ -113,8 +101,6 @@ export function App() {
       <main className="main">
         {error && <Banner kind="error">{error}</Banner>}
         {notice && <Banner kind="ok">{notice}</Banner>}
-
-        {showSettings && <SettingsCard initial={readToken} onSave={saveReadToken} onClose={() => setShowSettings(false)} />}
 
         {view === 'form' ? (
           <ExperimentForm
@@ -146,7 +132,6 @@ export function App() {
           <Dashboard
             experiments={experiments}
             results={results}
-            hasReadToken={!!readToken}
             onNew={() => {
               setEditing(null);
               setView('form');
@@ -159,47 +144,6 @@ export function App() {
           />
         )}
       </main>
-    </div>
-  );
-}
-
-function SettingsCard({
-  initial,
-  onSave,
-  onClose,
-}: {
-  initial: string;
-  onSave: (t: string) => void;
-  onClose: () => void;
-}) {
-  const [val, setVal] = useState(initial);
-  return (
-    <div className="card card-pad stack" style={{ marginBottom: '1rem' }}>
-      <div className="between">
-        <h2>Settings</h2>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      <div className="field" style={{ margin: 0 }}>
-        <label className="label" htmlFor="s-token">
-          Results read token
-        </label>
-        <input
-          id="s-token"
-          className="input mono"
-          type="password"
-          value={val}
-          placeholder="EXPERIMENTS_READ_TOKEN"
-          onChange={(e) => setVal(e.target.value)}
-        />
-        <p className="caption">Stored in this browser only. Lets the portal read aggregate results from the API.</p>
-      </div>
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => onSave(val)}>
-          Save
-        </button>
-      </div>
     </div>
   );
 }

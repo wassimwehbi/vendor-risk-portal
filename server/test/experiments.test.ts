@@ -280,6 +280,29 @@ test('GET results: 401 without token, 200 with the bearer token', async () => {
   assert.equal(unknown.status, 404);
 });
 
+test('GET results: a GitHub token is gated on repo-collaborator (push) access', async () => {
+  const realFetch = globalThis.fetch;
+  // Distinct tokens per case so the per-token verification cache doesn't cross over.
+  const ghJson = (body: unknown, status = 200) =>
+    (async () => ({ ok: status >= 200 && status < 300, status, json: async () => body })) as unknown as typeof fetch;
+  try {
+    globalThis.fetch = ghJson({ permissions: { push: false } }); // public-repo reader, not a collaborator
+    const denied = await request(app).get('/api/experiments/reg-exp/results').set('authorization', 'Bearer gh_reader');
+    assert.equal(denied.status, 403);
+
+    globalThis.fetch = ghJson({ permissions: { push: true } }); // collaborator with write
+    const allowed = await request(app).get('/api/experiments/reg-exp/results').set('authorization', 'Bearer gh_collab');
+    assert.equal(allowed.status, 200);
+    assert.equal(allowed.body.data.key, 'reg-exp');
+
+    globalThis.fetch = ghJson({}, 401); // invalid/expired GitHub token
+    const bad = await request(app).get('/api/experiments/reg-exp/results').set('authorization', 'Bearer gh_bad');
+    assert.equal(bad.status, 401);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('POST /api/gh-device/code returns 503 when no GitHub client_id is configured', async () => {
   const res = await request(app).post('/api/gh-device/code').send({});
   assert.equal(res.status, 503);

@@ -50,10 +50,13 @@ export async function authorize(onPrompt: (d: DeviceCode) => void): Promise<stri
   throw new Error('Sign-in timed out — please try again.');
 }
 
-/** Fetch aggregate results for an experiment (bearer-token gated; unwraps the app envelope). */
-export async function fetchResults(key: string, readToken: string): Promise<ExperimentResults> {
+/**
+ * Fetch aggregate results for an experiment. Authorized with the signed-in GitHub token — the
+ * server verifies the user is a repo collaborator — so there's no separate read token.
+ */
+export async function fetchResults(key: string, token: string): Promise<ExperimentResults> {
   const res = await fetch(`${API_BASE}/api/experiments/${encodeURIComponent(key)}/results`, {
-    headers: { authorization: `Bearer ${readToken}` },
+    headers: { authorization: `Bearer ${token}` },
   });
   const body = (await res.json().catch(() => ({}))) as { success?: boolean; data?: ExperimentResults; error?: string };
   if (!res.ok || !body.success || !body.data) throw new Error(body.error || `Results unavailable (${res.status}).`);
