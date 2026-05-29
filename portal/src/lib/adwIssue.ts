@@ -124,20 +124,31 @@ export function composeAdwIssue(p: AICreatePayload): ComposedAdwIssue {
   return { title, body, draft, humanSummary, templateLabel };
 }
 
-/** Templated 3-sentence PM-friendly summary. No LLM call — sourced from the catalog + form. */
+/** Templated 3-sentence PM-friendly summary. No LLM call — sourced from the catalog + form.
+ *  Returns '' when the treatment description is empty so the caller can hide the trust-moment
+ *  card until the PM has typed something to launch — keeps the AI provenance chip from being
+ *  attached to half-finished copy. Several small grammar moves vs. raw catalog data:
+ *    - the action description from the catalog starts with a capitalized 'User'/'Analyst' and
+ *      ends with a period (correct as catalog copy), but mid-sentence under 'Success is
+ *      measured when …' both need to be neutralised — lowercase the first letter, drop the
+ *      trailing period.
+ *    - the treatment textarea often ends with a period too; same strip so 'change X by Y.' has
+ *      exactly one period.
+ *    - 'from this dashboard' matches the form's header copy ('from the dashboard'). 'auto-merges'
+ *      is third-person singular — Claude is the subject. */
 export function buildHumanSummary(p: AICreatePayload): string {
+  const treatment = p.treatmentDescription.trim().replace(/\.$/, '');
+  if (!treatment) return '';
   const metricKey = primaryMetricKey(p.mode);
-  const actionDescription = actionDescriptionText(p.mode);
+  const rawDesc = actionDescriptionText(p.mode).trim().replace(/\.$/, '');
+  const actionDescription = rawDesc.charAt(0).toLowerCase() + rawDesc.slice(1);
   const audience = formatAudience(p.targetRoles, p.targetTenants);
-  const treatment = p.treatmentDescription
-    ? p.treatmentDescription.trim().replace(/\.$/, '')
-    : 'an AI-described change';
   const samePage = p.actionPage.id === p.variantPage.id;
   const where = samePage ? `the ${p.variantPage.title} page` : `the ${p.variantPage.title} page (with the goal action on ${p.actionPage.title})`;
   return [
     `Test "${p.name}" will change ${where} by ${treatment}.`,
     `Success is measured when ${actionDescription} — tracked as ${metricKey}.`,
-    `${audience} Claude will write the code and the config card, then auto-merge them as a draft. You flip the test to running later from the portal.`,
+    `${audience} Claude writes the code and the config card, then auto-merges them as a draft. You flip the test to running later from this dashboard.`,
   ].join(' ');
 }
 
@@ -343,8 +354,9 @@ function formatAudience(roles?: Role[], tenants?: number[]): string {
   if (!roles?.length && !tenants?.length) return 'Everyone signed in will see it.';
   const parts: string[] = [];
   if (roles?.length) {
-    const last = roles[roles.length - 1];
-    parts.push(roles.length === 1 ? `${roles[0]}s` : `${roles.slice(0, -1).join(', ')} and ${last}s`);
+    // Pluralise every role, not just the last — 'Analyst and Submitters' was wrong.
+    const plural = roles.map((r) => `${r}s`);
+    parts.push(plural.length === 1 ? plural[0] : `${plural.slice(0, -1).join(', ')} and ${plural[plural.length - 1]}`);
   }
   if (tenants?.length) parts.push(`tenant${tenants.length === 1 ? '' : 's'} ${tenants.join(', ')}`);
   return `Only ${parts.join(' in ')} will see it.`;

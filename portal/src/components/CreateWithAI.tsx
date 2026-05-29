@@ -415,7 +415,12 @@ export function CreateWithAI({ token, catalog, existingKeys, onCancel, onDone }:
 
       {/* ─── Trust moment: templated summary right above Launch. AI provenance chip per
             design-system/DESIGN_SYSTEM.md §AI ATTRIBUTION — brand-tinted, footnote-sized. */}
-      {composed && (
+      {/* The trust-moment summary card. We deliberately gate it on a non-empty humanSummary
+          (which buildHumanSummary returns '' when treatment description is empty) — pinning the
+          AI-attribution chip to half-finished copy feels unfinished, and the form's validate()
+          already requires treatment before submit, so the gate also pedagogically guides the
+          user to fill the treatment textarea before the brief appears. */}
+      {composed?.humanSummary && (
         <div className="card card-pad" aria-label="What you're about to launch">
           <div className="row" style={{ marginBottom: '0.4rem' }}>
             <AiChip />
