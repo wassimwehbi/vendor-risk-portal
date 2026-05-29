@@ -6,12 +6,15 @@ type ResultState = ExperimentResults | { error: string } | undefined;
 interface Props {
   experiments: LoadedExperiment[];
   results: Record<string, ResultState>;
+  /** If true, the signed-in user has push access — show the AI-create CTA (spec 0017). */
+  canCreate: boolean;
   onNew: () => void;
+  onCreateWithAI: () => void;
   onEdit: (e: LoadedExperiment) => void;
   onPause: (e: LoadedExperiment) => void;
 }
 
-export function Dashboard({ experiments, results, onNew, onEdit, onPause }: Props) {
+export function Dashboard({ experiments, results, canCreate, onNew, onCreateWithAI, onEdit, onPause }: Props) {
   return (
     <div className="stack">
       <div className="between">
@@ -19,9 +22,16 @@ export function Dashboard({ experiments, results, onNew, onEdit, onPause }: Prop
           <h2>Experiments</h2>
           <p className="caption">{experiments.length} defined in experiments/ · every change opens a pull request</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={onNew}>
-          + New experiment
-        </button>
+        <div className="row">
+          <button type="button" className="btn btn-secondary" onClick={onNew}>
+            + New experiment
+          </button>
+          {canCreate && (
+            <button type="button" className="btn btn-primary" onClick={onCreateWithAI} title="Trigger an ADW build that wires the product code + creates the first draft card">
+              Create with AI
+            </button>
+          )}
+        </div>
       </div>
 
       {experiments.length === 0 ? (

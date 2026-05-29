@@ -2,8 +2,8 @@
 // changes. Authenticated with the device-flow token (5000 req/h; reads also work unauthenticated at
 // 60 req/h). api.github.com supports CORS for these calls.
 import { EXPERIMENTS_DIR, REPO } from '../config';
-import type { LoadedExperiment } from '../types';
-import { parseExperiment } from './yaml';
+import type { Catalog, LoadedExperiment } from '../types';
+import { parseCatalog, parseExperiment } from './yaml';
 
 const GH = 'https://api.github.com';
 
@@ -48,6 +48,45 @@ export interface Viewer {
 
 export function getViewer(token: string): Promise<Viewer> {
   return gh<Viewer>('/user', { token });
+}
+
+/**
+ * Repo-level permissions for the signed-in user. We only care about `push` — it mirrors the
+ * server's collaborator gate for results, and the `adw-zte.yml` workflow's `author_association`
+ * gate (OWNER/MEMBER/COLLABORATOR). The portal hides the "Create with AI" CTA when push is
+ * false so a non-collaborator doesn't silently file an issue ADW will then ignore.
+ */
+export function getRepoPermissions(token: string): Promise<{ push: boolean }> {
+  return gh<{ permissions?: { push?: boolean } }>(`/repos/${REPO}`, { token }).then((r) => ({
+    push: r.permissions?.push === true,
+  }));
+}
+
+/**
+ * Fetch + parse experiments/catalog.yml. The catalog is the source of truth for what's available
+ * to A/B test today (spec 0017 refinement). On any failure (404, decode, parse, shape), throws —
+ * the caller (App) turns the error into the fail-closed banner. We deliberately don't fall back
+ * to file-path pickers: the catalog IS the contract.
+ */
+export async function fetchCatalog(token?: string): Promise<Catalog> {
+  const file = await gh<FileContent>(`/repos/${REPO}/contents/${EXPERIMENTS_DIR}/catalog.yml`, { token });
+  return parseCatalog(decodeBase64(file.content));
+}
+
+/**
+ * Create a GitHub issue with labels in a single call. `adw-zte.yml` fires on `issues: opened` AND
+ * checks the labels array on the same event, so creating with `labels: ['adw:zte']` triggers ADW
+ * directly — no separate label call needed.
+ */
+export function createIssue(
+  token: string,
+  opts: { title: string; body: string; labels: string[] },
+): Promise<{ html_url: string; number: number }> {
+  return gh<{ html_url: string; number: number }>(`/repos/${REPO}/issues`, {
+    token,
+    method: 'POST',
+    body: opts,
+  });
 }
 
 interface ContentItem {
